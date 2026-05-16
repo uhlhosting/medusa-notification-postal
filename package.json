@@ -1,0 +1,27 @@
+{
+  "name": "@uhlhosting/medusa-notification-postal",
+  "version": "0.1.0",
+  "description": "Postal notification provider for Medusa",
+  "author": "uhlhosting",
+  "license": "UNLICENSED",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "services",
+    "README.md"
+  ],
+  "keywords": [
+    "medusa-provider",
+    "notification",
+    "postal"
+  ],
+  "dependencies": {
+    "@medusajs/framework": "2.15.2"
+  },
+  "peerDependencies": {
+    "@medusajs/framework": "2.15.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
