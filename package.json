@@ -4,19 +4,48 @@
   "description": "Postal notification provider for Medusa",
   "author": "uhlhosting",
   "license": "UNLICENSED",
-  "main": "index.js",
   "files": [
-    "index.js",
-    "services",
-    "README.md"
+    ".medusa/server"
   ],
+  "main": "./.medusa/server/src/index.js",
+  "exports": {
+    ".": "./.medusa/server/src/index.js",
+    "./package.json": "./package.json",
+    "./*": "./.medusa/server/src/*.js",
+    "./admin": {
+      "import": "./.medusa/server/src/admin/index.mjs",
+      "require": "./.medusa/server/src/admin/index.js",
+      "default": "./.medusa/server/src/admin/index.js"
+    }
+  },
+  "scripts": {
+    "build": "medusa plugin:build",
+    "dev": "medusa plugin:develop"
+  },
   "keywords": [
     "medusa-provider",
     "notification",
     "postal"
   ],
   "dependencies": {
-    "@medusajs/framework": "2.15.2"
+    "@medusajs/framework": "2.15.2",
+    "@medusajs/icons": "2.15.2",
+    "@tanstack/react-query": "5.64.2"
+  },
+  "devDependencies": {
+    "@medusajs/admin-sdk": "2.15.2",
+    "@medusajs/admin-shared": "2.15.2",
+    "@medusajs/cli": "2.15.2",
+    "@medusajs/framework": "2.15.2",
+    "@medusajs/types": "2.15.2",
+    "@medusajs/ui": "4.1.12",
+    "@types/node": "20.19.26",
+    "@types/react": "^18.3.2",
+    "@types/react-dom": "^18.2.25",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "6.30.3",
+    "typescript": "5.6.2"
   },
   "peerDependencies": {
     "@medusajs/framework": "2.15.2"

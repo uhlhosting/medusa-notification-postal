@@ -1,12 +1,30 @@
-const {
+import {
   AbstractNotificationProviderService,
   MedusaError,
-} = require("@medusajs/framework/utils")
+} from "@medusajs/framework/utils"
+import { 
+  Logger, 
+  ProviderSendNotificationDTO, 
+  ProviderSendNotificationResultsDTO 
+} from "@medusajs/framework/types"
 
-class PostalNotificationService extends AbstractNotificationProviderService {
-  static identifier = "notification-postal"
+interface PostalOptions {
+  base_url: string
+  api_key: string
+  from: string
+}
 
-  constructor({ logger }, options) {
+export class PostalNotificationService extends AbstractNotificationProviderService {
+  static readonly identifier = "notification-postal"
+
+  protected config_: {
+    baseUrl: string
+    apiKey: string
+    from: string
+  }
+  protected logger_: Logger
+
+  constructor({ logger }: { logger: Logger }, options: PostalOptions) {
     super()
 
     const baseUrl = (options.base_url || "").trim().replace(/\/$/, "")
@@ -35,7 +53,9 @@ class PostalNotificationService extends AbstractNotificationProviderService {
     this.logger_ = logger
   }
 
-  async send(notification) {
+  async send(
+    notification: ProviderSendNotificationDTO
+  ): Promise<ProviderSendNotificationResultsDTO> {
     if (!notification) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
@@ -44,8 +64,9 @@ class PostalNotificationService extends AbstractNotificationProviderService {
     }
 
     const to = this.normalizeEmails(notification.to)
-    const cc = this.normalizeEmails(notification.provider_data?.cc)
-    const bcc = this.normalizeEmails(notification.provider_data?.bcc)
+    const providerData = (notification.data as any)?.provider_data || {}
+    const cc = this.normalizeEmails(providerData?.cc)
+    const bcc = this.normalizeEmails(providerData?.bcc)
 
     if (!to.length && !cc.length && !bcc.length) {
       throw new MedusaError(
@@ -63,15 +84,13 @@ class PostalNotificationService extends AbstractNotificationProviderService {
     }
 
     const subject =
-      notification.content?.subject ||
-      notification.data?.subject ||
+      (notification.data as any)?.subject ||
       notification.template ||
       "Notification"
 
-    const htmlBody = notification.content?.html || notification.data?.html || ""
+    const htmlBody = (notification.data as any)?.html || ""
     const plainBody =
-      notification.content?.text ||
-      notification.data?.text ||
+      (notification.data as any)?.text ||
       (htmlBody ? this.stripHtml(htmlBody) : "")
 
     const payload = {
@@ -82,9 +101,9 @@ class PostalNotificationService extends AbstractNotificationProviderService {
       subject,
       html_body: htmlBody || undefined,
       plain_body: plainBody || undefined,
-      tag: notification.template || notification.channel || undefined,
-      headers: notification.provider_data?.headers || undefined,
-      attachments: this.normalizeAttachments(notification.attachments),
+      tag: notification.template || undefined,
+      headers: providerData?.headers || undefined,
+      attachments: this.normalizeAttachments(notification.attachments as any),
     }
 
     try {
@@ -109,9 +128,8 @@ class PostalNotificationService extends AbstractNotificationProviderService {
 
       return {
         id: body?.data?.message_id,
-        data: body?.data || {},
       }
-    } catch (error) {
+    } catch (error: any) {
       if (error instanceof MedusaError) {
         throw error
       }
@@ -123,7 +141,7 @@ class PostalNotificationService extends AbstractNotificationProviderService {
     }
   }
 
-  normalizeEmails(value) {
+  protected normalizeEmails(value: any): string[] {
     if (!value) {
       return []
     }
@@ -136,7 +154,7 @@ class PostalNotificationService extends AbstractNotificationProviderService {
       .filter(Boolean)
   }
 
-  normalizeAttachments(attachments) {
+  protected normalizeAttachments(attachments: any[] | null | undefined) {
     if (!Array.isArray(attachments) || !attachments.length) {
       return undefined
     }
@@ -156,11 +174,7 @@ class PostalNotificationService extends AbstractNotificationProviderService {
       .filter(Boolean)
   }
 
-  stripHtml(html) {
+  protected stripHtml(html: string): string {
     return String(html).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
   }
-}
-
-module.exports = {
-  PostalNotificationService,
 }
