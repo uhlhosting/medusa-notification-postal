@@ -1,13 +1,12 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk"
-import { 
-  Container as MedusaContainer, 
-  Heading as MedusaHeading, 
-  Text as MedusaText, 
+import {
+  Container as MedusaContainer,
+  Heading as MedusaHeading,
+  Text as MedusaText,
   StatusBadge as MedusaStatusBadge,
   DataTable,
   useDataTable,
-  createDataTableColumnHelper,
-  Spinner
+  createDataTableColumnHelper
 } from "@medusajs/ui"
 import { useQuery } from "@tanstack/react-query"
 import { useState, useMemo } from "react"
@@ -25,6 +24,8 @@ type Notification = {
   channel: string
   template: string
   created_at: string
+  status?: string
+  external_id?: string
   data: any
 }
 
@@ -46,11 +47,14 @@ const columns = [
   columnHelper.accessor("id", {
     header: "Status",
     cell: ({ row }) => {
-      const data = row.original.data
-      const isSuccess = data?.message_id || data?.status === "success"
+      const data = row.original.data || {}
+      const isSuccess =
+        row.original.status === "success" ||
+        !!row.original.external_id ||
+        data?.status === "success"
       return (
         <StatusBadge color={isSuccess ? "green" : "red"}>
-          {isSuccess ? "Delivered" : "Failed"}
+          {isSuccess ? "Sent" : "Pending/Failed"}
         </StatusBadge>
       )
     }
@@ -87,6 +91,10 @@ const PostalAdminPage = () => {
     }
   })
 
+  const sentCount = useMemo(() => {
+    return (notificationsData || []).filter((n) => n.status === "success" || n.external_id).length
+  }, [notificationsData])
+
   const table = useDataTable({
     data: notificationsData || [],
     columns,
@@ -110,7 +118,7 @@ const PostalAdminPage = () => {
         </div>
         <div className="flex items-center gap-2">
           {isHealthLoading ? (
-            <Spinner size="small" />
+            <Text size="small" className="text-ui-fg-subtle">Checking...</Text>
           ) : (
             <StatusBadge color={(health as any)?.status === "ok" ? "green" : "red"}>
               {(health as any)?.status === "ok" ? "Connected" : "Disconnected"}
@@ -122,29 +130,29 @@ const PostalAdminPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-ui-bg-component border rounded-lg p-6 flex flex-col gap-2 shadow-elevation-card-rest">
           <div className="flex items-center gap-2 text-ui-fg-muted">
-            <Envelope size={20} />
-            <Text weight="plus" size="small">Deliverability</Text>
+            <Envelope />
+            <Text weight="plus" size="small">Auth Mode</Text>
           </div>
-          <Text size="xlarge" weight="plus">99.8%</Text>
-          <Text size="small" className="text-ui-fg-subtle">Last 30 days average</Text>
+          <Text size="xlarge" weight="plus">{(health as any)?.auth_type || "smtp-api"}</Text>
+          <Text size="small" className="text-ui-fg-subtle">Configured Postal transport</Text>
         </div>
         
         <div className="bg-ui-bg-component border rounded-lg p-6 flex flex-col gap-2 shadow-elevation-card-rest">
           <div className="flex items-center gap-2 text-ui-fg-success">
-            <CheckCircle size={20} />
-            <Text weight="plus" size="small">Successful Sends</Text>
+            <CheckCircle />
+            <Text weight="plus" size="small">Sent</Text>
           </div>
-          <Text size="xlarge" weight="plus">{notificationsData?.length || 0}</Text>
-          <Text size="small" className="text-ui-fg-subtle">Current view count</Text>
+          <Text size="xlarge" weight="plus">{sentCount}</Text>
+          <Text size="small" className="text-ui-fg-subtle">Rows with success status or external id</Text>
         </div>
 
         <div className="bg-ui-bg-component border rounded-lg p-6 flex flex-col gap-2 shadow-elevation-card-rest">
           <div className="flex items-center gap-2 text-ui-fg-error">
-            <XCircle size={20} />
-            <Text weight="plus" size="small">Suppression Rate</Text>
+            <XCircle />
+            <Text weight="plus" size="small">Total Events</Text>
           </div>
-          <Text size="xlarge" weight="plus">0.2%</Text>
-          <Text size="small" className="text-ui-fg-subtle">Bounces and complaints</Text>
+          <Text size="xlarge" weight="plus">{notificationsData?.length || 0}</Text>
+          <Text size="small" className="text-ui-fg-subtle">Notification records shown</Text>
         </div>
       </div>
 
@@ -165,8 +173,8 @@ const PostalAdminPage = () => {
       <div className="flex items-center gap-2 p-4 bg-ui-bg-subtle border border-dashed rounded-lg">
         <InformationCircle className="text-ui-fg-muted" />
         <Text size="small" className="text-ui-fg-subtle">
-          Postal server is running at <strong>{(health as any)?.base_url || "your-postal-server.com"}</strong>. 
-          Configure templates in your Postal dashboard.
+          Track workflow-level email events by setting <strong>provider_data.workflow_event</strong> and
+          <strong> provider_data.workflow_run_id</strong> when calling Medusa notification steps.
         </Text>
       </div>
     </Container>
