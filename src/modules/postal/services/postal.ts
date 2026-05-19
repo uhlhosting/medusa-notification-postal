@@ -356,4 +356,18 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
   protected stripHtml(html: string): string {
     return String(html).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
   }
+
+  getHealthSnapshot() {
+    const authType = this.config_.authType
+
+    return {
+      auth_type: authType,
+      mode:
+        authType === "smtp-api"
+          ? "http-api"
+          : authType === "smtp-ip"
+            ? "smtp-ip-allowlist"
+            : "smtp-auth",
+    }
+  }
 }
