@@ -1,8 +1,8 @@
 import { jsx, jsxs } from "react/jsx-runtime";
 import { defineRouteConfig } from "@medusajs/admin-sdk";
-import { createDataTableColumnHelper, Text as Text$1, StatusBadge as StatusBadge$1, useDataTable, Container as Container$1, Heading as Heading$1, Spinner, DataTable } from "@medusajs/ui";
+import { createDataTableColumnHelper, Text as Text$1, StatusBadge as StatusBadge$1, useDataTable, Container as Container$1, Heading as Heading$1, DataTable } from "@medusajs/ui";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Envelope, CheckCircle, XCircle, InformationCircle } from "@medusajs/icons";
 import Medusa from "@medusajs/js-sdk";
 import "@medusajs/admin-shared";
@@ -34,9 +34,9 @@ const columns = [
   columnHelper.accessor("id", {
     header: "Status",
     cell: ({ row }) => {
-      const data = row.original.data;
-      const isSuccess = (data == null ? void 0 : data.message_id) || (data == null ? void 0 : data.status) === "success";
-      return /* @__PURE__ */ jsx(StatusBadge, { color: isSuccess ? "green" : "red", children: isSuccess ? "Delivered" : "Failed" });
+      const data = row.original.data || {};
+      const isSuccess = row.original.status === "success" || !!row.original.external_id || (data == null ? void 0 : data.status) === "success";
+      return /* @__PURE__ */ jsx(StatusBadge, { color: isSuccess ? "green" : "red", children: isSuccess ? "Sent" : "Pending/Failed" });
     }
   })
 ];
@@ -62,6 +62,9 @@ const PostalAdminPage = () => {
       );
     }
   });
+  const sentCount = useMemo(() => {
+    return (notificationsData || []).filter((n) => n.status === "success" || n.external_id).length;
+  }, [notificationsData]);
   const table = useDataTable({
     data: notificationsData || [],
     columns,
@@ -79,32 +82,32 @@ const PostalAdminPage = () => {
         /* @__PURE__ */ jsx(Heading, { level: "h1", className: "mb-2", children: "Postal Notifications" }),
         /* @__PURE__ */ jsx(Text, { className: "text-ui-fg-subtle", children: "Manage and monitor your transactional emails sent via Postal." })
       ] }),
-      /* @__PURE__ */ jsx("div", { className: "flex items-center gap-2", children: isHealthLoading ? /* @__PURE__ */ jsx(Spinner, { size: "small" }) : /* @__PURE__ */ jsx(StatusBadge, { color: (health == null ? void 0 : health.status) === "ok" ? "green" : "red", children: (health == null ? void 0 : health.status) === "ok" ? "Connected" : "Disconnected" }) })
+      /* @__PURE__ */ jsx("div", { className: "flex items-center gap-2", children: isHealthLoading ? /* @__PURE__ */ jsx(Text, { size: "small", className: "text-ui-fg-subtle", children: "Checking..." }) : /* @__PURE__ */ jsx(StatusBadge, { color: (health == null ? void 0 : health.status) === "ok" ? "green" : "red", children: (health == null ? void 0 : health.status) === "ok" ? "Connected" : "Disconnected" }) })
     ] }),
     /* @__PURE__ */ jsxs("div", { className: "grid grid-cols-1 md:grid-cols-3 gap-6", children: [
       /* @__PURE__ */ jsxs("div", { className: "bg-ui-bg-component border rounded-lg p-6 flex flex-col gap-2 shadow-elevation-card-rest", children: [
         /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 text-ui-fg-muted", children: [
-          /* @__PURE__ */ jsx(Envelope, { size: 20 }),
-          /* @__PURE__ */ jsx(Text, { weight: "plus", size: "small", children: "Deliverability" })
+          /* @__PURE__ */ jsx(Envelope, {}),
+          /* @__PURE__ */ jsx(Text, { weight: "plus", size: "small", children: "Auth Mode" })
         ] }),
-        /* @__PURE__ */ jsx(Text, { size: "xlarge", weight: "plus", children: "99.8%" }),
-        /* @__PURE__ */ jsx(Text, { size: "small", className: "text-ui-fg-subtle", children: "Last 30 days average" })
+        /* @__PURE__ */ jsx(Text, { size: "xlarge", weight: "plus", children: (health == null ? void 0 : health.auth_type) || "smtp-api" }),
+        /* @__PURE__ */ jsx(Text, { size: "small", className: "text-ui-fg-subtle", children: "Configured Postal transport" })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "bg-ui-bg-component border rounded-lg p-6 flex flex-col gap-2 shadow-elevation-card-rest", children: [
         /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 text-ui-fg-success", children: [
-          /* @__PURE__ */ jsx(CheckCircle, { size: 20 }),
-          /* @__PURE__ */ jsx(Text, { weight: "plus", size: "small", children: "Successful Sends" })
+          /* @__PURE__ */ jsx(CheckCircle, {}),
+          /* @__PURE__ */ jsx(Text, { weight: "plus", size: "small", children: "Sent" })
         ] }),
-        /* @__PURE__ */ jsx(Text, { size: "xlarge", weight: "plus", children: (notificationsData == null ? void 0 : notificationsData.length) || 0 }),
-        /* @__PURE__ */ jsx(Text, { size: "small", className: "text-ui-fg-subtle", children: "Current view count" })
+        /* @__PURE__ */ jsx(Text, { size: "xlarge", weight: "plus", children: sentCount }),
+        /* @__PURE__ */ jsx(Text, { size: "small", className: "text-ui-fg-subtle", children: "Rows with success status or external id" })
       ] }),
       /* @__PURE__ */ jsxs("div", { className: "bg-ui-bg-component border rounded-lg p-6 flex flex-col gap-2 shadow-elevation-card-rest", children: [
         /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 text-ui-fg-error", children: [
-          /* @__PURE__ */ jsx(XCircle, { size: 20 }),
-          /* @__PURE__ */ jsx(Text, { weight: "plus", size: "small", children: "Suppression Rate" })
+          /* @__PURE__ */ jsx(XCircle, {}),
+          /* @__PURE__ */ jsx(Text, { weight: "plus", size: "small", children: "Total Events" })
         ] }),
-        /* @__PURE__ */ jsx(Text, { size: "xlarge", weight: "plus", children: "0.2%" }),
-        /* @__PURE__ */ jsx(Text, { size: "small", className: "text-ui-fg-subtle", children: "Bounces and complaints" })
+        /* @__PURE__ */ jsx(Text, { size: "xlarge", weight: "plus", children: (notificationsData == null ? void 0 : notificationsData.length) || 0 }),
+        /* @__PURE__ */ jsx(Text, { size: "small", className: "text-ui-fg-subtle", children: "Notification records shown" })
       ] })
     ] }),
     /* @__PURE__ */ jsxs(Container, { className: "p-0 overflow-hidden border rounded-lg", children: [
@@ -117,9 +120,11 @@ const PostalAdminPage = () => {
     /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2 p-4 bg-ui-bg-subtle border border-dashed rounded-lg", children: [
       /* @__PURE__ */ jsx(InformationCircle, { className: "text-ui-fg-muted" }),
       /* @__PURE__ */ jsxs(Text, { size: "small", className: "text-ui-fg-subtle", children: [
-        "Postal server is running at ",
-        /* @__PURE__ */ jsx("strong", { children: (health == null ? void 0 : health.base_url) || "your-postal-server.com" }),
-        ". Configure templates in your Postal dashboard."
+        "Track workflow-level email events by setting ",
+        /* @__PURE__ */ jsx("strong", { children: "provider_data.workflow_event" }),
+        " and",
+        /* @__PURE__ */ jsx("strong", { children: " provider_data.workflow_run_id" }),
+        " when calling Medusa notification steps."
       ] })
     ] })
   ] });
