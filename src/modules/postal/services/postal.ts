@@ -7,7 +7,6 @@ import {
   ProviderSendNotificationDTO,
   ProviderSendNotificationResultsDTO,
 } from "@medusajs/framework/types"
-import nodemailer from "nodemailer"
 
 interface PostalOptions {
   auth_type?: "smtp-api" | "smtp-ip" | "smtp"
@@ -272,6 +271,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
 
     try {
+      const nodemailer = (await import("nodemailer")).default
       const transporter = nodemailer.createTransport({
         host: this.config_.smtpHost,
         port: this.config_.smtpPort,
