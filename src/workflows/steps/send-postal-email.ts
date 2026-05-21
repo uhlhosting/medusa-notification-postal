@@ -16,10 +16,16 @@ type SendPostalEmailStepInput = {
   }
 }
 
+type PostalNotificationProvider = {
+  send: (input: SendPostalEmailStepInput) => Promise<{ id?: string | null }>
+}
+
 export const sendPostalEmailStep = createStep(
   "send-postal-email",
   async (input: SendPostalEmailStepInput, { container }) => {
-    const postalService = container.resolve("notification-postal") as any
+    const postalService = container.resolve(
+      "notification-postal"
+    ) as PostalNotificationProvider
     const result = await postalService.send(input)
 
     return new StepResponse({
