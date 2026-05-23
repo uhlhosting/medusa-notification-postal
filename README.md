@@ -82,3 +82,29 @@ await notificationModuleService.createNotifications({
 ```
 
 The provider logs `workflow_event` and `workflow_run_id` for traceability in Medusa runtime logs.
+
+### Programmatic Workflows
+
+You can trigger a direct email notification through the Postal provider programmatically using the `sendPostalEmailWorkflow`. This ensures the mail goes through the provider's standard channel and logs full delivery metadata.
+
+```typescript
+import { sendPostalEmailWorkflow } from "@uhlhosting/medusa-notification-postal"
+
+const { result } = await sendPostalEmailWorkflow(req.scope).run({
+  input: {
+    to: "customer@example.com",
+    from: "custom-sender@example.com", // Optional, defaults to POSTAL_FROM
+    template: "custom-template-id",    // Optional
+    provider_data: {
+      subject: "Test Programmatic Email",
+      html: "<p>Hello, this is a test email sent programmatically.</p>",
+      text: "Hello, this is a test email sent programmatically.",
+      workflow_event: "admin.test_send",
+      workflow_run_id: "wf_run_manual_123"
+    }
+  }
+})
+
+// Result returns the delivery info:
+// { success: true, delivery: { message_id: "123", ... } }
+```
