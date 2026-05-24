@@ -7,7 +7,6 @@ import {
   ProviderSendNotificationDTO,
   ProviderSendNotificationResultsDTO,
 } from "@medusajs/framework/types"
-import { sendPostalEmailWorkflow } from "../../workflows/send-postal-email"
 
 interface PostalOptions {
   auth_type?: "smtp-api" | "smtp-ip" | "smtp"
@@ -20,6 +19,25 @@ interface PostalOptions {
   smtp_user?: string
   smtp_pass?: string
   smtp_timeout?: number
+}
+
+const parseBooleanOption = (value: unknown, fallback = false) => {
+  if (typeof value === "boolean") {
+    return value
+  }
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase()
+    if (["true", "1", "yes", "on"].includes(normalized)) {
+      return true
+    }
+    if (["false", "0", "no", "off", ""].includes(normalized)) {
+      return false
+    }
+  }
+  if (typeof value === "number") {
+    return value !== 0
+  }
+  return fallback
 }
 
 export class PostalNotificationService extends AbstractNotificationProviderService {
@@ -54,10 +72,11 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     const from = (options.from || "").trim()
     const smtpHost = (options.smtp_host || "").trim()
     const smtpPort = Number(options.smtp_port || 25)
-    const smtpSecure = Boolean(options.smtp_secure)
+    const smtpSecure = parseBooleanOption(options.smtp_secure, false)
     const smtpUser = (options.smtp_user || "").trim()
     const smtpPass = (options.smtp_pass || "").trim()
     const smtpTimeout = Number(options.smtp_timeout || 10000)
+
 
     if (!["smtp-api", "smtp-ip", "smtp"].includes(authType)) {
       throw new MedusaError(
@@ -184,29 +203,6 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
 
     const providerData = (notification.provider_data as any) || {}
-
-    if (!providerData?.__is_workflow_execution) {
-      this.logger_.info(
-        `PostalNotificationService.send programmatically executing send-postal-email workflow`
-      )
-      const { result } = await sendPostalEmailWorkflow(this.container_).run({
-        input: {
-          to: notification.to,
-          from: notification.from || undefined,
-          template: notification.template || undefined,
-          provider_data: {
-            ...providerData,
-            workflow_event: providerData?.workflow_event || notification.template || "email.send",
-            workflow_run_id: providerData?.workflow_run_id || `send_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            __is_workflow_execution: true,
-          },
-        },
-      })
-
-      return {
-        id: result?.delivery?.id || undefined,
-      }
-    }
 
     const to = this.normalizeEmails(notification.to)
     const cc = this.normalizeEmails(providerData?.cc)

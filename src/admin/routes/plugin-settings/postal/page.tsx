@@ -61,12 +61,12 @@ const PostalSettingsPage = () => {
       auth_type: data.auth_type || "smtp-api",
       from: data.from || "",
       base_url: data.base_url || "",
-      api_key: "",
+      api_key: data.api_key || "",
       smtp_host: data.smtp_host || "",
       smtp_port: data.smtp_port || "",
       smtp_secure: data.smtp_secure || "false",
       smtp_user: data.smtp_user || "",
-      smtp_pass: "",
+      smtp_pass: data.smtp_pass || "",
       test_to: data.test_to || "",
     })
     setTo(data.test_to || "")
@@ -90,8 +90,8 @@ const PostalSettingsPage = () => {
         smtp_secure: next?.smtp_secure || "false",
         smtp_user: next?.smtp_user || "",
         test_to: next?.test_to || "",
-        api_key: "",
-        smtp_pass: "",
+        api_key: next?.api_key || prev.api_key,
+        smtp_pass: next?.smtp_pass || prev.smtp_pass,
       }))
       toast.success("Postal settings saved")
       refetch()

@@ -75,18 +75,21 @@ const PostalAdminPage = () => {
   const { data: notificationsData, isLoading: isNotificationsLoading } = useQuery({
     queryKey: ["postal-notifications", searchValue],
     queryFn: async () => {
-      // Fetch all notifications and filter by channel/provider if possible
-      // Medusa V2 notifications usually have a channel
       const response = await sdk.client.fetch("/admin/notifications", {
         query: {
           limit: 50,
           q: searchValue || undefined
         }
       })
-      // Filter for postal provider in frontend if backend filter is not specific enough
-      // Note: In a real app, we'd add a filter to the API
-      return (response as any).notifications.filter((n: any) => 
-        n.channel === "email" || n.provider_id === "notification-postal"
+      const notifications = Array.isArray((response as any)?.notifications)
+        ? (response as any).notifications
+        : []
+
+      // Keep compatibility with both provider ids seen in this repo.
+      return notifications.filter((n: any) =>
+        n?.channel === "email" ||
+        n?.provider_id === "notification-postal" ||
+        n?.provider_id === "postal"
       ) as Notification[]
     }
   })
