@@ -7,7 +7,7 @@ import {
   ProviderSendNotificationDTO,
   ProviderSendNotificationResultsDTO,
 } from "@medusajs/framework/types"
-import { sendPostalEmailWorkflow } from "../../../workflows/send-postal-email"
+import { sendPostalEmailWorkflow } from "../../workflows/send-postal-email"
 
 interface PostalOptions {
   auth_type?: "smtp-api" | "smtp-ip" | "smtp"

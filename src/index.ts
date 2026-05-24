@@ -1,3 +1,3 @@
-export * from "./modules/postal"
+export * from "./postal"
 export * from "./workflows"
-export { default } from "./modules/postal"
+export { default } from "./postal"

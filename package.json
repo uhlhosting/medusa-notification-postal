@@ -9,9 +9,22 @@
   ],
   "main": "./.medusa/server/src/index.js",
   "exports": {
-    ".": "./.medusa/server/src/index.js",
+    ".": {
+      "types": "./.medusa/server/src/index.d.ts",
+      "default": "./.medusa/server/src/index.js"
+    },
     "./package.json": "./package.json",
+    "./.medusa/server/src/modules/postal/index.js": "./.medusa/server/src/modules/postal/index.js",
+    "./.medusa/server/src/modules/postal": "./.medusa/server/src/modules/postal/index.js",
+    "./.medusa/server/src/modules/postal/index": "./.medusa/server/src/modules/postal/index.js",
+    "./.medusa/server/src/modules/*": "./.medusa/server/src/modules/*/index.js",
+    "./modules/*": "./.medusa/server/src/modules/*/index.js",
+    "./.medusa/server/src/*": "./.medusa/server/src/*",
     "./*": "./.medusa/server/src/*.js",
+    "./modules/postal": {
+      "types": "./.medusa/server/src/modules/postal/index.d.ts",
+      "default": "./.medusa/server/src/modules/postal/index.js"
+    },
     "./admin": {
       "import": "./.medusa/server/src/admin/index.mjs",
       "require": "./.medusa/server/src/admin/index.js",
@@ -53,5 +66,6 @@
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "types": "./.medusa/server/src/index.d.ts"
 }
