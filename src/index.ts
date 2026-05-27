@@ -1,3 +1,3 @@
-export * from "./postal"
+export * from "./providers/postal"
 export * from "./workflows"
-export { default } from "./postal"
+export { default } from "./providers/postal"
