@@ -8,8 +8,10 @@ import {
   ProviderSendNotificationResultsDTO,
 } from "@medusajs/framework/types"
 
+type PostalAuthType = "smtp-api" | "smtp-ip" | "smtp"
+
 interface PostalOptions {
-  auth_type?: "smtp-api" | "smtp-ip" | "smtp"
+  auth_type?: PostalAuthType
   base_url?: string
   api_key?: string
   from: string
@@ -44,7 +46,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
   static readonly identifier = "notification-postal"
 
   protected config_: {
-    authType: "smtp-api" | "smtp-ip" | "smtp"
+    authType: PostalAuthType
     baseUrl?: string
     apiKey?: string
     from: string
@@ -63,10 +65,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     this.container_ = container
     const { logger } = container
 
-    const authType = (options.auth_type || "smtp-api").trim() as
-      | "smtp-api"
-      | "smtp-ip"
-      | "smtp"
+    const authType = (options.auth_type || "smtp-api").trim() as PostalAuthType
     const baseUrl = (options.base_url || "").trim().replace(/\/$/, "")
     const apiKey = (options.api_key || "").trim()
     const from = (options.from || "").trim()
@@ -139,10 +138,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
   }
 
   static validateOptions(options: Record<string, any>) {
-    const authType = (options?.auth_type || "smtp-api") as
-      | "smtp-api"
-      | "smtp-ip"
-      | "smtp"
+    const authType = (options?.auth_type || "smtp-api") as PostalAuthType
     const from = String(options?.from || "").trim()
 
     if (!from) {
@@ -223,12 +219,16 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
-    const subject = providerData?.subject || notification.template || "Notification"
+    const subject =
+      providerData?.subject || notification.template || "Notification"
 
     const htmlBody = providerData?.html || ""
     const plainBody =
-      providerData?.text ||
-      (htmlBody ? this.stripHtml(htmlBody) : "")
+      providerData?.text || (htmlBody ? this.stripHtml(htmlBody) : "")
+
+    const attachments = this.normalizeAttachments(
+      notification.attachments as any
+    )
 
     const payload = {
       to,
@@ -240,60 +240,79 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       plain_body: plainBody || undefined,
       tag: notification.template || undefined,
       headers: providerData?.headers || undefined,
-      attachments: this.normalizeAttachments(notification.attachments as any),
+      attachments,
     }
 
     const workflowEvent = String(providerData?.workflow_event || "")
     const workflowRunId = String(providerData?.workflow_run_id || "")
 
     this.logger_.info(
-      `Postal notification send started auth=${this.config_.authType} template=${notification.template || "none"} event=${workflowEvent || "none"} run_id=${workflowRunId || "none"}`
+      `Postal notification send started auth=${
+        this.config_.authType
+      } template=${notification.template || "none"} event=${
+        workflowEvent || "none"
+      } run_id=${workflowRunId || "none"}`
     )
 
     if (this.config_.authType === "smtp-api") {
-      try {
-        const response = await fetch(
-          `${this.config_.baseUrl}/api/v1/send/message`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "X-Server-API-Key": this.config_.apiKey as string,
-            },
-            body: JSON.stringify(payload),
-          }
-        )
-
-        const body = await response.json().catch(() => null)
-
-        if (!response.ok || body?.status === "error") {
-          const details =
-            body?.data?.message || body?.data?.error || body?.status || "unknown error"
-          throw new MedusaError(
-            MedusaError.Types.UNEXPECTED_STATE,
-            `Failed to send email with Postal API: ${response.status} - ${details}`
-          )
-        }
-
-        this.logger_.info(
-          `Postal notification send succeeded auth=smtp-api message_id=${body?.data?.message_id || "unknown"}`
-        )
-
-        return {
-          id: body?.data?.message_id,
-        }
-      } catch (error: any) {
-        if (error instanceof MedusaError) {
-          throw error
-        }
-
-        throw new MedusaError(
-          MedusaError.Types.UNEXPECTED_STATE,
-          `Failed to send email with Postal API: ${error?.message || "unknown error"}`
-        )
-      }
+      return await this.sendViaApi(payload)
     }
 
+    return await this.sendViaSmtp(payload)
+  }
+
+  private async sendViaApi(payload: any): Promise<{ id: string }> {
+    try {
+      const response = await fetch(
+        `${this.config_.baseUrl}/api/v1/send/message`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Server-API-Key": this.config_.apiKey as string,
+          },
+          body: JSON.stringify(payload),
+        }
+      )
+
+      const body = await response.json().catch(() => null)
+
+      if (!response.ok || body?.status === "error") {
+        const details =
+          body?.data?.message ||
+          body?.data?.error ||
+          body?.status ||
+          "unknown error"
+        throw new MedusaError(
+          MedusaError.Types.UNEXPECTED_STATE,
+          `Failed to send email with Postal API: ${response.status} - ${details}`
+        )
+      }
+
+      this.logger_.info(
+        `Postal notification send succeeded auth=smtp-api message_id=${
+          body?.data?.message_id || "unknown"
+        }`
+      )
+
+      return {
+        id: body?.data?.message_id,
+      }
+    } catch (error: any) {
+      if (error instanceof MedusaError) {
+        throw error
+      }
+
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        `Failed to send email with Postal API: ${
+          error?.message || "unknown error"
+        }`
+      )
+    }
+  }
+
+  private async sendViaSmtp(payload: any): Promise<{ id: string }> {
     try {
       const nodemailer = (await import("nodemailer")).default
       const transporter = nodemailer.createTransport({
@@ -311,26 +330,26 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       })
 
       const result = await transporter.sendMail({
-        from,
-        to: to.length ? to : undefined,
-        cc: cc.length ? cc : undefined,
-        bcc: bcc.length ? bcc : undefined,
-        subject,
-        html: htmlBody || undefined,
-        text: plainBody || undefined,
-        headers: providerData?.headers || undefined,
-        attachments: (this.normalizeAttachments(notification.attachments as any) || []).map(
-          (attachment: any) => ({
-            filename: attachment.name,
-            content: attachment.data,
-            contentType: attachment.content_type,
-            encoding: "base64",
-          })
-        ),
+        from: payload.from,
+        to: payload.to.length ? payload.to : undefined,
+        cc: payload.cc.length ? payload.cc : undefined,
+        bcc: payload.bcc.length ? payload.bcc : undefined,
+        subject: payload.subject,
+        html: payload.html_body,
+        text: payload.plain_body,
+        headers: payload.headers,
+        attachments: (payload.attachments || []).map((attachment: any) => ({
+          filename: attachment.name,
+          content: attachment.data,
+          contentType: attachment.content_type,
+          encoding: "base64",
+        })),
       })
 
       this.logger_.info(
-        `Postal notification send succeeded auth=${this.config_.authType} message_id=${result?.messageId || "unknown"}`
+        `Postal notification send succeeded auth=${
+          this.config_.authType
+        } message_id=${result?.messageId || "unknown"}`
       )
 
       return {
@@ -339,7 +358,9 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     } catch (error: any) {
       throw new MedusaError(
         MedusaError.Types.UNEXPECTED_STATE,
-        `Failed to send email with Postal SMTP: ${error?.message || "unknown error"}`
+        `Failed to send email with Postal SMTP: ${
+          error?.message || "unknown error"
+        }`
       )
     }
   }
@@ -383,15 +404,17 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
 
   getHealthSnapshot() {
     const authType = this.config_.authType
+    let mode = "smtp-auth"
+
+    if (authType === "smtp-api") {
+      mode = "http-api"
+    } else if (authType === "smtp-ip") {
+      mode = "smtp-ip-allowlist"
+    }
 
     return {
       auth_type: authType,
-      mode:
-        authType === "smtp-api"
-          ? "http-api"
-          : authType === "smtp-ip"
-            ? "smtp-ip-allowlist"
-            : "smtp-auth",
+      mode,
     }
   }
 }

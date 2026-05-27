@@ -55,6 +55,7 @@
     "@medusajs/types": "2.15.3",
     "@medusajs/ui": "4.1.13",
     "@types/node": "20.19.26",
+    "@types/nodemailer": "^6.4.17",
     "@types/react": "^18.3.2",
     "@types/react-dom": "^18.2.25",
     "react": "^18.3.1",
@@ -66,10 +67,10 @@
     "@medusajs/admin-sdk": "2.15.3",
     "@medusajs/cli": "2.15.3",
     "@medusajs/framework": "2.15.3",
-    "@medusajs/medusa": "2.15.3",
-    "@medusajs/ui": "4.1.13",
     "@medusajs/icons": "2.15.3",
-    "@medusajs/test-utils": "2.15.3"
+    "@medusajs/medusa": "2.15.3",
+    "@medusajs/test-utils": "2.15.3",
+    "@medusajs/ui": "4.1.13"
   },
   "engines": {
     "node": ">=20"
