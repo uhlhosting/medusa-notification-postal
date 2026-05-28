@@ -6,6 +6,6 @@
 [32minfo[39m:    Compiling plugin source...
 [32minfo[39m:    Removing existing ".medusa/server" folder
 [32minfo[39m:    Compiling plugin admin extensions...
-[32minfo[39m:    Plugin build completed successfully (5.25s)
+[32minfo[39m:    Plugin build completed successfully (2.27s)
 "deepMerge" is imported from external module "@medusajs/admin-shared" but never used in "src/admin/__admin-extensions__.js".
-[32minfo[39m:    Plugin admin extensions build completed successfully (5.53s)
+[32minfo[39m:    Plugin admin extensions build completed successfully (2.39s)
