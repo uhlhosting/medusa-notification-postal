@@ -3,7 +3,7 @@
     "target": "ES2021",
     "esModuleInterop": true,
     "module": "Node16",
-    "moduleResolution": "node16",
+    "moduleResolution": "Node16",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "skipLibCheck": true,
@@ -17,23 +17,20 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "checkJs": false,
-    "allowJs": false,
-    "strictNullChecks": true,
-    "typeRoots": [
-      "node_modules/@types",
-      "../../node_modules/@types"
-    ],
-    "types": [
-      "node"
-    ]
+    "strictNullChecks": true
+  },
+  "ts-node": {
+    "swc": true
   },
   "include": [
-    "**/*"
+    "**/*",
+    ".medusa/types/*"
   ],
   "exclude": [
     "node_modules",
     ".medusa/server",
     ".medusa/admin",
+    "src/admin",
     ".cache"
   ]
 }
