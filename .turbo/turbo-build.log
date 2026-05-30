@@ -1,5 +1,4 @@
 
-
 > @uhlhosting/medusa-notification-postal@0.1.0 build /Users/cosmic/Developer/MedusaJS/Tabaklaedeli/plugins/medusa-notification-postal
 > medusa plugin:build
 
@@ -7,6 +6,6 @@
 [32minfo[39m:    Compiling plugin source...
 [32minfo[39m:    Removing existing ".medusa/server" folder
 [32minfo[39m:    Compiling plugin admin extensions...
-[32minfo[39m:    Plugin build completed successfully (2.72s)
-[2K[1G"deepMerge" is imported from external module "@medusajs/admin-shared" but never used in "src/admin/__admin-extensions__.js".
-[32minfo[39m:    Plugin admin extensions build completed successfully (2.81s)
+[32minfo[39m:    Plugin build completed successfully (3.04s)
+"deepMerge" is imported from external module "@medusajs/admin-shared" but never used in "src/admin/__admin-extensions__.js".
+[32minfo[39m:    Plugin admin extensions build completed successfully (3.13s)
