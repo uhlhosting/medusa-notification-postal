@@ -24,3 +24,8 @@ build
 !.yarn/versions
 
 .medusa
+.turbo/
+test-results/
+playwright-report/
+*.log
+test-*.ts

@@ -23,6 +23,11 @@ interface PostalOptions {
   smtp_timeout?: number
 }
 
+type PostalApiResult = {
+  status?: string
+  data?: any
+}
+
 const parseBooleanOption = (value: unknown, fallback = false) => {
   if (typeof value === "boolean") {
     return value
@@ -261,42 +266,34 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     return await this.sendViaSmtp(payload)
   }
 
+  async getMessageDetails(id: string | number) {
+    return await this.fetchPostalApi("messages/message", {
+      id: this.normalizePostalLookupId(id),
+      _expansions: true,
+    })
+  }
+
+  async getMessageDeliveries(id: string | number) {
+    return await this.fetchPostalApi("messages/deliveries", {
+      id: this.normalizePostalLookupId(id),
+    })
+  }
+
   private async sendViaApi(payload: any): Promise<{ id: string }> {
     try {
-      const response = await fetch(
-        `${this.config_.baseUrl}/api/v1/send/message`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Server-API-Key": this.config_.apiKey as string,
-          },
-          body: JSON.stringify(payload),
-        }
-      )
-
-      const body = await response.json().catch(() => null)
-
-      if (!response.ok || body?.status === "error") {
-        const details =
-          body?.data?.message ||
-          body?.data?.error ||
-          body?.status ||
-          "unknown error"
-        throw new MedusaError(
-          MedusaError.Types.UNEXPECTED_STATE,
-          `Failed to send email with Postal API: ${response.status} - ${details}`
-        )
-      }
+      const body = await this.fetchPostalApi("send/message", payload)
+      const messageId = body?.message_id ? String(body.message_id) : ""
+      const recipientMessage = this.getFirstRecipientMessage(body?.messages)
+      const externalId = recipientMessage?.id || messageId
 
       this.logger_.info(
         `Postal notification send succeeded auth=smtp-api message_id=${
-          body?.data?.message_id || "unknown"
-        }`
+          messageId || "unknown"
+        } postal_id=${recipientMessage?.id || "unknown"}`
       )
 
       return {
-        id: body?.data?.message_id,
+        id: externalId,
       }
     } catch (error: any) {
       if (error instanceof MedusaError) {
@@ -310,6 +307,77 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
         }`
       )
     }
+  }
+
+  private async fetchPostalApi(path: string, payload: any) {
+    if (this.config_.authType !== "smtp-api") {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Postal API lookup requires smtp-api mode"
+      )
+    }
+
+    const response = await fetch(
+      `${this.config_.baseUrl}/api/v1/${path}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Server-API-Key": this.config_.apiKey as string,
+        },
+        body: JSON.stringify(payload),
+      }
+    )
+
+    const body = (await response.json().catch(() => null)) as PostalApiResult | null
+
+    if (!response.ok || !body || body.status === "error") {
+      const details =
+        body?.data?.message ||
+        body?.data?.error ||
+        body?.status ||
+        "unknown error"
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        `Postal API request failed: ${response.status} - ${details}`
+      )
+    }
+
+    return body?.data
+  }
+
+  private getFirstRecipientMessage(messages: unknown) {
+    if (!messages || typeof messages !== "object") {
+      return null
+    }
+
+    const entries = Object.entries(messages as Record<string, any>)
+    for (const [recipient, message] of entries) {
+      const id = message?.id
+      if (id === undefined || id === null || id === "") {
+        continue
+      }
+
+      return {
+        recipient,
+        id: String(id),
+        token: message?.token ? String(message.token) : undefined,
+      }
+    }
+
+    return null
+  }
+
+  private normalizePostalLookupId(id: string | number) {
+    const normalized = Number.parseInt(String(id), 10)
+    if (!Number.isFinite(normalized) || String(normalized) !== String(id).trim()) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Postal message lookup requires the numeric per-recipient message id stored by new smtp-api sends"
+      )
+    }
+
+    return normalized
   }
 
   private async sendViaSmtp(payload: any): Promise<{ id: string }> {

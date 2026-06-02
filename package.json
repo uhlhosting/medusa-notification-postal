@@ -52,7 +52,11 @@
   },
   "dependencies": {
     "@tanstack/react-query": "5.64.2",
-    "nodemailer": "^6.10.1"
+    "i18next": "26.3.0",
+    "nodemailer": "^6.10.1",
+    "pg": "8.21.0",
+    "react-i18next": "13.5.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@medusajs/admin-sdk": "2.15.3",

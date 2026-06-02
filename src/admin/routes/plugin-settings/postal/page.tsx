@@ -1,4 +1,3 @@
-import { defineRouteConfig } from "@medusajs/admin-sdk"
 import { 
   Container, 
   Heading, 
@@ -13,8 +12,10 @@ import {
   Divider,
 } from "@medusajs/ui"
 import { useMutation, useQuery } from "@tanstack/react-query"
-	import { useEffect, useState } from "react"
-	import { Envelope, PaperPlane } from "@medusajs/icons"
+import { useEffect, useState } from "react"
+import { PaperPlane } from "@medusajs/icons"
+import { useTranslation } from "react-i18next"
+import { Navigate } from "react-router-dom"
 import { sdk } from "../../../lib/client"
 
 type PostalSettingsForm = {
@@ -43,7 +44,8 @@ const emptyForm: PostalSettingsForm = {
   test_to: "",
 }
 
-const PostalSettingsPage = () => {
+export const PostalSettingsPage = () => {
+  const { t } = useTranslation()
   const [to, setTo] = useState("")
   const [form, setForm] = useState<PostalSettingsForm>(emptyForm)
 
@@ -93,11 +95,11 @@ const PostalSettingsPage = () => {
         api_key: next?.api_key || prev.api_key,
         smtp_pass: next?.smtp_pass || prev.smtp_pass,
       }))
-      toast.success("Postal settings saved")
+      toast.success(t("postal.toast.saved"))
       refetch()
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Failed to save postal settings")
+      toast.error(err?.message || t("postal.toast.save_failed"))
     },
   })
 
@@ -108,11 +110,11 @@ const PostalSettingsPage = () => {
         body: payload,
       }),
     onSuccess: (res: any) => {
-      toast.success(`Postal test queued to ${res?.to || "recipient"}`)
+      toast.success(`${t("postal.toast.test_queued_prefix")} ${res?.to || t("postal.recipient_fallback")}`)
       refetch()
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Failed to send test email")
+      toast.error(err?.message || t("postal.toast.test_failed"))
     },
   })
 
@@ -126,46 +128,46 @@ const PostalSettingsPage = () => {
       <Container className="p-0 overflow-hidden">
         <div className="px-6 py-4 border-b flex items-center justify-between">
           <div>
-            <Heading level="h1">Postal Notifications</Heading>
+            <Heading level="h1">{t("postal.title")}</Heading>
             <Text size="small" className="text-ui-fg-subtle">
-              Configure your Postal SMTP/API delivery provider for transactional emails.
+              {t("postal.subtitle")}
             </Text>
           </div>
           <StatusBadge color={isConfigured ? "green" : "grey"}>
-            {isConfigured ? "Configured" : "Not Configured"}
+            {isConfigured ? t("postal.configured") : t("postal.not_configured")}
           </StatusBadge>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x">
           <div className="p-6 space-y-6">
             <div className="space-y-4">
-              <Heading level="h2">Configuration</Heading>
+              <Heading level="h2">{t("postal.configuration")}</Heading>
               
               <div className="grid grid-cols-1 gap-4">
                 <div className="flex flex-col gap-y-2">
-                  <Label htmlFor="postal-auth-type">Authentication Type</Label>
+                  <Label htmlFor="postal-auth-type">{t("postal.auth_type")}</Label>
                   <Select
                     value={form.auth_type}
                     onValueChange={(v) => setForm((prev) => ({ ...prev, auth_type: v as PostalSettingsForm["auth_type"] }))}
                     disabled={saveMutation.isPending || testMutation.isPending}
                   >
                     <Select.Trigger id="postal-auth-type">
-                      <Select.Value placeholder="Select auth type" />
+                      <Select.Value placeholder={t("postal.select_auth_type")} />
                     </Select.Trigger>
                     <Select.Content>
-                      <Select.Item value="smtp-api">SMTP API (Recommended)</Select.Item>
-                      <Select.Item value="smtp-ip">SMTP IP Based</Select.Item>
-                      <Select.Item value="smtp">Standard SMTP</Select.Item>
+                      <Select.Item value="smtp-api">{t("postal.auth.smtp_api")}</Select.Item>
+                      <Select.Item value="smtp-ip">{t("postal.auth.smtp_ip")}</Select.Item>
+                      <Select.Item value="smtp">{t("postal.auth.smtp")}</Select.Item>
                     </Select.Content>
                   </Select>
                 </div>
 
                 <div className="flex flex-col gap-y-2">
-                  <Label htmlFor="postal-from">From Email</Label>
+                  <Label htmlFor="postal-from">{t("postal.from_email")}</Label>
                   <Input 
                     id="postal-from" 
                     type="email" 
-                    placeholder="noreply@yourstore.com"
+                    placeholder={t("postal.placeholder.from_email")}
                     value={form.from} 
                     onChange={(e) => setForm((prev) => ({ ...prev, from: e.target.value }))} 
                   />
@@ -174,23 +176,28 @@ const PostalSettingsPage = () => {
                 {showApiFields && (
                   <>
                     <div className="flex flex-col gap-y-2">
-                      <Label htmlFor="postal-base-url">Postal Base URL</Label>
+                      <Label htmlFor="postal-base-url">{t("postal.base_url")}</Label>
                       <Input 
                         id="postal-base-url" 
-                        placeholder="https://post.example.com" 
+                        placeholder={t("postal.placeholder.base_url")} 
                         value={form.base_url} 
                         onChange={(e) => setForm((prev) => ({ ...prev, base_url: e.target.value }))} 
                       />
                     </div>
                     <div className="flex flex-col gap-y-2">
-                      <Label htmlFor="postal-api-key">API Key</Label>
+                      <Label htmlFor="postal-api-key">{t("postal.api_key")}</Label>
                       <Input 
                         id="postal-api-key" 
                         type="password" 
-                        placeholder="••••••••••••••••" 
+                        placeholder={data?.secret_hints?.api_key_masked || t("postal.masked_long")} 
                         value={form.api_key} 
                         onChange={(e) => setForm((prev) => ({ ...prev, api_key: e.target.value }))} 
                       />
+                      <Text size="xsmall" className="text-ui-fg-subtle">
+                        {data?.secret_hints?.api_key_masked
+                          ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.saved_key_suffix")}`
+                          : t("postal.no_api_key_saved")}
+                      </Text>
                     </div>
                   </>
                 )}
@@ -198,10 +205,10 @@ const PostalSettingsPage = () => {
                 {showSmtpFields && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-y-2 md:col-span-2">
-                      <Label htmlFor="postal-smtp-host">SMTP Host</Label>
+                      <Label htmlFor="postal-smtp-host">{t("postal.smtp_host")}</Label>
                       <Input 
                         id="postal-smtp-host" 
-                        placeholder="mail.postal.yourdomain.com"
+                        placeholder={t("postal.placeholder.smtp_host")}
                         value={form.smtp_host} 
                         onChange={(e) => setForm((prev) => ({ ...prev, smtp_host: e.target.value }))} 
                       />
@@ -209,32 +216,37 @@ const PostalSettingsPage = () => {
                     {form.auth_type === "smtp" && (
                       <>
                         <div className="flex flex-col gap-y-2 md:col-span-2">
-                          <Label htmlFor="postal-smtp-port">Port</Label>
+                          <Label htmlFor="postal-smtp-port">{t("postal.smtp_port")}</Label>
                           <Input 
                             id="postal-smtp-port" 
-                            placeholder="25"
+                            placeholder={t("postal.placeholder.smtp_port")}
                             value={form.smtp_port} 
                             onChange={(e) => setForm((prev) => ({ ...prev, smtp_port: e.target.value }))} 
                           />
                         </div>
                         <div className="flex flex-col gap-y-2 md:col-span-2">
-                          <Label htmlFor="postal-smtp-user">Username</Label>
+                          <Label htmlFor="postal-smtp-user">{t("postal.smtp_user")}</Label>
                           <Input 
                             id="postal-smtp-user" 
-                            placeholder="username@org/server"
+                            placeholder={t("postal.placeholder.smtp_user")}
                             value={form.smtp_user} 
                             onChange={(e) => setForm((prev) => ({ ...prev, smtp_user: e.target.value }))} 
                           />
                         </div>
                         <div className="flex flex-col gap-y-2 md:col-span-2">
-                          <Label htmlFor="postal-smtp-pass">Password</Label>
+                          <Label htmlFor="postal-smtp-pass">{t("postal.smtp_pass")}</Label>
                           <Input 
                             id="postal-smtp-pass" 
                             type="password" 
-                            placeholder="••••••••" 
+                            placeholder={data?.secret_hints?.smtp_pass_masked || t("postal.masked_short")} 
                             value={form.smtp_pass} 
                             onChange={(e) => setForm((prev) => ({ ...prev, smtp_pass: e.target.value }))} 
                           />
+                          <Text size="xsmall" className="text-ui-fg-subtle">
+                            {data?.secret_hints?.smtp_pass_masked
+                              ? `${t("postal.saved_password_prefix")} ${data.secret_hints.smtp_pass_masked}. ${t("postal.saved_password_suffix")}`
+                              : t("postal.no_smtp_pass_saved")}
+                          </Text>
                         </div>
                       </>
                     )}
@@ -245,11 +257,11 @@ const PostalSettingsPage = () => {
               <Divider />
 
               <div className="flex flex-col gap-y-2">
-                <Label htmlFor="postal-test-to-default">Default Test Recipient</Label>
+                <Label htmlFor="postal-test-to-default">{t("postal.default_test_recipient")}</Label>
                 <Input
                   id="postal-test-to-default"
                   type="email"
-                  placeholder="admin@example.com"
+                  placeholder={t("postal.placeholder.test_recipient")}
                   value={form.test_to}
                   onChange={(e) => {
                     setForm((prev) => ({ ...prev, test_to: e.target.value }))
@@ -257,7 +269,7 @@ const PostalSettingsPage = () => {
                   }}
                 />
                 <Text size="xsmall" className="text-ui-fg-subtle">
-                  Used as fallback for testing delivery if no recipient is provided.
+                  {t("postal.default_test_recipient_hint")}
                 </Text>
               </div>
 
@@ -267,24 +279,24 @@ const PostalSettingsPage = () => {
                 onClick={() => saveMutation.mutate({ action: "save", settings: form })}
                 isLoading={saveMutation.isPending}
               >
-                Save Changes
+                {t("postal.save_changes")}
               </Button>
             </div>
           </div>
 
           <div className="p-6 bg-ui-bg-subtle/20 space-y-6">
-            <Heading level="h2">Test Connectivity</Heading>
+            <Heading level="h2">{t("postal.test_connectivity")}</Heading>
             <Text size="small" className="text-ui-fg-subtle">
-              Verify that your credentials are correct by sending a real test email through the Postal infrastructure.
+              {t("postal.test_connectivity_hint")}
             </Text>
             
             <div className="flex flex-col gap-y-4">
               <div className="flex flex-col gap-y-2">
-                <Label htmlFor="postal-test-to">Recipient Address</Label>
+                <Label htmlFor="postal-test-to">{t("postal.recipient_address")}</Label>
                 <Input
                   id="postal-test-to"
                   type="email"
-                  placeholder="customer@example.com"
+                  placeholder={t("postal.placeholder.customer_email")}
                   value={to}
                   onChange={(e) => setTo(e.target.value)}
                 />
@@ -297,14 +309,14 @@ const PostalSettingsPage = () => {
                 isLoading={testMutation.isPending}
               >
                 <PaperPlane className="w-4 h-4 mr-2" />
-                Send Test Email
+                {t("postal.send_test_email")}
               </Button>
 
               {data?.configured && (
                 <div className="mt-4 p-4 rounded-lg border bg-ui-bg-base space-y-3 shadow-sm transition-all duration-300">
                   <div className="flex items-center justify-between border-b pb-2">
                     <Text size="xsmall" weight="plus" className="text-ui-fg-subtle uppercase tracking-wider">
-                      Active Config Checklist
+                      {t("postal.active_config_checklist")}
                     </Text>
                     <Badge size="small" color="blue" className="capitalize">
                       {form.auth_type.replace("-", " ")}
@@ -329,7 +341,7 @@ const PostalSettingsPage = () => {
                           <div className="flex items-center gap-x-1.5">
                             <span className={`h-2 w-2 rounded-full ${val ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.5)]'}`} />
                             <Text size="xsmall" className={val ? 'text-emerald-600 font-semibold' : 'text-rose-500 font-semibold'}>
-                              {val ? 'Set' : 'Missing'}
+                              {val ? t("postal.set") : t("postal.missing")}
                             </Text>
                           </div>
                         </div>
@@ -345,9 +357,6 @@ const PostalSettingsPage = () => {
   )
 }
 
-export const config = defineRouteConfig({
-  label: "Postal",
-  icon: Envelope,
-})
+const PostalPluginSettingsRedirect = () => <Navigate to="/settings/postal" replace />
 
-export default PostalSettingsPage
+export default PostalPluginSettingsRedirect
