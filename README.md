@@ -72,9 +72,12 @@ await notificationModuleService.createNotifications({
   to: "customer@example.com",
   template: "order-placed",
   provider_id: "postal",
-  provider_data: {
+  content: {
     subject: "Order confirmation",
     html: "<p>Thanks for your order</p>",
+    text: "Thanks for your order",
+  },
+  provider_data: {
     workflow_event: "order.placed",
     workflow_run_id: "wf_run_123",
   },
@@ -99,6 +102,7 @@ const { result } = await sendPostalEmailWorkflow(req.scope).run({
       subject: "Test Programmatic Email",
       html: "<p>Hello, this is a test email sent programmatically.</p>",
       text: "Hello, this is a test email sent programmatically.",
+      cc: "copy@example.com",
       workflow_event: "admin.test_send",
       workflow_run_id: "wf_run_manual_123"
     }

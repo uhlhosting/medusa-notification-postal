@@ -31,7 +31,18 @@ export const sendPostalEmailStep = createStep(
       to,
       channel: "email",
       template: input.template || "default",
-      data: input.provider_data as any,
+      content: {
+        subject: input.provider_data.subject,
+        html: input.provider_data.html,
+        text: input.provider_data.text,
+      },
+      provider_data: {
+        cc: input.provider_data.cc,
+        bcc: input.provider_data.bcc,
+        headers: input.provider_data.headers,
+        workflow_event: input.provider_data.workflow_event,
+        workflow_run_id: input.provider_data.workflow_run_id,
+      },
     })
 
     return new StepResponse({

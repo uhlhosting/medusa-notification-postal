@@ -203,7 +203,11 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
-    const providerData = (notification.data as any) || (notification as any).provider_data || {}
+    const providerData =
+      (notification.provider_data as any) ||
+      (notification.data as any) ||
+      {}
+    const content = (notification.content as any) || {}
 
     const to = this.normalizeEmails(notification.to)
     const cc = this.normalizeEmails(providerData?.cc)
@@ -225,11 +229,13 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
 
     const subject =
-      providerData?.subject || notification.template || "Notification"
+      content?.subject || providerData?.subject || notification.template || "Notification"
 
-    const htmlBody = providerData?.html || ""
+    const htmlBody = content?.html || providerData?.html || ""
     const plainBody =
-      providerData?.text || (htmlBody ? this.stripHtml(htmlBody) : "")
+      content?.text ||
+      providerData?.text ||
+      (htmlBody ? this.stripHtml(htmlBody) : "")
 
     const attachments = this.normalizeAttachments(
       notification.attachments as any
