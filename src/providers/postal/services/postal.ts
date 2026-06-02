@@ -198,7 +198,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
-    const providerData = (notification.provider_data as any) || {}
+    const providerData = (notification.data as any) || (notification as any).provider_data || {}
 
     const to = this.normalizeEmails(notification.to)
     const cc = this.normalizeEmails(providerData?.cc)

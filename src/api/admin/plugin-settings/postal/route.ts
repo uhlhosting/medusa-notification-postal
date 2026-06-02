@@ -75,6 +75,7 @@ const readEnvMap = () => {
         envMap.set(key, JSON.parse(rawValue))
         continue
       } catch {
+        // Fall back to raw value when JSON parsing fails.
       }
     }
 
@@ -193,12 +194,18 @@ export async function POST(
     return res.json({
       ok: true,
       action: "save",
+      code: "postal_settings_saved",
+      type: "postal_settings_result",
+      status: 200,
       settings,
     })
   }
 
   if (action !== "test") {
     return res.status(400).json({
+      code: "postal_action_invalid",
+      type: "postal_validation_error",
+      status: 400,
       message: "Invalid action. Use `save` or `test`.",
     })
   }
@@ -216,6 +223,9 @@ export async function POST(
 
   if (!to) {
     return res.status(400).json({
+      code: "postal_recipient_missing",
+      type: "postal_validation_error",
+      status: 400,
       message: "Missing recipient. Provide `to` or set POSTAL_TEST_TO/POSTAL_FROM.",
     })
   }
@@ -237,6 +247,9 @@ export async function POST(
   return res.json({
     ok: true,
     action: "test",
+    code: "postal_test_queued",
+    type: "postal_test_result",
+    status: 200,
     provider_id: "postal",
     to,
     result,

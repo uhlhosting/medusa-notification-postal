@@ -13,8 +13,8 @@ import {
   Divider,
 } from "@medusajs/ui"
 import { useMutation, useQuery } from "@tanstack/react-query"
-import { useEffect, useMemo, useState } from "react"
-import { Envelope, ArrowPath, PaperPlane } from "@medusajs/icons"
+	import { useEffect, useState } from "react"
+	import { Envelope, PaperPlane } from "@medusajs/icons"
 import { sdk } from "../../../lib/client"
 
 type PostalSettingsForm = {
@@ -47,7 +47,7 @@ const PostalSettingsPage = () => {
   const [to, setTo] = useState("")
   const [form, setForm] = useState<PostalSettingsForm>(emptyForm)
 
-  const { data, isLoading, refetch } = useQuery<any>({
+  const { data, refetch } = useQuery<any>({
     queryKey: ["plugin-settings-postal"],
     queryFn: () => sdk.client.fetch("/admin/plugin-settings/postal"),
   })

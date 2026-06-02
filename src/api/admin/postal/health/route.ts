@@ -24,6 +24,8 @@ export const GET = async (
   }
 
   res.json({
+    code: "postal_provider_active",
+    type: "postal_health_status",
     status: "ok",
     message: "Postal notification provider is active",
     auth_type: authType,
