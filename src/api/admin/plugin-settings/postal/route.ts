@@ -186,6 +186,14 @@ const normalizeSettings = (source?: Partial<Record<string, string>>) => ({
   },
 })
 
+const toPublicPostalSettings = (
+  settings: ReturnType<typeof normalizeSettings>
+) => ({
+  ...settings,
+  api_key: "",
+  smtp_pass: "",
+})
+
 const readPostalSettingsFromDb = async (): Promise<Partial<Record<string, string>>> => {
   const databaseUrl = process.env.DATABASE_URL
   if (!databaseUrl) {
@@ -345,7 +353,7 @@ const validateModeRequirements = (settings: ReturnType<typeof normalizeSettings>
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const settings = await getPostalSettings()
   res.json({
-    ...settings,
+    ...toPublicPostalSettings(settings),
     diagnostics: {
       settings_source: "db_over_env",
     },
@@ -369,7 +377,7 @@ export async function POST(
       code: "postal_settings_saved",
       type: "postal_settings_result",
       status: 200,
-      settings,
+      settings: toPublicPostalSettings(settings),
       requires_restart: true,
       ready_for_test: !validationError,
       validation_error: validationError,
@@ -399,7 +407,7 @@ export async function POST(
       type: "postal_validation_error",
       status: 400,
       message: validationError,
-      settings: currentSettings,
+      settings: toPublicPostalSettings(currentSettings),
       requires_restart: true,
     })
   }
@@ -466,6 +474,6 @@ export async function POST(
     to,
     workflow_run_id: runId,
     result,
-    settings: currentSettings,
+    settings: toPublicPostalSettings(currentSettings),
   })
 }
