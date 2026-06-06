@@ -6,7 +6,7 @@ export const POST = async (
   req: MedusaRequest,
   res: MedusaResponse
 ) => {
-  const body = (req.body || {}) as {
+  const body = (req.validatedBody || req.body || {}) as {
     to?: string | string[]
     from?: string
     template?: string

@@ -26,6 +26,20 @@ const postalSettingsSchema = zod.object({
     .optional(),
 })
 
+const postalSendTestSchema = zod
+  .object({
+    to: zod.union([zod.string().min(1), zod.array(zod.string().min(1)).min(1)]),
+    from: zod.string().optional(),
+    template: zod.string().optional(),
+    subject: zod.string().min(1),
+    html: zod.string().optional(),
+    text: zod.string().optional(),
+    cc: zod.union([zod.string(), zod.array(zod.string())]).optional(),
+    bcc: zod.union([zod.string(), zod.array(zod.string())]).optional(),
+    headers: zod.record(zod.string()).optional(),
+  })
+  .strict()
+
 export default defineMiddlewares({
   routes: [
     {
@@ -33,6 +47,13 @@ export default defineMiddlewares({
       method: "POST",
       middlewares: [
         validateAndTransformBody(postalSettingsSchema),
+      ],
+    },
+    {
+      matcher: "/admin/postal/send-test",
+      method: "POST",
+      middlewares: [
+        validateAndTransformBody(postalSendTestSchema),
       ],
     },
   ],

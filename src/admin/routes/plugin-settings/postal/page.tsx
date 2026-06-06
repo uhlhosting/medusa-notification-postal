@@ -16,6 +16,7 @@ import { useEffect, useState } from "react"
 import { PaperPlane } from "@medusajs/icons"
 import { useTranslation } from "react-i18next"
 import { Navigate } from "react-router-dom"
+import { PluginHeader, PluginShell } from "../../../components/admin-ui"
 import { sdk } from "../../../lib/client"
 
 type PostalSettingsForm = {
@@ -124,20 +125,21 @@ export const PostalSettingsPage = () => {
   const isConfigured = data?.configured && Object.values(data.configured).some(v => v === true)
 
   return (
-    <div className="flex flex-col gap-y-8 p-8">
+    <PluginShell>
+      <PluginHeader
+        title={t("postal.title")}
+        description={t("postal.subtitle")}
+        statusColor={isConfigured ? "green" : "grey"}
+        statusLabel={isConfigured ? t("postal.configured") : t("postal.not_configured")}
+        lastSuccessfulExecution={t("postal.settings.runtime_notice")}
+        helpLinks={[
+          {
+            label: t("postal.settings.help_postal"),
+            href: "https://docs.postalserver.io/",
+          },
+        ]}
+      />
       <Container className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b flex items-center justify-between">
-          <div>
-            <Heading level="h1">{t("postal.title")}</Heading>
-            <Text size="small" className="text-ui-fg-subtle">
-              {t("postal.subtitle")}
-            </Text>
-          </div>
-          <StatusBadge color={isConfigured ? "green" : "grey"}>
-            {isConfigured ? t("postal.configured") : t("postal.not_configured")}
-          </StatusBadge>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x">
           <div className="p-6 space-y-6">
             <div className="space-y-4">
@@ -338,12 +340,9 @@ export const PostalSettingsPage = () => {
                           <Text size="xsmall" className="capitalize text-ui-fg-base font-medium">
                             {key.replace("_", " ")}
                           </Text>
-                          <div className="flex items-center gap-x-1.5">
-                            <span className={`h-2 w-2 rounded-full ${val ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.5)]'}`} />
-                            <Text size="xsmall" className={val ? 'text-emerald-600 font-semibold' : 'text-rose-500 font-semibold'}>
-                              {val ? t("postal.set") : t("postal.missing")}
-                            </Text>
-                          </div>
+                          <StatusBadge color={val ? "green" : "red"}>
+                            {val ? t("postal.set") : t("postal.missing")}
+                          </StatusBadge>
                         </div>
                       ))}
                   </div>
@@ -353,7 +352,7 @@ export const PostalSettingsPage = () => {
           </div>
         </div>
       </Container>
-    </div>
+    </PluginShell>
   )
 }
 

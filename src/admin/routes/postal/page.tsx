@@ -12,6 +12,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useState, useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { Envelope, CheckCircle, XCircle, InformationCircle } from "@medusajs/icons"
+import { PluginHeader, PluginShell, PluginStatusCard } from "../../components/admin-ui"
 import { sdk } from "../../lib/client"
 
 const Container = MedusaContainer as any
@@ -165,52 +166,52 @@ const PostalAdminPage = () => {
   })
 
   return (
-    <Container className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <Heading level="h1" className="mb-2">{t("postal.title")}</Heading>
-          <Text className="text-ui-fg-subtle">
-            {t("postal.activity.subtitle")}
-          </Text>
-        </div>
-        <div className="flex items-center gap-2">
-          {isHealthLoading ? (
-            <Text size="small" className="text-ui-fg-subtle">{t("postal.activity.checking")}</Text>
-          ) : (
-            <StatusBadge color={(health as any)?.status === "ok" ? "green" : "red"}>
-              {(health as any)?.status === "ok" ? t("postal.activity.connected") : t("postal.activity.disconnected")}
-            </StatusBadge>
-          )}
-        </div>
-      </div>
+    <PluginShell>
+      <PluginHeader
+        title={t("postal.title")}
+        description={t("postal.activity.subtitle")}
+        statusColor={(health as any)?.status === "ok" ? "green" : "red"}
+        statusLabel={
+          isHealthLoading
+            ? t("postal.activity.checking")
+            : (health as any)?.status === "ok"
+              ? t("postal.activity.connected")
+              : t("postal.activity.disconnected")
+        }
+        lastSuccessfulExecution={t("postal.activity.last_checked", {
+          time: new Date().toLocaleString(),
+        })}
+        helpLinks={[
+          {
+            label: t("postal.activity.help_postal"),
+            href: "https://docs.postalserver.io/",
+          },
+        ]}
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-ui-bg-component border rounded-lg p-6 flex flex-col gap-2 shadow-elevation-card-rest">
-          <div className="flex items-center gap-2 text-ui-fg-muted">
-            <Envelope />
-            <Text weight="plus" size="small">{t("postal.activity.auth_mode")}</Text>
-          </div>
-          <Text size="xlarge" weight="plus">{(health as any)?.auth_type || "smtp-api"}</Text>
-          <Text size="small" className="text-ui-fg-subtle">{t("postal.activity.configured_transport")}</Text>
-        </div>
-        
-        <div className="bg-ui-bg-component border rounded-lg p-6 flex flex-col gap-2 shadow-elevation-card-rest">
-          <div className="flex items-center gap-2 text-ui-fg-success">
-            <CheckCircle />
-            <Text weight="plus" size="small">{t("postal.activity.sent")}</Text>
-          </div>
-          <Text size="xlarge" weight="plus">{sentCount}</Text>
-          <Text size="small" className="text-ui-fg-subtle">{t("postal.activity.sent_help")}</Text>
-        </div>
+        <PluginStatusCard
+          title={t("postal.activity.auth_mode")}
+          value={(health as any)?.auth_type || "smtp-api"}
+          description={t("postal.activity.configured_transport")}
+          icon={Envelope}
+          color="grey"
+        />
+        <PluginStatusCard
+          title={t("postal.activity.sent")}
+          value={sentCount}
+          description={t("postal.activity.sent_help")}
+          icon={CheckCircle}
+          color="green"
+        />
 
-        <div className="bg-ui-bg-component border rounded-lg p-6 flex flex-col gap-2 shadow-elevation-card-rest">
-          <div className="flex items-center gap-2 text-ui-fg-error">
-            <XCircle />
-            <Text weight="plus" size="small">{t("postal.activity.total_events")}</Text>
-          </div>
-          <Text size="xlarge" weight="plus">{notificationsData?.length || 0}</Text>
-          <Text size="small" className="text-ui-fg-subtle">{t("postal.activity.records_shown")}</Text>
-        </div>
+        <PluginStatusCard
+          title={t("postal.activity.total_events")}
+          value={notificationsData?.length || 0}
+          description={t("postal.activity.records_shown")}
+          icon={XCircle}
+          color="orange"
+        />
       </div>
 
       <Container className="p-0 overflow-hidden border rounded-lg">
@@ -234,7 +235,7 @@ const PostalAdminPage = () => {
           <strong> provider_data.workflow_run_id</strong> {t("postal.activity.workflow_hint_suffix")}
         </Text>
       </div>
-    </Container>
+    </PluginShell>
   )
 }
 
