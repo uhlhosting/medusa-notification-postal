@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next"
 import { Navigate } from "react-router-dom"
 import { PluginHeader, PluginShell } from "../../../components/admin-ui"
 import { sdk } from "../../../lib/client"
+import { ensurePostalAdminTranslations } from "../../../lib/i18n"
 
 type PostalSettingsForm = {
   auth_type: "smtp-api" | "smtp-ip" | "smtp"
@@ -46,6 +47,7 @@ const emptyForm: PostalSettingsForm = {
 }
 
 export const PostalSettingsPage = () => {
+  ensurePostalAdminTranslations()
   const { t } = useTranslation()
   const [to, setTo] = useState("")
   const [form, setForm] = useState<PostalSettingsForm>(emptyForm)

@@ -14,6 +14,7 @@ import { useTranslation } from "react-i18next"
 import { Envelope, CheckCircle, XCircle, InformationCircle } from "@medusajs/icons"
 import { PluginHeader, PluginShell, PluginStatusCard } from "../../components/admin-ui"
 import { sdk } from "../../lib/client"
+import { ensurePostalAdminTranslations } from "../../lib/i18n"
 
 const Container = MedusaContainer as any
 const Heading = MedusaHeading as any
@@ -83,6 +84,7 @@ const statusLabelKey = (status: string) => {
 }
 
 const useColumns = () => {
+  ensurePostalAdminTranslations()
   const { t } = useTranslation()
 
   return useMemo(() => [
@@ -113,6 +115,7 @@ const useColumns = () => {
 }
 
 const PostalAdminPage = () => {
+  ensurePostalAdminTranslations()
   const { t } = useTranslation()
   const [searchValue, setSearchValue] = useState("")
   const columns = useColumns()
