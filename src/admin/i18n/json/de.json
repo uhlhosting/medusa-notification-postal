@@ -69,6 +69,7 @@
   "postal.activity.pending": "Ausstehend",
   "postal.activity.failed": "Fehlgeschlagen",
   "postal.activity.pending_failed": "Ausstehend/Fehlgeschlagen",
+  "postal.activity.workflow_metadata": "Workflow-Metadaten",
   "postal.activity.workflow_hint_prefix": "Workflow-E-Mail-Ereignisse nachverfolgen, indem",
   "postal.activity.workflow_hint_middle": "und",
   "postal.activity.workflow_hint_suffix": "beim Aufruf der Medusa-Benachrichtigungsschritte gesetzt werden."

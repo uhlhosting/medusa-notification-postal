@@ -69,6 +69,7 @@
   "postal.activity.pending": "Pending",
   "postal.activity.failed": "Failed",
   "postal.activity.pending_failed": "Pending/Failed",
+  "postal.activity.workflow_metadata": "Workflow metadata",
   "postal.activity.workflow_hint_prefix": "Track workflow-level email events by setting",
   "postal.activity.workflow_hint_middle": "and",
   "postal.activity.workflow_hint_suffix": "when calling Medusa notification steps."
