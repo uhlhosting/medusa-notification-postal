@@ -3,8 +3,15 @@
   "version": "0.1.0",
   "description": "Postal notification provider for Medusa",
   "author": "uhlhosting",
-  "private": true,
+  "private": false,
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://gitlab.uhlhost.net/uhlhosting/medusa-notification-postal.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "files": [
     ".medusa/server"
   ],
@@ -18,12 +25,14 @@
     "./package.json": "./package.json",
     "./workflows": "./.medusa/server/src/workflows/index.js",
     "./.medusa/server/src/modules/*": "./.medusa/server/src/modules/*/index.js",
+    "./.medusa/server/src/modules/postal": "./.medusa/server/src/modules/postal/index.js",
     "./modules/*": "./.medusa/server/src/modules/*/index.js",
     "./modules/postal": {
       "types": "./.medusa/server/src/modules/postal/index.d.ts",
       "default": "./.medusa/server/src/modules/postal/index.js"
     },
     "./.medusa/server/src/providers/*": "./.medusa/server/src/providers/*/index.js",
+    "./.medusa/server/src/providers/postal": "./.medusa/server/src/providers/postal/index.js",
     "./providers/*": "./.medusa/server/src/providers/*/index.js",
     "./.medusa/server/src/*": "./.medusa/server/src/*",
     "./*": "./.medusa/server/src/*.js",
@@ -34,10 +43,9 @@
     }
   },
   "keywords": [
-    "medusa",
-    "plugin",
-    "medusa-plugin",
     "medusa-v2",
+    "medusa-plugin-integration",
+    "medusa-plugin-notification",
     "notification",
     "notification-provider",
     "postal",

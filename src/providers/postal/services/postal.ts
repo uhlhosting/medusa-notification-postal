@@ -28,6 +28,8 @@ type PostalApiResult = {
   data?: any
 }
 
+const POSTAL_REQUEST_TIMEOUT_MS = 10000
+
 const parseBooleanOption = (value: unknown, fallback = false) => {
   if (typeof value === "boolean") {
     return value
@@ -323,6 +325,9 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), POSTAL_REQUEST_TIMEOUT_MS)
+
     const response = await fetch(
       `${this.config_.baseUrl}/api/v1/${path}`,
       {
@@ -331,9 +336,10 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
           "Content-Type": "application/json",
           "X-Server-API-Key": this.config_.apiKey as string,
         },
+        signal: controller.signal,
         body: JSON.stringify(payload),
       }
-    )
+    ).finally(() => clearTimeout(timeout))
 
     const body = (await response.json().catch(() => null)) as PostalApiResult | null
 

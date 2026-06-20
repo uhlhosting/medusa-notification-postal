@@ -20,6 +20,17 @@ type PostalSettingsInput = {
   test_to?: string
 }
 
+type PostalSettingsRecord = {
+  POSTAL_AUTH_TYPE?: string
+  POSTAL_FROM?: string
+  POSTAL_BASE_URL?: string
+  POSTAL_SMTP_HOST?: string
+  POSTAL_SMTP_PORT?: string
+  POSTAL_SMTP_SECURE?: string
+  POSTAL_SMTP_USER?: string
+  POSTAL_TEST_TO?: string
+}
+
 type PostalPostBody = {
   action?: "save" | "test"
   to?: string
@@ -194,7 +205,7 @@ const toPublicPostalSettings = (
   smtp_pass: "",
 })
 
-const readPostalSettingsFromDb = async (): Promise<Partial<Record<string, string>>> => {
+const readPostalSettingsFromDb = async (): Promise<PostalSettingsRecord> => {
   const databaseUrl = process.env.DATABASE_URL
   if (!databaseUrl) {
     return {}
@@ -221,7 +232,7 @@ const readPostalSettingsFromDb = async (): Promise<Partial<Record<string, string
       return {}
     }
 
-    return value as Partial<Record<string, string>>
+    return value as PostalSettingsRecord
   } catch {
     return {}
   } finally {
@@ -229,7 +240,7 @@ const readPostalSettingsFromDb = async (): Promise<Partial<Record<string, string
   }
 }
 
-const writePostalSettingsToDb = async (values: Partial<Record<string, string>>) => {
+const writePostalSettingsToDb = async (values: PostalSettingsRecord) => {
   const databaseUrl = process.env.DATABASE_URL
   if (!databaseUrl) {
     return
@@ -264,7 +275,7 @@ const getPostalSettings = async () => {
   const merged: Record<string, string> = {}
 
   for (const key of ENV_KEYS) {
-    const value = dbValues[key] || envFileValues.get(key) || process.env[key] || ""
+    const value = dbValues[key as keyof PostalSettingsRecord] || envFileValues.get(key) || process.env[key] || ""
     if (value) {
       merged[key] = value
     }
@@ -280,30 +291,34 @@ const persistPostalSettings = async (payload: PostalSettingsInput) => {
       ? payload.auth_type
       : "smtp-api"
 
+  const nextApiKey = sanitizeValue(payload.api_key) || (current.api_key || "")
+  const nextSmtpPass = sanitizeValue(payload.smtp_pass) || (current.smtp_pass || "")
+
   const updates: Partial<Record<(typeof ENV_KEYS)[number], string>> = {
     POSTAL_AUTH_TYPE: nextAuthType,
     POSTAL_FROM: sanitizeValue(payload.from) || (current.from || ""),
     POSTAL_BASE_URL: sanitizeValue(payload.base_url) || (current.base_url || ""),
-    POSTAL_API_KEY: sanitizeValue(payload.api_key),
+    POSTAL_API_KEY: nextApiKey,
     POSTAL_SMTP_HOST: sanitizeValue(payload.smtp_host) || (current.smtp_host || ""),
     POSTAL_SMTP_PORT: sanitizeValue(payload.smtp_port) || (current.smtp_port || ""),
     POSTAL_SMTP_SECURE: sanitizeValue(payload.smtp_secure) || (current.smtp_secure || ""),
     POSTAL_SMTP_USER: sanitizeValue(payload.smtp_user) || (current.smtp_user || ""),
-    POSTAL_SMTP_PASS: sanitizeValue(payload.smtp_pass),
+    POSTAL_SMTP_PASS: nextSmtpPass,
     POSTAL_TEST_TO: sanitizeValue(payload.test_to) || (current.test_to || ""),
   }
 
-  // Keep existing secrets when UI posts empty secret fields.
-  if (!updates.POSTAL_API_KEY) {
-    const envMap = readEnvMap()
-    updates.POSTAL_API_KEY = envMap.get("POSTAL_API_KEY") || process.env.POSTAL_API_KEY || ""
-  }
-  if (!updates.POSTAL_SMTP_PASS) {
-    const envMap = readEnvMap()
-    updates.POSTAL_SMTP_PASS = envMap.get("POSTAL_SMTP_PASS") || process.env.POSTAL_SMTP_PASS || ""
+  const dbValues: PostalSettingsRecord = {
+    POSTAL_AUTH_TYPE: updates.POSTAL_AUTH_TYPE,
+    POSTAL_FROM: updates.POSTAL_FROM,
+    POSTAL_BASE_URL: updates.POSTAL_BASE_URL,
+    POSTAL_SMTP_HOST: updates.POSTAL_SMTP_HOST,
+    POSTAL_SMTP_PORT: updates.POSTAL_SMTP_PORT,
+    POSTAL_SMTP_SECURE: updates.POSTAL_SMTP_SECURE,
+    POSTAL_SMTP_USER: updates.POSTAL_SMTP_USER,
+    POSTAL_TEST_TO: updates.POSTAL_TEST_TO,
   }
 
-  await writePostalSettingsToDb(updates as Partial<Record<string, string>>)
+  await writePostalSettingsToDb(dbValues)
   await writeEnvValues(updates)
 
   for (const [key, value] of Object.entries(updates)) {

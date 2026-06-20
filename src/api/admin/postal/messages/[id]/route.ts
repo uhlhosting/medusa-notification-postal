@@ -6,6 +6,8 @@ type PostalApiResponse = {
   data?: any
 }
 
+const POSTAL_REQUEST_TIMEOUT_MS = 10000
+
 const postPostalApi = async (path: string, payload: Record<string, unknown>) => {
   const authType = String(process.env.POSTAL_AUTH_TYPE || "smtp-api").trim()
   const baseUrl = String(process.env.POSTAL_BASE_URL || "").trim().replace(/\/$/, "")
@@ -25,14 +27,18 @@ const postPostalApi = async (path: string, payload: Record<string, unknown>) => 
     )
   }
 
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), POSTAL_REQUEST_TIMEOUT_MS)
+
   const response = await fetch(`${baseUrl}/api/v1/${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-Server-API-Key": apiKey,
     },
+    signal: controller.signal,
     body: JSON.stringify(payload),
-  })
+  }).finally(() => clearTimeout(timeout))
 
   const body = (await response.json().catch(() => null)) as PostalApiResponse | null
 
