@@ -1,7 +1,7 @@
 packages:
   - "."
 overrides:
-  zod: 4.2.0
+  zod: 4.4.3
   "qrcode>yargs": 17.7.3
   "@mikro-orm/cli>yargs": 17.7.3
   bullmq: 5.79.1
