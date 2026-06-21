@@ -2,7 +2,6 @@ import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { MedusaError, Modules } from "@medusajs/framework/utils"
 import fs from "node:fs"
 import { writeFile, rename, unlink } from "node:fs/promises"
-import { createRequire } from "node:module"
 import path from "node:path"
 
 type PostalAuthType = "smtp-api" | "smtp-ip" | "smtp"
@@ -52,12 +51,6 @@ const ENV_KEYS = [
 
 const DB_SETTINGS_KEY = "postal"
 const SETTINGS_TABLE = "admin_plugin_settings"
-const requireModule = createRequire(__filename)
-
-const createPgClient = (connectionString: string) => {
-  const pg = requireModule("pg")
-  return new pg.Client({ connectionString })
-}
 
 const resolveBackendRoot = () => {
   const cwd = process.cwd()
@@ -201,16 +194,13 @@ const toPublicPostalSettings = (
   smtp_pass: "",
 })
 
-const readPostalSettingsFromDb = async (): Promise<PostalSettingsRecord> => {
-  const databaseUrl = process.env.DATABASE_URL
-  if (!databaseUrl) {
+const readPostalSettingsFromDb = async (pgConnection: any): Promise<PostalSettingsRecord> => {
+  if (!pgConnection) {
     return {}
   }
 
-  const client = createPgClient(databaseUrl)
   try {
-    await client.connect()
-    await client.query(`
+    await pgConnection.raw(`
       CREATE TABLE IF NOT EXISTS ${SETTINGS_TABLE} (
         key TEXT PRIMARY KEY,
         value JSONB NOT NULL,
@@ -218,8 +208,8 @@ const readPostalSettingsFromDb = async (): Promise<PostalSettingsRecord> => {
       )
     `)
 
-    const result = await client.query(
-      `SELECT value FROM ${SETTINGS_TABLE} WHERE key = $1 LIMIT 1`,
+    const result = await pgConnection.raw(
+      `SELECT value FROM ${SETTINGS_TABLE} WHERE key = ? LIMIT 1`,
       [DB_SETTINGS_KEY]
     )
 
@@ -231,43 +221,34 @@ const readPostalSettingsFromDb = async (): Promise<PostalSettingsRecord> => {
     return value as PostalSettingsRecord
   } catch {
     return {}
-  } finally {
-    await client.end().catch(() => {})
   }
 }
 
-const writePostalSettingsToDb = async (values: PostalSettingsRecord) => {
-  const databaseUrl = process.env.DATABASE_URL
-  if (!databaseUrl) {
+const writePostalSettingsToDb = async (pgConnection: any, values: PostalSettingsRecord) => {
+  if (!pgConnection) {
     return
   }
 
-  const client = createPgClient(databaseUrl)
-  try {
-    await client.connect()
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS ${SETTINGS_TABLE} (
-        key TEXT PRIMARY KEY,
-        value JSONB NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-      )
-    `)
-
-    await client.query(
-      `INSERT INTO ${SETTINGS_TABLE} (key, value, updated_at)
-       VALUES ($1, $2::jsonb, now())
-       ON CONFLICT (key)
-       DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
-      [DB_SETTINGS_KEY, JSON.stringify(values)]
+  await pgConnection.raw(`
+    CREATE TABLE IF NOT EXISTS ${SETTINGS_TABLE} (
+      key TEXT PRIMARY KEY,
+      value JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
-  } finally {
-    await client.end().catch(() => {})
-  }
+  `)
+
+  await pgConnection.raw(
+    `INSERT INTO ${SETTINGS_TABLE} (key, value, updated_at)
+     VALUES (?, ?::jsonb, now())
+     ON CONFLICT (key)
+     DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
+    [DB_SETTINGS_KEY, JSON.stringify(values)]
+  )
 }
 
-const getPostalSettings = async () => {
+const getPostalSettings = async (pgConnection: any) => {
   const envFileValues = readEnvMap()
-  const dbValues = await readPostalSettingsFromDb()
+  const dbValues = await readPostalSettingsFromDb(pgConnection)
   const merged: Record<string, string> = {}
 
   for (const key of ENV_KEYS) {
@@ -280,8 +261,8 @@ const getPostalSettings = async () => {
   return normalizeSettings(merged)
 }
 
-const persistPostalSettings = async (payload: PostalSettingsInput) => {
-  const current = await getPostalSettings()
+const persistPostalSettings = async (pgConnection: any, payload: PostalSettingsInput) => {
+  const current = await getPostalSettings(pgConnection)
   const nextAuthType: PostalAuthType =
     payload.auth_type === "smtp" || payload.auth_type === "smtp-ip" || payload.auth_type === "smtp-api"
       ? payload.auth_type
@@ -314,14 +295,14 @@ const persistPostalSettings = async (payload: PostalSettingsInput) => {
     POSTAL_TEST_TO: updates.POSTAL_TEST_TO,
   }
 
-  await writePostalSettingsToDb(dbValues)
+  await writePostalSettingsToDb(pgConnection, dbValues)
   await writeEnvValues(updates)
 
   for (const [key, value] of Object.entries(updates)) {
     process.env[key] = value || ""
   }
 
-  return getPostalSettings()
+  return getPostalSettings(pgConnection)
 }
 
 const validateModeRequirements = (settings: ReturnType<typeof normalizeSettings>) => {
@@ -348,7 +329,8 @@ const validateModeRequirements = (settings: ReturnType<typeof normalizeSettings>
 }
 
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
-  const settings = await getPostalSettings()
+  const pgConnection = req.scope.resolve("pgConnection")
+  const settings = await getPostalSettings(pgConnection)
   res.json({
     ...toPublicPostalSettings(settings),
     diagnostics: {
@@ -361,11 +343,12 @@ export async function POST(
   req: MedusaRequest<PostalPostBody>,
   res: MedusaResponse
 ) {
+  const pgConnection = req.scope.resolve("pgConnection")
   const body = req.validatedBody || req.body || {}
   const action = body.action
 
   if (action === "save") {
-    const settings = await persistPostalSettings(body.settings || {})
+    const settings = await persistPostalSettings(pgConnection, body.settings || {})
     const validationError = validateModeRequirements(settings)
 
     return res.json({
@@ -391,10 +374,10 @@ export async function POST(
   }
 
   if (body.settings) {
-    await persistPostalSettings(body.settings)
+    await persistPostalSettings(pgConnection, body.settings)
   }
 
-  const currentSettings = await getPostalSettings()
+  const currentSettings = await getPostalSettings(pgConnection)
   const validationError = validateModeRequirements(currentSettings)
   if (validationError) {
     return res.status(400).json({

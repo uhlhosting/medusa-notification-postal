@@ -1,13 +1,13 @@
 {
-  "name": "@uhl/medusa-notification-postal",
-  "version": "0.1.0",
+  "name": "@uhlhosting/medusa-notification-postal",
+  "version": "0.2.0",
   "description": "Postal notification provider for Medusa",
-  "author": "uhlhosting",
+  "author": "uhlhosting (https://uhlhosting.ch)",
   "private": false,
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://gitlab.uhlhost.net/uhlhosting/medusa-notification-postal.git"
+    "url": "https://gitlab.uhlhost.net/uhlhosting/medusa-notification-postal"
   },
   "publishConfig": {
     "access": "public"
@@ -43,6 +43,10 @@
     }
   },
   "keywords": [
+    "medusa",
+    "plugin",
+    "medusa-plugin-other",
+    "medusa-plugin",
     "medusa-v2",
     "medusa-plugin-integration",
     "medusa-plugin-notification",
@@ -54,44 +58,46 @@
   "scripts": {
     "build": "medusa plugin:build",
     "dev": "medusa plugin:develop",
+    "lint": "medusa lint",
     "prepublishOnly": "medusa plugin:build",
-    "lint": "eslint src --ext .ts,.tsx",
+    "release:check": "pnpm run lint && pnpm run typecheck && pnpm run build && node scripts/verify-release.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tanstack/react-query": "5.64.2",
-    "i18next": "26.3.0",
-    "nodemailer": "^6.10.1",
-    "pg": "8.21.0",
-    "react-i18next": "13.5.0",
-    "react-router-dom": "6.30.4",
-    "zod": "4.4.3"
+    "nodemailer": "^9.0.1"
   },
   "devDependencies": {
     "@medusajs/admin-sdk": "2.16.0",
     "@medusajs/admin-shared": "2.16.0",
     "@medusajs/cli": "2.16.0",
+    "@medusajs/eslint-plugin": "2.16.0",
     "@medusajs/framework": "2.16.0",
     "@medusajs/icons": "2.16.0",
     "@medusajs/medusa": "2.16.0",
     "@medusajs/test-utils": "2.16.0",
-    "@medusajs/types": "2.16.0",
     "@medusajs/ui": "4.1.16",
     "@swc/core": "^1.15.41",
+    "@tanstack/react-query": "5.101.0",
     "@types/node": "20.19.26",
-    "@types/nodemailer": "^6.4.24",
-    "@types/react": "^18.3.31",
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "18.3.28",
     "@types/react-dom": "18.3.7",
-    "@typescript-eslint/eslint-plugin": "^8.61.0",
-    "@typescript-eslint/parser": "^8.61.0",
+    "@typescript-eslint/eslint-plugin": "^8.61.1",
+    "@typescript-eslint/parser": "^8.61.1",
     "eslint": "^9.39.4",
+    "i18next": "26.3.1",
+    "jiti": "^2.0.0",
+    "pg": "^8.22.0",
     "prop-types": "^15.8.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "react-i18next": "17.0.8",
+    "react-router-dom": "6.30.4",
     "ts-node": "^10.9.2",
     "typescript": "5.6.2",
     "vite": "^5.4.21",
-    "yalc": "1.0.0-pre.53"
+    "yalc": "^1.0.0-pre.53",
+    "zod": "4.2.0"
   },
   "peerDependencies": {
     "@medusajs/admin-sdk": "2.16.0",
@@ -100,9 +106,15 @@
     "@medusajs/icons": "2.16.0",
     "@medusajs/medusa": "2.16.0",
     "@medusajs/test-utils": "2.16.0",
-    "@medusajs/ui": "4.1.16"
+    "@medusajs/ui": "4.1.16",
+    "@tanstack/react-query": "^5.101.0",
+    "i18next": "^26.3.1",
+    "react-i18next": "^17.0.8",
+    "react-router-dom": "^6.30.4",
+    "zod": "4.2.0"
   },
   "engines": {
     "node": ">=20"
-  }
+  },
+  "packageManager": "pnpm@11.5.3"
 }

@@ -1,0 +1,49 @@
+workflow:
+  rules:
+    - when: always
+
+stages:
+  - validate
+  - build
+  - release
+
+variables:
+  NODE_VERSION: "20.18.0"
+  PNPM_VERSION: "10.11.1"
+  PNPM_STORE_DIR: "$CI_PROJECT_DIR/.pnpm-store"
+  NEXT_TELEMETRY_DISABLED: "1"
+  NODE_OPTIONS: "--max-old-space-size=4096"
+  GIT_STRATEGY: clone
+
+default:
+  image: "node:${NODE_VERSION}-bookworm"
+  cache:
+    key:
+      files:
+        - pnpm-lock.yaml
+    paths:
+      - .pnpm-store/
+  before_script:
+    - npm install -g "pnpm@${PNPM_VERSION}"
+    - pnpm config set store-dir "$PNPM_STORE_DIR"
+    - pnpm install --frozen-lockfile --prefer-offline
+
+validate:
+  stage: validate
+  script:
+    - pnpm run lint
+    - pnpm run typecheck
+
+build:
+  stage: build
+  script:
+    - pnpm run build
+  artifacts:
+    paths:
+      - .medusa/
+    expire_in: 1 hour
+
+release:verify:
+  stage: release
+  script:
+    - pnpm run release:check

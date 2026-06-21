@@ -1,4 +1,4 @@
-import { createWorkflow, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
+import { createWorkflow, WorkflowResponse, ReturnWorkflow } from "@medusajs/framework/workflows-sdk"
 import { sendPostalEmailStep } from "./steps/send-postal-email"
 
 export type SendPostalEmailWorkflowInput = {
@@ -17,7 +17,11 @@ export type SendPostalEmailWorkflowInput = {
   }
 }
 
-export const sendPostalEmailWorkflow = createWorkflow(
+export const sendPostalEmailWorkflow: ReturnWorkflow<
+  SendPostalEmailWorkflowInput,
+  { success: boolean; delivery: any },
+  []
+> = createWorkflow(
   "send-postal-email",
   function (input: SendPostalEmailWorkflowInput) {
     const delivery = sendPostalEmailStep(input)

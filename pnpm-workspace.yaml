@@ -1,0 +1,20 @@
+packages:
+  - "."
+overrides:
+  zod: 4.2.0
+  "qrcode>yargs": 17.7.3
+  "@mikro-orm/cli>yargs": 17.7.3
+  bullmq: 5.79.1
+peerDependencyRules:
+  allowedVersions:
+    picomatch: 4.0.4
+allowBuilds:
+  "@medusajs/telemetry": false
+  "@swc/core": true
+  esbuild: true
+  msgpackr-extract: true
+  protobufjs: true
+  sharp: true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - bullmq@5.79.1
