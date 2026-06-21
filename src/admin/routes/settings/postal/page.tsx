@@ -1,3 +1,9 @@
-import { PostalSettingsPage } from "../../plugin-settings/postal/page";
+import { defineRouteConfig } from "@medusajs/admin-sdk";
+import { Envelope } from "@medusajs/icons";
 
-export default PostalSettingsPage;
+export const config = defineRouteConfig({
+  label: "Postal",
+  icon: Envelope as any,
+});
+
+export { PostalSettingsPage as default } from "../../plugin-settings/postal/page";

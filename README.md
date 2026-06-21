@@ -2,6 +2,12 @@
 
 Postal notification provider for Medusa, combining SendGrid-style provider robustness with Resend-style option validation and template-friendly usage.
 
+## Release
+
+- Current package version: `0.1.0`
+- License: `MIT`
+- Changelog: [`CHANGELOG.md`](./CHANGELOG.md)
+
 ## Options
 
 - `auth_type` - one of `smtp-api`, `smtp-ip`, `smtp` (default `smtp-api`)

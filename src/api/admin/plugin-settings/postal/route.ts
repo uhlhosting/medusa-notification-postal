@@ -152,13 +152,9 @@ const writeEnvValues = (updates: Partial<Record<(typeof ENV_KEYS)[number], strin
   const normalized = nextLines.filter((line, i, arr) => !(i === arr.length - 1 && line === ""))
   const content = `${normalized.join("\n")}\n`
   const tmpPath = `${ENV_FILE_PATH}.tmp`
-  const backupPath = `${ENV_FILE_PATH}.bak`
 
   return Promise.resolve()
     .then(async () => {
-      if (existing) {
-        await writeFile(backupPath, existing, "utf8")
-      }
       await writeFile(tmpPath, content, "utf8")
       await rename(tmpPath, ENV_FILE_PATH)
     })
@@ -329,37 +325,23 @@ const persistPostalSettings = async (payload: PostalSettingsInput) => {
 }
 
 const validateModeRequirements = (settings: ReturnType<typeof normalizeSettings>) => {
-  const authType = settings.auth_type
-
   if (!settings.from) {
     return "POSTAL_FROM is required"
   }
 
-  if (authType === "smtp-api") {
-    if (!settings.base_url) {
-      return "POSTAL_BASE_URL is required for smtp-api mode"
-    }
-    if (!settings.configured.api_key) {
-      return "POSTAL_API_KEY is required for smtp-api mode"
-    }
-  }
-
-  if (authType === "smtp-ip") {
-    if (!settings.smtp_host) {
-      return "POSTAL_SMTP_HOST is required for smtp-ip mode"
-    }
-  }
-
-  if (authType === "smtp") {
-    if (!settings.smtp_host) {
-      return "POSTAL_SMTP_HOST is required for smtp mode"
-    }
-    if (!settings.smtp_user) {
-      return "POSTAL_SMTP_USER is required for smtp mode"
-    }
-    if (!settings.configured.smtp_pass) {
-      return "POSTAL_SMTP_PASS is required for smtp mode"
-    }
+  switch (settings.auth_type) {
+    case "smtp-api":
+      if (!settings.base_url) return "POSTAL_BASE_URL is required for smtp-api mode"
+      if (!settings.configured.api_key) return "POSTAL_API_KEY is required for smtp-api mode"
+      break
+    case "smtp-ip":
+      if (!settings.smtp_host) return "POSTAL_SMTP_HOST is required for smtp-ip mode"
+      break
+    case "smtp":
+      if (!settings.smtp_host) return "POSTAL_SMTP_HOST is required for smtp mode"
+      if (!settings.smtp_user) return "POSTAL_SMTP_USER is required for smtp mode"
+      if (!settings.configured.smtp_pass) return "POSTAL_SMTP_PASS is required for smtp mode"
+      break
   }
 
   return null
@@ -463,19 +445,15 @@ export async function POST(
     .catch((error: any) => {
       const message = String(error?.message || "")
       if (message.includes("Could not find a notification provider for channel: email")) {
-        return Promise.reject(
-          new MedusaError(
-            MedusaError.Types.INVALID_DATA,
-            "Postal provider is not loaded. Save settings and restart backend."
-          )
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          "Postal provider is not loaded. Save settings and restart backend."
         )
       }
 
-      return Promise.reject(
-        new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          message || "Postal test send failed"
-        )
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        message || "Postal test send failed"
       )
     })
 
