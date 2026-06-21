@@ -1,10 +1,10 @@
 {
-  "name": "@uhlhosting/medusa-notification-postal",
+  "name": "@uhl/medusa-notification-postal",
   "version": "0.1.0",
   "description": "Postal notification provider for Medusa",
   "author": "uhlhosting",
   "private": false,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://gitlab.uhlhost.net/uhlhosting/medusa-notification-postal.git"

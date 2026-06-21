@@ -1,4 +1,4 @@
-# @uhlhosting/medusa-notification-postal
+# @uhl/medusa-notification-postal
 
 Postal notification provider for Medusa, combining SendGrid-style provider robustness with Resend-style option validation and template-friendly usage.
 
@@ -38,7 +38,7 @@ Add to `apps/backend/medusa-config.ts` under the notification module providers.
   options: {
     providers: [
       {
-        resolve: "@uhlhosting/medusa-notification-postal",
+        resolve: "@uhl/medusa-notification-postal",
         id: "postal",
         options: {
           channels: ["email"],
@@ -91,7 +91,7 @@ The provider logs `workflow_event` and `workflow_run_id` for traceability in Med
 You can trigger a direct email notification through the Postal provider programmatically using the `sendPostalEmailWorkflow`. This ensures the mail goes through the provider's standard channel and logs full delivery metadata.
 
 ```typescript
-import { sendPostalEmailWorkflow } from "@uhlhosting/medusa-notification-postal"
+import { sendPostalEmailWorkflow } from "@uhl/medusa-notification-postal"
 
 const { result } = await sendPostalEmailWorkflow(req.scope).run({
   input: {
