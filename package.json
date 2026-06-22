@@ -2,7 +2,7 @@
   "name": "@uhlhosting/medusa-notification-postal",
   "version": "0.1.4",
   "description": "Postal notification provider for Medusa",
-  "author": "uhlhosting (https://uhlhosting.ch)",
+  "author": "uhlhosting",
   "private": false,
   "license": "MIT",
   "repository": {
