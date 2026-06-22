@@ -64,7 +64,8 @@ const resolveBackendRoot = () => {
 
 const ENV_FILE_PATH = path.join(resolveBackendRoot(), ".env")
 
-const sanitizeValue = (value?: string | null) => value?.trim() || ""
+const sanitizeValue = (value: unknown) =>
+  typeof value === "string" ? value.trim() : ""
 const maskSecret = (value?: string | null) => {
   const secret = sanitizeValue(value)
   if (!secret) {
