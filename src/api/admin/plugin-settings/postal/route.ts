@@ -36,6 +36,9 @@ type PostalPostBody = {
   settings?: PostalSettingsInput
 }
 
+const trimString = (value: unknown) =>
+  typeof value === "string" ? value.trim() : ""
+
 const ENV_KEYS = [
   "POSTAL_AUTH_TYPE",
   "POSTAL_FROM",
@@ -393,7 +396,7 @@ export async function POST(
   }
 
   const to =
-    body.to?.trim() ||
+    trimString(body.to) ||
     currentSettings.test_to ||
     currentSettings.from
 
