@@ -9,7 +9,6 @@ AGENTS.md
 .idea
 
 coverage
-scripts/
 
 !src/**
 
