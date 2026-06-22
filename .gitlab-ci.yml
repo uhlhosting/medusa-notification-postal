@@ -8,8 +8,8 @@ stages:
   - release
 
 variables:
-  NODE_VERSION: "20.18.0"
-  PNPM_VERSION: "10.11.1"
+  NODE_VERSION: "22.14.0"
+  PNPM_VERSION: "11.5.3"
   PNPM_STORE_DIR: "$CI_PROJECT_DIR/.pnpm-store"
   NEXT_TELEMETRY_DISABLED: "1"
   NODE_OPTIONS: "--max-old-space-size=4096"
