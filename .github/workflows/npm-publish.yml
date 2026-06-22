@@ -20,6 +20,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
 
       - name: Enable pnpm
         run: |
@@ -49,3 +51,5 @@ jobs:
 
       - name: Publish
         run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
