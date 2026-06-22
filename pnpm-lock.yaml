@@ -6,6 +6,7 @@ settings:
 
 overrides:
   zod: 4.4.3
+  lodash: 4.18.1
   qrcode>yargs: 17.7.3
   '@mikro-orm/cli>yargs': 17.7.3
   bullmq: 5.79.1
@@ -4257,9 +4258,6 @@ packages:
   lodash.once@4.1.1:
     resolution: {integrity: sha512-Sb487aTOCr9drQVL8pIxOzVhafOjZN9UU54hiN8PU3uAiSV7lx1yYNpbNmex2PK6dSJoNTSJUUswT651yww3Mg==}
 
-  lodash@4.17.23:
-    resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
-
   lodash@4.18.1:
     resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
@@ -6327,7 +6325,7 @@ snapshots:
       common-tags: 1.8.2
       graphql: 16.14.2
       import-from: 4.0.0
-      lodash: 4.17.23
+      lodash: 4.18.1
       tslib: 2.6.3
 
   '@graphql-codegen/schema-ast@4.1.0(graphql@16.14.2)':
@@ -10592,8 +10590,6 @@ snapshots:
   lodash.merge@4.6.2: {}
 
   lodash.once@4.1.1: {}
-
-  lodash@4.17.23: {}
 
   lodash@4.18.1: {}
 

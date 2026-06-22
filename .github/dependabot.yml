@@ -1,0 +1,9 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # Medusa 2.16 admin extension build currently fails on esbuild 0.28.x.
+      - dependency-name: "esbuild"
