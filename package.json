@@ -7,7 +7,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://gitlab.uhlhost.net/uhlhosting/medusa-notification-postal"
+    "url": "https://github.com/uhlhosting/medusa-notification-postal"
   },
   "publishConfig": {
     "access": "public"
