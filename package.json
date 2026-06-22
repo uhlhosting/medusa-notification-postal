@@ -79,7 +79,7 @@
     "@medusajs/ui": "4.1.16",
     "@swc/core": "^1.15.41",
     "@tanstack/react-query": "5.64.2",
-    "@types/node": "20.19.26",
+    "@types/node": "26.0.0",
     "@types/nodemailer": "^8.0.1",
     "@types/react": "18.3.28",
     "@types/react-dom": "18.3.7",
