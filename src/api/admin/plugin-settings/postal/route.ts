@@ -1,5 +1,5 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { MedusaError, Modules } from "@medusajs/framework/utils"
+import { MedusaError } from "@medusajs/framework/utils"
 import fs from "node:fs"
 import { writeFile, rename, unlink } from "node:fs/promises"
 import path from "node:path"
@@ -157,7 +157,7 @@ const writeEnvValues = (updates: Partial<Record<(typeof ENV_KEYS)[number], strin
     })
     .catch(async (error) => {
       if (fs.existsSync(tmpPath)) {
-        await unlink(tmpPath).catch(() => {})
+        await unlink(tmpPath).catch(() => { })
       }
       throw error
     })
@@ -332,6 +332,24 @@ const validateModeRequirements = (settings: ReturnType<typeof normalizeSettings>
   return null
 }
 
+import { createStep, createWorkflow, StepResponse, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
+
+const savePostalSettingsStep = createStep(
+  "save-postal-settings",
+  async (payload: PostalSettingsInput, { container }) => {
+    const pgConnection = container.resolve("pgConnection")
+    const settings = await persistPostalSettings(pgConnection, payload)
+    return new StepResponse(settings)
+  }
+)
+
+const savePostalSettingsWorkflow = createWorkflow(
+  "save-postal-settings",
+  (payload: PostalSettingsInput) => {
+    return new WorkflowResponse(savePostalSettingsStep(payload))
+  }
+)
+
 export async function GET(req: MedusaRequest, res: MedusaResponse) {
   const pgConnection = req.scope.resolve("pgConnection")
   const settings = await getPostalSettings(pgConnection)
@@ -352,7 +370,15 @@ export async function POST(
   const action = body.action
 
   if (action === "save") {
-    const settings = await persistPostalSettings(pgConnection, body.settings || {})
+    const { result: settings, errors } = await savePostalSettingsWorkflow(req.scope).run({
+      input: body.settings || {},
+      throwOnError: false,
+    })
+
+    if (errors?.length) {
+      throw errors[0].error
+    }
+
     const validationError = validateModeRequirements(settings)
 
     return res.json({
@@ -378,7 +404,13 @@ export async function POST(
   }
 
   if (body.settings) {
-    await persistPostalSettings(pgConnection, body.settings)
+    const { errors } = await savePostalSettingsWorkflow(req.scope).run({
+      input: body.settings,
+      throwOnError: false,
+    })
+    if (errors?.length) {
+      throw errors[0].error
+    }
   }
 
   const currentSettings = await getPostalSettings(pgConnection)
@@ -412,15 +444,14 @@ export async function POST(
 
   const subject = "Postal test from Medusa Admin"
   const runId = `admin_${Date.now()}`
-  const notificationModuleService = req.scope.resolve(Modules.NOTIFICATION) as any
 
-  const result = await notificationModuleService
-    .createNotifications({
+  const { sendPostalEmailWorkflow } = await import("../../../../workflows/send-postal-email.js")
+
+  const { result, errors } = await sendPostalEmailWorkflow(req.scope).run({
+    input: {
       to,
-      channel: "email",
       from: currentSettings.from || undefined,
       template: "postal-admin-test",
-      provider_id: "postal",
       provider_data: {
         subject,
         text: "Postal provider test message from Medusa Admin settings.",
@@ -428,21 +459,24 @@ export async function POST(
         workflow_event: "admin.postal.test",
         workflow_run_id: runId,
       },
-    })
-    .catch((error: any) => {
-      const message = String(error?.message || "")
-      if (message.includes("Could not find a notification provider for channel: email")) {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          "Postal provider is not loaded. Save settings and restart backend."
-        )
-      }
+    },
+    throwOnError: false,
+  })
 
+  if (errors?.length) {
+    const message = String(errors[0].error?.message || "")
+    if (message.includes("Could not find a notification provider") || message.includes("not loaded")) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        message || "Postal test send failed"
+        "Postal provider is not loaded. Save settings and restart backend."
       )
-    })
+    }
+
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      message || "Postal test send failed"
+    )
+  }
 
   return res.json({
     ok: true,
