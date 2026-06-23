@@ -1,0 +1,8 @@
+*
+!.medusa/
+!.medusa/server/
+!.medusa/server/**
+!README.md
+!CHANGELOG.md
+!LICENSE
+!package.json

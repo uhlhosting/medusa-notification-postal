@@ -1,0 +1,14 @@
+# Snyk DeepCode ignore rules
+node_modules/
+.medusa/
+.medusa/server/
+dist/
+build/
+.next/
+coverage/
+.turbo/
+.cache/
+.pnpm-store/
+*.log
+.env
+.env.*
