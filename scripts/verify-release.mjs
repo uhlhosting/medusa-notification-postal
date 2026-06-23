@@ -80,6 +80,10 @@ if (!packFiles.some((file) => file.startsWith(".medusa/server/"))) {
   fail("npm pack output must include the compiled .medusa/server bundle")
 }
 
+if (!packFiles.some((file) => file.endsWith(".d.ts"))) {
+  fail("npm pack output must include TypeScript declaration files (.d.ts)")
+}
+
 if (packFiles.some((file) => file === "src" || file.startsWith("src/"))) {
   fail("npm pack output must not include the source src/ tree")
 }

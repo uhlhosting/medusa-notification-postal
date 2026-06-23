@@ -37,7 +37,7 @@
 
 ## Validation Checklist
 1. `pnpm release:check` passes
-2. `npm pack --dry-run` includes the compiled `.medusa/server` bundle
+2. `npm pack --dry-run` includes the compiled `.medusa/server` bundle and all TypeScript declaration (`.d.ts`) files
 3. GitHub Actions publish workflow runs without npm tokens
 4. GitLab CI validates, builds, and mirrors to GitHub on the allowed pipeline sources
 

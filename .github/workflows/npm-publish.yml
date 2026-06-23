@@ -17,22 +17,22 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.5.3 --activate
 
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version: "24"
           registry-url: "https://registry.npmjs.org"
-          package-manager-cache: false
+          cache: "pnpm"
 
       - name: Upgrade npm for trusted publishing
         run: npm install -g npm@11.17.0
-
-      - name: Enable pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@11.5.3 --activate
 
       - name: Verify toolchain
         run: |
