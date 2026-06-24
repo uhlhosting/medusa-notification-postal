@@ -1,6 +1,6 @@
 # @uhlhosting/medusa-notification-postal
 
-Postal notification provider for Medusa, combining SendGrid-style provider robustness with Resend-style option validation and template-friendly usage.
+A production-ready Postal notification provider for Medusa. Designed for reliable transactional email delivery, strong configuration validation, template-based workflows, and seamless integration with Medusa’s notification system.
 
 ## Release
 
