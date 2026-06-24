@@ -4,7 +4,7 @@ Postal notification provider for Medusa, combining SendGrid-style provider robus
 
 ## Release
 
-- Current package version: [![npm version](https://badge.fury.io/js/@uhlhosting%2Fmedusa-notification-postal.svg)](https://www.npmjs.com/package/@uhlhosting/medusa-notification-postal)
+- Current package version: [![npm version](https://img.shields.io/npm/v/@uhlhosting/medusa-notification-postal.svg)](https://www.npmjs.com/package/@uhlhosting/medusa-notification-postal)
 - License: `MIT`
 - Changelog: [`CHANGELOG.md`](./CHANGELOG.md)
 
