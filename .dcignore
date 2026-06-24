@@ -1,5 +1,5 @@
 # Snyk DeepCode ignore rules
-node_modules/
+node_modules/*
 .medusa/
 .medusa/server/
 dist/
