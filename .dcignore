@@ -1,5 +1,7 @@
-# Snyk DeepCode ignore rules
-node_modules/*
+# Snyk Code/DeepCode Ignore List for MedusaJS Repository
+# Ignore build, lock, log, cache, and generated folders to reduce scan size.
+
+node_modules/
 .medusa/
 .medusa/server/
 dist/
@@ -12,3 +14,13 @@ coverage/
 *.log
 .env
 .env.*
+.DS_Store
+.git/
+.githooks/
+.vscode/
+.pm2/
+.antigravitycli/
+REMOTE_BUILD
+REMOTE_PREFLIGHT
+REMOTE_RESTART
+REMOTE_GIT_METADATA
