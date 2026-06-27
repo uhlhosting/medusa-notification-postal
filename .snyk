@@ -1,0 +1,15 @@
+# Snyk (https://snyk.io) policy file
+# Excludes non-source paths from Snyk Open Source (SCA) scans and SCM imports.
+# Note: Snyk Code (SAST) exclusions are handled by .dcignore, not this file.
+version: v1.25.0
+exclude:
+  global:
+    - node_modules
+    - dist
+    - build
+    - .medusa
+    - .next
+    - coverage
+    - .turbo
+    - .cache
+    - .pnpm-store
