@@ -34,6 +34,7 @@
 3. GitLab CI is the source of truth and should mirror to GitHub only after checks pass
 4. The GitLab mirror job must use a masked, protected CI/CD variable for GitHub push access
 5. Keep release validation in the repo and run it before publish-related changes are signed off
+6. Tag mirroring pipelines must push the tag ref specifically (using `refs/tags/...` format) to prevent conflicts with GitLab's background mirroring.
 
 ## Validation Checklist
 1. `pnpm release:check` passes
