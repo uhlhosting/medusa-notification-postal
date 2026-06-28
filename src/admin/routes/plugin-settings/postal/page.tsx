@@ -109,10 +109,6 @@ export const PostalSettingsPage = () => {
   const [testForm, setTestForm] = useState<PostalTestForm>(emptyTestForm);
   const [form, setForm] = useState<PostalSettingsForm>(emptyForm);
   const webhookCallbackPath = "/store/postal/webhooks";
-  const webhookCallbackUrl =
-    typeof window === "undefined"
-      ? webhookCallbackPath
-      : new URL(webhookCallbackPath, window.location.origin).toString();
   const templateOptions = getPostalTemplateOptions();
   const selectedTemplate = templateOptions.find(
     (option) => option.value === testForm.template,
@@ -524,26 +520,26 @@ export const PostalSettingsPage = () => {
                 </Text>
                 <div className="flex flex-col gap-y-2">
                   <Label htmlFor="postal-webhook-callback">
-                    {t("postal.webhook_callback_url")}
+                    {t("postal.webhook_callback_path")}
                   </Label>
                   <div className="flex items-center gap-2">
                     <Code
                       id="postal-webhook-callback"
                       className="min-w-0 flex-1 truncate"
                     >
-                      {webhookCallbackUrl}
+                      {webhookCallbackPath}
                     </Code>
                     <Button
                       type="button"
                       size="small"
                       variant="secondary"
                       onClick={async () => {
-                        await navigator.clipboard.writeText(webhookCallbackUrl);
+                        await navigator.clipboard.writeText(webhookCallbackPath);
                         toast.success(t("postal.webhook_callback_copied"));
                       }}
                       disabled={disabled}
                     >
-                      {t("postal.copy_callback_url")}
+                      {t("postal.copy_callback_path")}
                     </Button>
                   </div>
                 </div>
@@ -552,7 +548,7 @@ export const PostalSettingsPage = () => {
                   leading="compact"
                   className="text-ui-fg-subtle"
                 >
-                  <Code>{webhookCallbackPath}</Code>
+                  {t("postal.webhook_callback_hint_suffix")}
                 </Text>
               </div>
             </PluginSidebarSection>

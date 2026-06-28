@@ -1,7 +1,10 @@
-import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import {
+  AuthenticatedMedusaRequest,
+  MedusaResponse,
+} from "@medusajs/framework/http"
 
 export const GET = async (
-  req: MedusaRequest,
+  req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) => {
   let authType = process.env.POSTAL_AUTH_TYPE || "smtp-api"

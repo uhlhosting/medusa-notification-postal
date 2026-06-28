@@ -18,7 +18,7 @@ import {
   PluginShell,
   PluginStatusCard,
 } from "../../components/admin-ui";
-import { sdk } from "../../lib/client";
+import { getPublicBackendBaseUrl, sdk } from "../../lib/client";
 import { ensurePostalAdminTranslations } from "../../lib/i18n";
 
 type Notification = {
@@ -48,6 +48,30 @@ type WebhookEvent = {
   payload?: any;
 };
 
+const approvedEmailDomain = "uhlhost.net";
+
+const sanitizeEmailDisplay = (value?: string | null) => {
+  const email = String(value || "").trim();
+
+  if (!email) {
+    return "-";
+  }
+
+  const atIndex = email.lastIndexOf("@");
+  if (atIndex <= 0) {
+    return email;
+  }
+
+  const localPart = email.slice(0, atIndex);
+  const domain = email.slice(atIndex + 1).toLowerCase();
+
+  if (domain === "example.com" || domain.endsWith(".invalid")) {
+    return `${localPart}@${approvedEmailDomain}`;
+  }
+
+  return email;
+};
+
 const statusFromNotification = (notification: Notification) => {
   const status = String(
     notification.status ||
@@ -57,7 +81,7 @@ const statusFromNotification = (notification: Notification) => {
   ).toLowerCase();
 
   if (["success", "sent", "delivered"].includes(status)) {
-    return "sent";
+    return "accepted";
   }
 
   if (["failure", "failed", "error"].includes(status)) {
@@ -72,7 +96,7 @@ const statusFromNotification = (notification: Notification) => {
 };
 
 const statusBadgeColor = (status: string) => {
-  if (status === "sent") {
+  if (status === "accepted") {
     return "green";
   }
 
@@ -84,8 +108,8 @@ const statusBadgeColor = (status: string) => {
 };
 
 const statusLabelKey = (status: string) => {
-  if (status === "sent") {
-    return "postal.activity.sent";
+  if (status === "accepted") {
+    return "postal.activity.accepted";
   }
 
   if (status === "failed") {
@@ -112,6 +136,22 @@ const webhookStatusLabelKey = (status: string) => {
     return "postal.webhooks.held";
   }
 
+  if (status === "bounced") {
+    return "postal.webhooks.bounced";
+  }
+
+  if (status === "clicked") {
+    return "postal.webhooks.clicked";
+  }
+
+  if (status === "loaded") {
+    return "postal.webhooks.loaded";
+  }
+
+  if (status === "dns_error") {
+    return "postal.webhooks.dns_error";
+  }
+
   return "postal.webhooks.unknown";
 };
 
@@ -132,7 +172,34 @@ const webhookStatusBadgeColor = (status: string) => {
     return "blue";
   }
 
+  if (status === "bounced") {
+    return "red";
+  }
+
+  if (status === "clicked") {
+    return "green";
+  }
+
+  if (status === "loaded") {
+    return "green";
+  }
+
+  if (status === "dns_error") {
+    return "red";
+  }
+
   return "grey";
+};
+
+const buildPostalCallbackUrl = (token: string) => {
+  const path = `/store/postal/webhooks/${token}`;
+  const base = getPublicBackendBaseUrl();
+
+  try {
+    return new URL(path, base).toString();
+  } catch {
+    return path;
+  }
 };
 
 const useColumns = () => {
@@ -143,7 +210,9 @@ const useColumns = () => {
     () => [
       columnHelper.accessor("to", {
         header: t("postal.activity.recipient"),
-        cell: ({ getValue }) => <Text size="small">{getValue()}</Text>,
+        cell: ({ getValue }) => (
+          <Text size="small">{sanitizeEmailDisplay(getValue())}</Text>
+        ),
       }),
       columnHelper.accessor("template", {
         header: t("postal.activity.template"),
@@ -152,7 +221,7 @@ const useColumns = () => {
         ),
       }),
       columnHelper.accessor("created_at", {
-        header: t("postal.activity.sent_at"),
+        header: t("postal.activity.accepted_at"),
         cell: ({ getValue }) => (
           <Text size="small">{new Date(getValue()).toLocaleString()}</Text>
         ),
@@ -200,7 +269,7 @@ const useWebhookColumns = () => {
       webhookColumnHelper.accessor("recipient", {
         header: t("postal.webhooks.recipient"),
         cell: ({ getValue }) => (
-          <Text size="small">{getValue() || "-"}</Text>
+          <Text size="small">{sanitizeEmailDisplay(getValue())}</Text>
         ),
       }),
       webhookColumnHelper.accessor("created_at", {
@@ -221,6 +290,7 @@ const PostalAdminPage = () => {
   const { t } = useTranslation();
   const [searchValue, setSearchValue] = useState("");
   const columns = useColumns();
+  const webhookCallbackPath = "/store/postal/webhooks";
 
   // Health check query
   const { data: health, isLoading: isHealthLoading } = useQuery({
@@ -273,9 +343,26 @@ const PostalAdminPage = () => {
       },
     });
 
-  const sentCount = useMemo(() => {
+  const { data: webhookUrlData } = useQuery({
+    queryKey: ["postal-webhook-url"],
+    queryFn: async () => {
+      try {
+        const response = await sdk.client.fetch("/admin/postal/webhook-url");
+        return (response as any) || {};
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  const webhookToken = String(webhookUrlData?.token || "").trim();
+  const webhookCallbackUrl =
+    String(webhookUrlData?.callback_url || "").trim() ||
+    (webhookToken ? buildPostalCallbackUrl(webhookToken) : "");
+
+  const acceptedCount = useMemo(() => {
     return (notificationsData || []).filter(
-      (n) => statusFromNotification(n) === "sent",
+      (n) => statusFromNotification(n) === "accepted",
     ).length;
   }, [notificationsData]);
 
@@ -304,7 +391,7 @@ const PostalAdminPage = () => {
     <PluginShell>
       <PluginHeader
         title={t("postal.title")}
-        description={t("postal.activity.subtitle")}
+          description={t("postal.activity.subtitle")}
         statusColor={(health as any)?.status === "ok" ? "green" : "red"}
         statusLabel={
           isHealthLoading
@@ -321,6 +408,22 @@ const PostalAdminPage = () => {
             label: t("postal.activity.help_postal"),
             href: "https://docs.postalserver.io/",
           },
+          {
+            label: t("postal.activity.help_webhooks"),
+            href: "https://docs.postalserver.io/developer/webhooks",
+          },
+          {
+            label: t("postal.activity.help_http_payloads"),
+            href: "https://docs.postalserver.io/developer/http-payloads",
+          },
+          {
+            label: t("postal.activity.help_bounces"),
+            href: "https://docs.postalserver.io/other/auto-responders-and-bounces",
+          },
+          {
+            label: t("postal.activity.help_tags"),
+            href: "https://docs.postalserver.io/other/wildcards-and-address-tags",
+          },
         ]}
       />
 
@@ -333,9 +436,9 @@ const PostalAdminPage = () => {
           color="grey"
         />
         <PluginStatusCard
-          title={t("postal.activity.sent")}
-          value={sentCount}
-          description={t("postal.activity.sent_help")}
+          title={t("postal.activity.accepted")}
+          value={acceptedCount}
+          description={t("postal.activity.accepted_help")}
           icon={CheckCircle}
           color="green"
         />
@@ -391,8 +494,24 @@ const PostalAdminPage = () => {
 
       <InlineTip label={t("postal.webhooks.endpoint")}>
         {t("postal.webhooks.endpoint_hint_prefix")}{" "}
-        <Code>{`POST /store/postal/webhooks`}</Code>{" "}
+        <Code>{webhookCallbackPath}</Code>{" "}
         {t("postal.webhooks.endpoint_hint_suffix")}
+      </InlineTip>
+
+      <InlineTip label={t("postal.webhooks.callback_url")}>
+        {webhookCallbackUrl ? (
+          <>
+            {t("postal.webhooks.callback_url_hint_prefix")}{" "}
+            <Code>{webhookCallbackUrl}</Code>{" "}
+            {t("postal.webhooks.callback_url_hint_suffix")}
+          </>
+        ) : (
+          <>
+            {t("postal.webhooks.callback_url_missing_prefix")}{" "}
+            <Code>{webhookCallbackPath}</Code>{" "}
+            {t("postal.webhooks.callback_url_missing_suffix")}
+          </>
+        )}
       </InlineTip>
     </PluginShell>
   );

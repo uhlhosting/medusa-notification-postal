@@ -52,45 +52,118 @@ export type PostalTemplateExample = PostalTemplatePreview & {
   metadata: Record<string, string>
 }
 
+const buildRichHtmlTemplate = (
+  eyebrow: string,
+  title: string,
+  body: string,
+  footer: string
+) => `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title}</title>
+  </head>
+  <body style="margin:0;background:#f6f7fb;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+    <div style="max-width:640px;margin:0 auto;padding:32px 20px;">
+      <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
+        <div style="background:linear-gradient(135deg,#0f172a,#1d4ed8);padding:28px 32px;color:#ffffff;">
+          <div style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;opacity:0.8;">${eyebrow}</div>
+          <h1 style="margin:12px 0 0;font-size:28px;line-height:1.2;">${title}</h1>
+        </div>
+        <div style="padding:32px;">
+          <p style="margin:0 0 16px;font-size:16px;line-height:1.7;">${body}</p>
+          <div style="margin-top:24px;padding:16px 18px;background:#f8fafc;border-left:4px solid #2563eb;border-radius:12px;color:#475569;font-size:14px;line-height:1.6;">
+            ${footer}
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>`
+
 export const POSTAL_TEMPLATE_REGISTRY: Record<
   PostalTemplateName,
   PostalTemplateDefinition
 > = {
   default: {
     subject: "Notification",
+    html: buildRichHtmlTemplate(
+      "Postal Notification",
+      "Notification",
+      "This is a generic Postal notification preview used for template validation.",
+      "Use this template as a fallback when a workflow does not provide a more specific subject or body."
+    ),
+    text: "This is a generic Postal notification preview used for template validation.",
   },
   "postal-test": {
     subject: "Postal test send",
+    html: buildRichHtmlTemplate(
+      "Postal Transport Check",
+      "Postal Test Send",
+      "This is a Postal test message from Medusa.",
+      "If you received this message, the Postal transport and workflow path are both working."
+    ),
     text: "Postal test message from Medusa.",
   },
   "postal-admin-test": {
     subject: "Postal test from Medusa Admin",
-    html: "<p>Postal provider test message from <strong>Medusa Admin settings</strong>.</p>",
+    html: buildRichHtmlTemplate(
+      "Medusa Admin Settings",
+      "Postal Test From Admin",
+      "Postal provider test message from Medusa Admin settings.",
+      "This message confirms the saved Postal configuration can send through the live provider."
+    ),
     text: "Postal provider test message from Medusa Admin settings.",
   },
   "order-placed": {
     subject: "Order confirmation",
-    html: "<p>Thanks for your order.</p>",
+    html: buildRichHtmlTemplate(
+      "Order Receipt",
+      "Thanks for your order",
+      "We have received your order and are preparing it for fulfillment.",
+      "This is a sample customer-facing transactional message."
+    ),
     text: "Thanks for your order.",
   },
   "password-reset": {
     subject: "Reset your password",
-    html: "<p>Use the link in this email to reset your password.</p>",
+    html: buildRichHtmlTemplate(
+      "Account Security",
+      "Reset your password",
+      "Use the link in this email to reset your password.",
+      "If you did not request this reset, you can safely ignore this message."
+    ),
     text: "Use the link in this email to reset your password.",
   },
   welcome: {
     subject: "Welcome",
-    html: "<p>Welcome aboard.</p>",
+    html: buildRichHtmlTemplate(
+      "Customer Welcome",
+      "Welcome aboard",
+      "We are glad to have you with us.",
+      "Use this template for onboarding and first-contact customer messaging."
+    ),
     text: "Welcome aboard.",
   },
   "abandoned-cart": {
     subject: "You left items in your cart",
-    html: "<p>You left some items in your cart. Come back to finish your order.</p>",
+    html: buildRichHtmlTemplate(
+      "Cart Recovery",
+      "You left items in your cart",
+      "You left some items in your cart. Come back to finish your order.",
+      "This message can be used for recovery campaigns and triggered reminders."
+    ),
     text: "You left some items in your cart. Come back to finish your order.",
   },
   "restock-available": {
     subject: "Product is back in stock",
-    html: "<p>An item you were watching is back in stock.</p>",
+    html: buildRichHtmlTemplate(
+      "Back In Stock",
+      "Product is back in stock",
+      "An item you were watching is back in stock.",
+      "Use this message when inventory changes should trigger a customer notification."
+    ),
     text: "An item you were watching is back in stock.",
   },
 }

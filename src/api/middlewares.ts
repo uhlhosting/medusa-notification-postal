@@ -1,4 +1,5 @@
 import {
+  authenticate,
   defineMiddlewares,
   validateAndTransformBody,
 } from "@medusajs/framework/http"
@@ -55,33 +56,43 @@ const postalSendTestSchema = zod
   })
   .strict()
 
-const postalWebhookSchema = zod
-  .object({
-    event: zod.string().optional(),
-    event_type: zod.string().optional(),
-    type: zod.string().optional(),
-    name: zod.string().optional(),
-    status: zod.string().optional(),
-    message_status: zod.string().optional(),
-    delivery_status: zod.string().optional(),
-    timestamp: zod.union([zod.string(), zod.number()]).optional(),
-    occurred_at: zod.union([zod.string(), zod.number()]).optional(),
-    occurredAt: zod.union([zod.string(), zod.number()]).optional(),
-    created_at: zod.union([zod.string(), zod.number()]).optional(),
-    message: zod.record(zod.any()).optional(),
-    data: zod.record(zod.any()).optional(),
-    recipient: zod.string().optional(),
-    to: zod.string().optional(),
-    email: zod.string().optional(),
-  })
-  .passthrough()
-
 export default defineMiddlewares({
   routes: [
+    {
+      matcher: "/admin/plugin",
+      method: "GET",
+      middlewares: [authenticate("user", ["session", "bearer", "api-key"])],
+    },
+    {
+      matcher: "/admin/postal/health",
+      method: "GET",
+      middlewares: [authenticate("user", ["session", "bearer", "api-key"])],
+    },
+    {
+      matcher: "/admin/postal/messages/:id",
+      method: "GET",
+      middlewares: [authenticate("user", ["session", "bearer", "api-key"])],
+    },
+    {
+      matcher: "/admin/postal/webhooks",
+      method: "GET",
+      middlewares: [authenticate("user", ["session", "bearer", "api-key"])],
+    },
+    {
+      matcher: "/admin/postal/webhook-url",
+      method: "GET",
+      middlewares: [authenticate("user", ["session", "bearer", "api-key"])],
+    },
+    {
+      matcher: "/admin/plugin-settings/postal",
+      method: "GET",
+      middlewares: [authenticate("user", ["session", "bearer", "api-key"])],
+    },
     {
       matcher: "/admin/plugin-settings/postal",
       method: "POST",
       middlewares: [
+        authenticate("user", ["session", "bearer", "api-key"]),
         validateAndTransformBody(postalSettingsSchema),
       ],
     },
@@ -89,14 +100,8 @@ export default defineMiddlewares({
       matcher: "/admin/postal/send-test",
       method: "POST",
       middlewares: [
+        authenticate("user", ["session", "bearer", "api-key"]),
         validateAndTransformBody(postalSendTestSchema),
-      ],
-    },
-    {
-      matcher: "/store/postal/webhooks",
-      method: "POST",
-      middlewares: [
-        validateAndTransformBody(postalWebhookSchema),
       ],
     },
   ],

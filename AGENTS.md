@@ -15,6 +15,8 @@
 ## Working Rules
 - Keep mutation logic in workflows, not routes
 - Keep route handlers thin and typed
+- Prefer `AuthenticatedMedusaRequest` for protected admin endpoints and enforce auth in `src/api/middlewares.ts`
+- Keep workflow composition in `src/workflows/*.ts` and import workflows statically from routes and handlers
 - Use Medusa SDK clients where applicable instead of raw `fetch`
 - Preserve the compiled `.medusa/server` bundle as the package publish surface
 - Do not add npm tokens, automation tokens, or `.npmrc` auth entries
@@ -24,9 +26,13 @@
 1. Provider auth modes are `smtp-api`, `smtp-ip`, and `smtp`
 2. `provider_data` must carry email content and workflow metadata such as `subject`, `html`, `text`, `workflow_event`, and `workflow_run_id`
 3. The admin settings route under `/admin/plugin-settings/postal` is a configuration visibility surface and must not expose secrets
-4. Postal debug or test sends must use the plugin workflow path so trace metadata is preserved
-5. Saving settings must preserve existing secrets when password or API key inputs are empty
-6. Postal HTTP calls must fail fast with a bounded timeout
+4. Postal admin routes must require authenticated Medusa admin users through route-local middleware
+5. Postal debug or test sends must use the plugin workflow path so trace metadata is preserved
+6. Saving settings must preserve existing secrets when password or API key inputs are empty
+7. Postal HTTP calls must fail fast with a bounded timeout
+8. Postal webhook callbacks must use a tokenized store route, and the exact tokenized URL should be surfaced from an admin-only view rather than the settings surface
+9. Settings and webhook tables are created by migrations, not on request paths
+10. The admin webhook URL endpoint should return the tokenized path plus an absolute callback URL when the request origin can be resolved
 
 ## Publish and CI Rules
 1. GitHub publishing must use OIDC Trusted Publishing only

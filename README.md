@@ -15,7 +15,7 @@ A production-ready Postal notification provider for Medusa. Designed for reliabl
 
 ### `smtp-api` options
 
-- `base_url` - Postal base URL, for example `https://post.example.com`
+- `base_url` - Postal base URL, for example `https://post.uhlhosting.ch`
 - `api_key` - Postal server API key used in `X-Server-API-Key`
 
 ### `smtp-ip` options
@@ -75,7 +75,7 @@ Use Medusa notification workflows and pass workflow metadata in `provider_data`:
 ```ts
 await notificationModuleService.createNotifications({
   channel: "email",
-  to: "customer@example.com",
+  to: "customer@uhlhost.net",
   template: "order-placed",
   provider_id: "postal",
   content: {
@@ -97,8 +97,10 @@ The provider logs `workflow_event` and `workflow_run_id` for traceability in Med
 The plugin now exposes a public ingestion endpoint for Postal delivery lifecycle webhooks:
 
 ```text
-POST /store/postal/webhooks
+POST /store/postal/webhooks/<postal-webhook-token>
 ```
+
+The exact tokenized URL is shown in the Postal admin activity page after you save settings. The settings screen intentionally only shows the callback path so the secret stays out of the configuration surface.
 
 It accepts the Postal message status events documented by Postal:
 
@@ -106,10 +108,16 @@ It accepts the Postal message status events documented by Postal:
 - `MessageDelayed`
 - `MessageDeliveryFailed`
 - `MessageHeld`
+- `MessageBounced`
+- `MessageLinkClicked`
+- `MessageLoaded`
+- `DomainDNSError`
 
 Incoming webhook payloads are stored as raw JSON with normalized status metadata, so you can inspect delivery state changes in the admin Postal page after Postal calls back into Medusa.
 
 The admin page also shows a webhook event log and the endpoint to configure inside Postal.
+
+Postal's HTTP payload docs are separate from webhook delivery callbacks and are mainly useful if you are also handling inbound mail by HTTP. Postal's auto-responder, bounce, wildcard, and address-tag docs are relevant when you want to route inbound mail or reason about delivery replies, but they do not change the webhook callback contract itself.
 
 ### Template registry and metadata passthrough
 
@@ -153,11 +161,11 @@ You can also set sender identity fields when you need branded mail or a separate
 
 ```ts
 provider_data: {
-  from: "no-reply@example.com",
+  from: "no-reply@uhlhosting.ch",
   from_name: "Postal Admin",
-  reply_to: "support@example.com",
-  cc: "copy@example.com",
-  bcc: ["audit@example.com"],
+  reply_to: "support@uhlhosting.ch",
+  cc: "copy@uhlhost.net",
+  bcc: ["audit@highacid.com"],
   headers: {
     "X-Trace-Id": "trace_123",
   },
@@ -175,14 +183,14 @@ import { sendPostalEmailWorkflow } from "@uhlhosting/medusa-notification-postal"
 
 const { result } = await sendPostalEmailWorkflow(req.scope).run({
   input: {
-    to: "customer@example.com",
-    from: "custom-sender@example.com", // Optional, defaults to POSTAL_FROM
+    to: "customer@uhlhost.net",
+    from: "custom-sender@uhlhosting.ch", // Optional, defaults to POSTAL_FROM
     template: "custom-template-id",    // Optional
     provider_data: {
       subject: "Test Programmatic Email",
       html: "<p>Hello, this is a test email sent programmatically.</p>",
       text: "Hello, this is a test email sent programmatically.",
-      cc: "copy@example.com",
+      cc: "copy@uhlhost.net",
       workflow_event: "admin.test_send",
       workflow_run_id: "wf_run_manual_123"
     }

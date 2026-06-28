@@ -18,6 +18,16 @@ test("resolvePostalTemplate applies registry defaults", () => {
   assert.equal(resolved.text, "Postal provider test message from Medusa Admin settings.")
 })
 
+test("resolvePostalTemplate provides rich html for built-in text templates", () => {
+  const defaultTemplate = resolvePostalTemplate("default")
+  const postalTestTemplate = resolvePostalTemplate("postal-test")
+
+  assert.match(defaultTemplate.html, /Postal Notification/)
+  assert.match(defaultTemplate.html, /generic Postal notification preview/)
+  assert.match(postalTestTemplate.html, /Postal Test Send/)
+  assert.match(postalTestTemplate.html, /Postal test message from Medusa/)
+})
+
 test("resolvePostalTemplate preserves custom template names", () => {
   const resolved = resolvePostalTemplate("custom-template", {
     subject: "Custom subject",
@@ -25,8 +35,8 @@ test("resolvePostalTemplate preserves custom template names", () => {
 
   assert.equal(resolved.template_name, "custom-template")
   assert.equal(resolved.subject, "Custom subject")
-  assert.equal(resolved.html, "")
-  assert.equal(resolved.text, "")
+  assert.match(resolved.html, /Notification/)
+  assert.match(resolved.text, /generic Postal notification preview/)
 })
 
 test("normalizePostalCustomArgs converts safe keys to headers", () => {
@@ -97,4 +107,3 @@ test("getPostalTemplatePreview returns the template content for new templates", 
   assert.equal(restockPreview.subject, "Product is back in stock")
   assert.match(restockPreview.html, /back in stock/)
 })
-

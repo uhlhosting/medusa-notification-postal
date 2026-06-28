@@ -1,4 +1,7 @@
-import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import {
+  AuthenticatedMedusaRequest,
+  MedusaResponse,
+} from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
 
 type PostalApiResponse = {
@@ -59,7 +62,7 @@ const postPostalApi = async (path: string, payload: Record<string, unknown>) => 
 }
 
 export const GET = async (
-  req: MedusaRequest,
+  req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) => {
   const id = String(req.params.id || "").trim()

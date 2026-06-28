@@ -4,7 +4,7 @@
   "description": "Postal notification provider for Medusa",
   "author": "uhlhosting",
   "private": false,
-  "license": "MIT",
+  "license": "BSD-2-Clause-Patent",
   "repository": {
     "type": "git",
     "url": "https://github.com/uhlhosting/medusa-notification-postal"

@@ -1,9 +1,12 @@
-import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
+import {
+  AuthenticatedMedusaRequest,
+  MedusaResponse,
+} from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
 import { sendPostalEmailWorkflow } from "../../../../workflows/send-postal-email"
 
 export const POST = async (
-  req: MedusaRequest,
+  req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) => {
   const body = (req.validatedBody || req.body || {}) as {
