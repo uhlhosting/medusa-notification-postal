@@ -70,6 +70,11 @@ mirror:github:
     - git fetch --tags origin
     - |
       if [ -n "$CI_COMMIT_TAG" ]; then
+        tag_target="$(git rev-parse "refs/tags/${CI_COMMIT_TAG}^{}")"
+        if [ "$tag_target" != "$CI_COMMIT_SHA" ]; then
+          echo "Refusing to mirror ${CI_COMMIT_TAG}: tag resolves to ${tag_target}, but pipeline verified ${CI_COMMIT_SHA}." >&2
+          exit 1
+        fi
         git push github "refs/tags/${CI_COMMIT_TAG}:refs/tags/${CI_COMMIT_TAG}"
       else
         git push github "HEAD:refs/heads/main" --tags
