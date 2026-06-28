@@ -1,4 +1,5 @@
 import {
+  authenticate,
   defineMiddlewares,
   validateAndTransformBody,
 } from "@medusajs/framework/http"
@@ -82,6 +83,7 @@ export default defineMiddlewares({
       matcher: "/admin/plugin-settings/postal",
       method: "POST",
       middlewares: [
+        authenticate("user", ["session", "bearer", "api-key"]),
         validateAndTransformBody(postalSettingsSchema),
       ],
     },
@@ -89,6 +91,7 @@ export default defineMiddlewares({
       matcher: "/admin/postal/send-test",
       method: "POST",
       middlewares: [
+        authenticate("user", ["session", "bearer", "api-key"]),
         validateAndTransformBody(postalSendTestSchema),
       ],
     },
