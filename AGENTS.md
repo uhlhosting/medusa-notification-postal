@@ -27,6 +27,7 @@
 4. Postal debug or test sends must use the plugin workflow path so trace metadata is preserved
 5. Saving settings must preserve existing secrets when password or API key inputs are empty
 6. Postal HTTP calls must fail fast with a bounded timeout
+7. SMTP and SMTP-IP transports must require TLS encryption, using implicit TLS when `smtp_secure` is true and mandatory STARTTLS when false
 
 ## Publish and CI Rules
 1. GitHub publishing must use OIDC Trusted Publishing only
