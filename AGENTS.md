@@ -35,6 +35,7 @@
 4. The GitLab mirror job must use a masked, protected CI/CD variable for GitHub push access
 5. Keep release validation in the repo and run it before publish-related changes are signed off
 6. Tag mirroring pipelines must push the tag ref specifically (using `refs/tags/...` format) to prevent conflicts with GitLab's background mirroring.
+7. GitHub npm publishing must verify protected refs, package-version tag alignment, and release-branch reachability before publishing.
 
 ## Validation Checklist
 1. `pnpm release:check` passes
