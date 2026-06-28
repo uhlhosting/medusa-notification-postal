@@ -92,6 +92,80 @@ await notificationModuleService.createNotifications({
 
 The provider logs `workflow_event` and `workflow_run_id` for traceability in Medusa runtime logs.
 
+## Postal Webhooks
+
+The plugin now exposes a public ingestion endpoint for Postal delivery lifecycle webhooks:
+
+```text
+POST /store/postal/webhooks
+```
+
+It accepts the Postal message status events documented by Postal:
+
+- `MessageSent`
+- `MessageDelayed`
+- `MessageDeliveryFailed`
+- `MessageHeld`
+
+Incoming webhook payloads are stored as raw JSON with normalized status metadata, so you can inspect delivery state changes in the admin Postal page after Postal calls back into Medusa.
+
+The admin page also shows a webhook event log and the endpoint to configure inside Postal.
+
+### Template registry and metadata passthrough
+
+The plugin includes a small built-in template registry for common notification flows:
+
+- `postal-test`
+- `postal-admin-test`
+- `order-placed`
+- `password-reset`
+- `welcome`
+
+If a template key is not in the registry, Postal still uses the provided template string and falls back to the passed content. You can also pass extra tracing data through `provider_data.metadata` and `provider_data.custom_args`:
+
+```ts
+provider_data: {
+  subject: "Order confirmation",
+  html: "<p>Thanks for your order</p>",
+  text: "Thanks for your order",
+  workflow_event: "order.placed",
+  workflow_run_id: "wf_run_123",
+  metadata: {
+    store: "main",
+    environment: "production",
+  },
+  custom_args: {
+    order_id: "ord_123",
+    customer_group: "vip",
+  },
+}
+```
+
+`custom_args` are normalized into safe email headers for transport-level traceability. `metadata` stays available in Medusa-side notification data and logs.
+
+The admin Postal settings page uses the same registry for test-send template selection, so the built-in examples stay aligned across the backend and admin UI.
+The selected template also shows a preview of its subject, text, and HTML in the admin test-send panel.
+That panel also includes a full example payload with recipient, sender identity, workflow metadata, and sample custom args for the selected template.
+The same panel now lets you load the example values into the test form with one click, edit the message subject/text/HTML/custom args/metadata, or copy the example JSON directly.
+It also exposes `cc`, `bcc`, and custom `headers` so test sends match the provider contract more closely.
+
+You can also set sender identity fields when you need branded mail or a separate reply path:
+
+```ts
+provider_data: {
+  from: "no-reply@example.com",
+  from_name: "Postal Admin",
+  reply_to: "support@example.com",
+  cc: "copy@example.com",
+  bcc: ["audit@example.com"],
+  headers: {
+    "X-Trace-Id": "trace_123",
+  },
+}
+```
+
+`from_name` formats the SMTP sender as `Name <email>`. `reply_to` is forwarded to the transport and preserved in provider data.
+
 ### Programmatic Workflows
 
 You can trigger a direct email notification through the Postal provider programmatically using the `sendPostalEmailWorkflow`. This ensures the mail goes through the provider's standard channel and logs full delivery metadata.

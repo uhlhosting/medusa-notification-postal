@@ -7,6 +7,11 @@ import {
   ProviderSendNotificationDTO,
   ProviderSendNotificationResultsDTO,
 } from "@medusajs/framework/types"
+import {
+  normalizePostalCustomArgs,
+  resolvePostalTemplate,
+  resolvePostalSender,
+} from "../templates"
 
 type PostalAuthType = "smtp-api" | "smtp-ip" | "smtp"
 
@@ -26,6 +31,22 @@ interface PostalOptions {
 type PostalApiResult = {
   status?: string
   data?: any
+}
+
+type PostalNotificationProviderData = {
+  from?: string
+  from_name?: string
+  reply_to?: string
+  subject?: string
+  html?: string
+  text?: string
+  cc?: string | string[]
+  bcc?: string | string[]
+  headers?: Record<string, string>
+  custom_args?: Record<string, unknown>
+  metadata?: Record<string, unknown>
+  workflow_event?: string
+  workflow_run_id?: string
 }
 
 const POSTAL_REQUEST_TIMEOUT_MS = 10000
@@ -206,9 +227,9 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
 
     const providerData =
-      (notification.provider_data as any) ||
-      (notification.data as any) ||
-      {}
+      ((notification.provider_data as PostalNotificationProviderData) ||
+        (notification.data as PostalNotificationProviderData) ||
+        {}) as PostalNotificationProviderData
     const content = (notification.content as any) || {}
 
     const to = this.normalizeEmails(notification.to)
@@ -222,22 +243,40 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
-    const from = (notification.from || "").trim() || this.config_.from
-    if (!from) {
+    const sender = resolvePostalSender(
+      {
+        from: providerData?.from || notification.from || undefined,
+        from_name: providerData?.from_name,
+        reply_to: providerData?.reply_to,
+      },
+      this.config_.from
+    )
+
+    if (!sender.from) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
         "Postal notification requires a from address"
       )
     }
 
-    const subject =
-      content?.subject || providerData?.subject || notification.template || "Notification"
+    const template = resolvePostalTemplate(notification.template, {
+      subject: content?.subject || providerData?.subject,
+      html: content?.html || providerData?.html,
+      text: content?.text || providerData?.text,
+    })
 
-    const htmlBody = content?.html || providerData?.html || ""
+    const htmlBody = template.html || ""
     const plainBody =
-      content?.text ||
-      providerData?.text ||
+      template.text ||
       (htmlBody ? this.stripHtml(htmlBody) : "")
+    const customArgHeaders = normalizePostalCustomArgs(
+      providerData?.custom_args
+    )
+    const headers = {
+      ...(providerData?.headers || {}),
+      ...(sender.reply_to ? { "Reply-To": sender.reply_to } : {}),
+      ...customArgHeaders,
+    }
 
     const attachments = this.normalizeAttachments(
       notification.attachments as any
@@ -247,24 +286,28 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       to,
       cc,
       bcc,
-      from,
-      subject,
+      from: sender.from,
+      reply_to: sender.reply_to,
+      subject: template.subject,
       html_body: htmlBody || undefined,
       plain_body: plainBody || undefined,
-      tag: notification.template || undefined,
-      headers: providerData?.headers || undefined,
+      tag: template.template_name || undefined,
+      headers: Object.keys(headers).length ? headers : undefined,
       attachments,
     }
 
     const workflowEvent = String(providerData?.workflow_event || "")
     const workflowRunId = String(providerData?.workflow_run_id || "")
+    const metadata = providerData?.metadata || {}
 
     this.logger_.info(
       `Postal notification send started auth=${
         this.config_.authType
-      } template=${notification.template || "none"} event=${
+      } template=${template.template_name || "default"} event=${
         workflowEvent || "none"
-      } run_id=${workflowRunId || "none"}`
+      } run_id=${workflowRunId || "none"} metadata_keys=${
+        Object.keys(metadata).length || 0
+      } custom_args_keys=${Object.keys(providerData?.custom_args || {}).length}`
     )
 
     if (this.config_.authType === "smtp-api") {
@@ -411,6 +454,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
 
       const result = await transporter.sendMail({
         from: payload.from,
+        replyTo: payload.reply_to,
         to: payload.to.length ? payload.to : undefined,
         cc: payload.cc.length ? payload.cc : undefined,
         bcc: payload.bcc.length ? payload.bcc : undefined,

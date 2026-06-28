@@ -3,12 +3,18 @@ import { MedusaError } from "@medusajs/framework/utils"
 import fs from "node:fs"
 import { writeFile, rename, unlink } from "node:fs/promises"
 import path from "node:path"
+import {
+  buildPostalAdminTestProviderData,
+  type PostalAdminTestBody,
+} from "./test-payload"
 
 type PostalAuthType = "smtp-api" | "smtp-ip" | "smtp"
 
 type PostalSettingsInput = {
   auth_type?: PostalAuthType
   from?: string
+  from_name?: string
+  reply_to?: string
   base_url?: string
   api_key?: string
   smtp_host?: string
@@ -33,6 +39,17 @@ type PostalSettingsRecord = {
 type PostalPostBody = {
   action?: "save" | "test"
   to?: string
+  cc?: string | string[]
+  bcc?: string | string[]
+  from_name?: string
+  reply_to?: string
+  template?: string
+  subject?: string
+  html?: string
+  text?: string
+  headers?: Record<string, string>
+  custom_args?: Record<string, unknown>
+  metadata?: Record<string, unknown>
   settings?: PostalSettingsInput
 }
 
@@ -442,8 +459,16 @@ export async function POST(
     })
   }
 
-  const subject = "Postal test from Medusa Admin"
   const runId = `admin_${Date.now()}`
+  const providerData = buildPostalAdminTestProviderData(
+    {
+      from: currentSettings.from || undefined,
+      test_to: currentSettings.test_to || undefined,
+      auth_type: currentSettings.auth_type,
+    },
+    body as PostalAdminTestBody,
+    runId
+  )
 
   const { sendPostalEmailWorkflow } = await import("../../../../workflows/send-postal-email.js")
 
@@ -451,13 +476,10 @@ export async function POST(
     input: {
       to,
       from: currentSettings.from || undefined,
-      template: "postal-admin-test",
+      template: providerData.template,
       provider_data: {
-        subject,
-        text: "Postal provider test message from Medusa Admin settings.",
-        html: "<p>Postal provider test message from <strong>Medusa Admin settings</strong>.</p>",
-        workflow_event: "admin.postal.test",
-        workflow_run_id: runId,
+        ...providerData,
+        from: currentSettings.from || undefined,
       },
     },
     throwOnError: false,

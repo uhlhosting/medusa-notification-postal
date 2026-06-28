@@ -9,6 +9,8 @@ export const POST = async (
   const body = (req.validatedBody || req.body || {}) as {
     to?: string | string[]
     from?: string
+    from_name?: string
+    reply_to?: string
     template?: string
     subject?: string
     html?: string
@@ -16,6 +18,8 @@ export const POST = async (
     cc?: string | string[]
     bcc?: string | string[]
     headers?: Record<string, string>
+    custom_args?: Record<string, unknown>
+    metadata?: Record<string, unknown>
   }
 
   const subject = String(body.subject || "").trim()
@@ -32,14 +36,21 @@ export const POST = async (
     input: {
       to: body.to,
       from: body.from,
+      from_name: body.from_name,
+      reply_to: body.reply_to,
       template: body.template || "postal-test",
       provider_data: {
+        from: body.from,
+        from_name: body.from_name,
+        reply_to: body.reply_to,
         subject,
         html: body.html || "",
         text: body.text || "",
         cc: body.cc,
         bcc: body.bcc,
         headers: body.headers || {},
+        custom_args: body.custom_args || {},
+        metadata: body.metadata || {},
         workflow_event: "postal.admin.test_send",
         workflow_run_id: runId,
       },

@@ -35,6 +35,18 @@ type Notification = {
 };
 
 const columnHelper = createDataTableColumnHelper<Notification>();
+const webhookColumnHelper = createDataTableColumnHelper<WebhookEvent>();
+
+type WebhookEvent = {
+  id: string;
+  event_type: string;
+  status: string;
+  message_id?: string | null;
+  recipient?: string | null;
+  occurred_at?: string | null;
+  created_at?: string;
+  payload?: any;
+};
 
 const statusFromNotification = (notification: Notification) => {
   const status = String(
@@ -83,6 +95,46 @@ const statusLabelKey = (status: string) => {
   return "postal.activity.pending";
 };
 
+const webhookStatusLabelKey = (status: string) => {
+  if (status === "sent") {
+    return "postal.webhooks.sent";
+  }
+
+  if (status === "delayed") {
+    return "postal.webhooks.delayed";
+  }
+
+  if (status === "failed") {
+    return "postal.webhooks.failed";
+  }
+
+  if (status === "held") {
+    return "postal.webhooks.held";
+  }
+
+  return "postal.webhooks.unknown";
+};
+
+const webhookStatusBadgeColor = (status: string) => {
+  if (status === "sent") {
+    return "green";
+  }
+
+  if (status === "delayed") {
+    return "orange";
+  }
+
+  if (status === "failed") {
+    return "red";
+  }
+
+  if (status === "held") {
+    return "blue";
+  }
+
+  return "grey";
+};
+
 const useColumns = () => {
   ensurePostalAdminTranslations();
   const { t } = useTranslation();
@@ -115,6 +167,49 @@ const useColumns = () => {
             </StatusBadge>
           );
         },
+      }),
+    ],
+    [t],
+  );
+};
+
+const useWebhookColumns = () => {
+  ensurePostalAdminTranslations();
+  const { t } = useTranslation();
+
+  return useMemo(
+    () => [
+      webhookColumnHelper.accessor("event_type", {
+        header: t("postal.webhooks.event"),
+        cell: ({ getValue }) => <Text size="small">{getValue()}</Text>,
+      }),
+      webhookColumnHelper.accessor("status", {
+        header: t("postal.webhooks.status"),
+        cell: ({ getValue }) => (
+          <StatusBadge color={webhookStatusBadgeColor(getValue())}>
+            {t(webhookStatusLabelKey(getValue()))}
+          </StatusBadge>
+        ),
+      }),
+      webhookColumnHelper.accessor("message_id", {
+        header: t("postal.webhooks.message_id"),
+        cell: ({ getValue }) => (
+          <Text size="small">{getValue() || "-"}</Text>
+        ),
+      }),
+      webhookColumnHelper.accessor("recipient", {
+        header: t("postal.webhooks.recipient"),
+        cell: ({ getValue }) => (
+          <Text size="small">{getValue() || "-"}</Text>
+        ),
+      }),
+      webhookColumnHelper.accessor("created_at", {
+        header: t("postal.webhooks.received_at"),
+        cell: ({ getValue }) => (
+          <Text size="small">
+            {getValue() ? new Date(getValue() as string).toLocaleString() : "-"}
+          </Text>
+        ),
       }),
     ],
     [t],
@@ -162,11 +257,36 @@ const PostalAdminPage = () => {
       },
     });
 
+  const { data: webhookEventsData, isLoading: isWebhookEventsLoading } =
+    useQuery({
+      queryKey: ["postal-webhook-events"],
+      queryFn: async () => {
+        const response = await sdk.client.fetch("/admin/postal/webhooks", {
+          query: {
+            limit: 25,
+          },
+        });
+
+        return Array.isArray((response as any)?.events)
+          ? ((response as any).events as WebhookEvent[])
+          : [];
+      },
+    });
+
   const sentCount = useMemo(() => {
     return (notificationsData || []).filter(
       (n) => statusFromNotification(n) === "sent",
     ).length;
   }, [notificationsData]);
+
+  const webhookEventColumns = useWebhookColumns();
+  const webhookTable = useDataTable({
+    data: webhookEventsData || [],
+    columns: webhookEventColumns,
+    getRowId: (event) => event.id,
+    rowCount: webhookEventsData?.length || 0,
+    isLoading: isWebhookEventsLoading,
+  });
 
   const table = useDataTable({
     data: notificationsData || [],
@@ -204,7 +324,7 @@ const PostalAdminPage = () => {
         ]}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <PluginStatusCard
           title={t("postal.activity.auth_mode")}
           value={(health as any)?.auth_type || "smtp-api"}
@@ -227,6 +347,13 @@ const PostalAdminPage = () => {
           icon={XCircle}
           color="orange"
         />
+        <PluginStatusCard
+          title={t("postal.webhooks.total_events")}
+          value={webhookEventsData?.length || 0}
+          description={t("postal.webhooks.records_shown")}
+          icon={XCircle}
+          color="blue"
+        />
       </div>
 
       <PluginSection
@@ -245,12 +372,27 @@ const PostalAdminPage = () => {
         </DataTable>
       </PluginSection>
 
+      <PluginSection
+        title={t("postal.webhooks.recent_events")}
+        bodyClassName="p-0"
+      >
+        <DataTable instance={webhookTable}>
+          <DataTable.Table />
+        </DataTable>
+      </PluginSection>
+
       <InlineTip label={t("postal.activity.workflow_metadata")}>
         {t("postal.activity.workflow_hint_prefix")}{" "}
         <Code>provider_data.workflow_event</Code>{" "}
         {t("postal.activity.workflow_hint_middle")}{" "}
         <Code>provider_data.workflow_run_id</Code>{" "}
         {t("postal.activity.workflow_hint_suffix")}
+      </InlineTip>
+
+      <InlineTip label={t("postal.webhooks.endpoint")}>
+        {t("postal.webhooks.endpoint_hint_prefix")}{" "}
+        <Code>{`POST /store/postal/webhooks`}</Code>{" "}
+        {t("postal.webhooks.endpoint_hint_suffix")}
       </InlineTip>
     </PluginShell>
   );
@@ -261,9 +403,9 @@ export const config = defineRouteConfig({
   icon: function PostalRouteIcon() {
     return (
       <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="15" height="15" fill="#EF4444" />
+        <rect width="15" height="15" fill="#F43F5E" />
         <rect width="15" height="15" fill="url(#postal-admin-icon-gradient)" fillOpacity="0.2" />
-        <g stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
+        <g transform="translate(2 2) scale(0.7)" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
           <path d="M11.829 4.398a2.82 2.82 0 0 1 1.511 2.498v4.028c0 .444-.36.805-.805.805H6.493M4.48 4.077h4.832" />
           <path d="M4.48 4.077a2.82 2.82 0 0 1 2.819 2.82v4.027c0 .444-.361.805-.806.805H2.465a.806.806 0 0 1-.805-.805V6.896a2.82 2.82 0 0 1 2.82-2.82M7.299 11.528v1.812M4.48 6.896v1.208" />
           <path fill="white" d="M11.73.854H9.311v1.209h2.417z" />
