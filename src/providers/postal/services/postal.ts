@@ -442,6 +442,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
         host: this.config_.smtpHost,
         port: this.config_.smtpPort,
         secure: this.config_.smtpSecure,
+        requireTLS: !this.config_.smtpSecure,
         connectionTimeout: this.config_.smtpTimeout,
         auth:
           this.config_.authType === "smtp"
