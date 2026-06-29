@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 - 2026-06-29
+
+- Restored the Postal admin test payload helper so the admin route typechecks and the GitLab validate job can complete.
+- Kept the Postal admin settings UI aligned with the current template reference workflow.
+
 ## 0.2.0 - 2026-06-29
 
 - Update `nodemailer` to `^9.0.1` and `@types/nodemailer` to `^8.0.1`, while keeping the existing attachment-only delivery path that does not rely on v9's remote-content or raw-message behavior changes.

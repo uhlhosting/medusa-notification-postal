@@ -115,6 +115,8 @@ type PostalTemplateReferenceRow = {
   notes: string;
 };
 
+type PostalTemplateAudienceFilter = "all" | PostalTemplateReferenceRow["audience"];
+
 const postalTemplateReferenceRows: PostalTemplateReferenceRow[] = [
   {
     template: "default",
@@ -205,6 +207,8 @@ export const PostalSettingsPage = () => {
   const [form, setForm] = useState<PostalSettingsForm>(emptyForm);
   const [testForm, setTestForm] = useState<PostalTestForm>(emptyTestForm);
   const [previewMode, setPreviewMode] = useState<PreviewMode>("rendered");
+  const [templateAudienceFilter, setTemplateAudienceFilter] =
+    useState<PostalTemplateAudienceFilter>("all");
 
   const templateOptions = getPostalTemplateOptions();
   const selectedTemplate = templateOptions.find(
@@ -218,6 +222,12 @@ export const PostalSettingsPage = () => {
   );
   const renderedTemplateHtml = (testForm.html || templatePreview.html || "").trim();
   const webhookCallbackPath = "/store/postal/webhooks";
+  const filteredTemplateRows =
+    templateAudienceFilter === "all"
+      ? postalTemplateReferenceRows
+      : postalTemplateReferenceRows.filter(
+          (row) => row.audience === templateAudienceFilter,
+        );
 
   const parseJsonObject = (value: string, fieldLabel: string) => {
     const trimmed = value.trim();
@@ -959,10 +969,32 @@ export const PostalSettingsPage = () => {
                   shared fallback
                 </Badge>
               </div>
+              <div className="mt-3 flex max-w-sm flex-col gap-y-2">
+                <Label htmlFor="postal-template-audience-filter">
+                  Filter by audience
+                </Label>
+                <Select
+                  value={templateAudienceFilter}
+                  onValueChange={(value) =>
+                    setTemplateAudienceFilter(value as PostalTemplateAudienceFilter)
+                  }
+                >
+                  <Select.Trigger id="postal-template-audience-filter">
+                    <Select.Value placeholder="All templates" />
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="all">All templates</Select.Item>
+                    <Select.Item value="auth">Auth</Select.Item>
+                    <Select.Item value="commerce">Commerce</Select.Item>
+                    <Select.Item value="ops">Ops</Select.Item>
+                    <Select.Item value="shared">Shared</Select.Item>
+                  </Select.Content>
+                </Select>
+              </div>
               <div className="mt-3 overflow-hidden rounded-lg border border-ui-border-base bg-white">
                 <Table>
                   <Table.Body>
-                    {postalTemplateReferenceRows.map((row) => (
+                    {filteredTemplateRows.map((row) => (
                       <Table.Row key={row.template}>
                         <Table.Cell>
                           <div className="flex flex-col gap-y-1">
@@ -1024,6 +1056,22 @@ export const PostalSettingsPage = () => {
                           <Text size="small" leading="compact" className="text-ui-fg-subtle">
                             {row.notes}
                           </Text>
+                        </Table.Cell>
+                        <Table.Cell className="text-right">
+                          <Button
+                            type="button"
+                            size="small"
+                            variant="secondary"
+                            onClick={() => {
+                              setTestForm((prev) => ({
+                                ...prev,
+                                template: row.template,
+                              }));
+                              setPreviewMode("rendered");
+                            }}
+                          >
+                            Use template
+                          </Button>
                         </Table.Cell>
                       </Table.Row>
                     ))}
