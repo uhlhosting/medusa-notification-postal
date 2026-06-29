@@ -209,6 +209,7 @@ export const PostalSettingsPage = () => {
   const [previewMode, setPreviewMode] = useState<PreviewMode>("rendered");
   const [templateAudienceFilter, setTemplateAudienceFilter] =
     useState<PostalTemplateAudienceFilter>("all");
+  const [templateSearch, setTemplateSearch] = useState("");
 
   const templateOptions = getPostalTemplateOptions();
   const selectedTemplate = templateOptions.find(
@@ -222,12 +223,27 @@ export const PostalSettingsPage = () => {
   );
   const renderedTemplateHtml = (testForm.html || templatePreview.html || "").trim();
   const webhookCallbackPath = "/store/postal/webhooks";
-  const filteredTemplateRows =
-    templateAudienceFilter === "all"
-      ? postalTemplateReferenceRows
-      : postalTemplateReferenceRows.filter(
-          (row) => row.audience === templateAudienceFilter,
-        );
+  const normalizedTemplateSearch = templateSearch.trim().toLowerCase();
+  const filteredTemplateRows = postalTemplateReferenceRows.filter((row) => {
+    const audienceMatches =
+      templateAudienceFilter === "all" || row.audience === templateAudienceFilter;
+    const searchMatches = normalizedTemplateSearch
+      ? [
+          row.template,
+          row.purpose,
+          row.audience,
+          row.required,
+          row.optional,
+          row.event,
+          row.notes,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedTemplateSearch)
+      : true;
+
+    return audienceMatches && searchMatches;
+  });
 
   const parseJsonObject = (value: string, fieldLabel: string) => {
     const trimmed = value.trim();
@@ -991,90 +1007,150 @@ export const PostalSettingsPage = () => {
                   </Select.Content>
                 </Select>
               </div>
+              <div className="mt-3 flex max-w-xl flex-col gap-y-2">
+                <Label htmlFor="postal-template-search">Search templates</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="postal-template-search"
+                    value={templateSearch}
+                    onChange={(e) => setTemplateSearch(e.target.value)}
+                    placeholder="Search by template, event, or purpose"
+                  />
+                  <Button
+                    type="button"
+                    size="small"
+                    variant="secondary"
+                    onClick={() => setTemplateSearch("")}
+                    disabled={!templateSearch}
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    type="button"
+                    size="small"
+                    variant="transparent"
+                    onClick={() => {
+                      setTemplateAudienceFilter("all");
+                      setTemplateSearch("");
+                    }}
+                    disabled={
+                      templateAudienceFilter === "all" && !templateSearch.trim()
+                    }
+                  >
+                    Reset filters
+                  </Button>
+                </div>
+                <Text size="small" leading="compact" className="text-ui-fg-subtle">
+                  {filteredTemplateRows.length} templates match the current filter.
+                </Text>
+              </div>
               <div className="mt-3 overflow-hidden rounded-lg border border-ui-border-base bg-white">
                 <Table>
                   <Table.Body>
-                    {filteredTemplateRows.map((row) => (
-                      <Table.Row key={row.template}>
-                        <Table.Cell>
-                          <div className="flex flex-col gap-y-1">
-                            <Text size="small" leading="compact" weight="plus">
-                              {row.template}
-                            </Text>
+                    {filteredTemplateRows.length ? (
+                      filteredTemplateRows.map((row) => (
+                        <Table.Row key={row.template}>
+                          <Table.Cell>
+                            <div className="flex flex-col gap-y-1">
+                              <Text size="small" leading="compact" weight="plus">
+                                {row.template}
+                              </Text>
+                              <Text
+                                size="small"
+                                leading="compact"
+                                className="text-ui-fg-subtle"
+                              >
+                                {row.purpose}
+                              </Text>
+                            </div>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <div className="flex flex-col gap-y-1">
+                              <Text size="small" leading="compact" weight="plus">
+                                Required
+                              </Text>
+                              <Text size="small" leading="compact">
+                                {row.required}
+                              </Text>
+                            </div>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <div className="flex flex-col gap-y-1">
+                              <Text size="small" leading="compact" weight="plus">
+                                Optional
+                              </Text>
+                              <Text size="small" leading="compact">
+                                {row.optional}
+                              </Text>
+                            </div>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <div className="flex flex-col gap-y-1">
+                              <Badge
+                                size="small"
+                                color={
+                                  row.audience === "auth"
+                                    ? "blue"
+                                    : row.audience === "commerce"
+                                      ? "green"
+                                      : row.audience === "ops"
+                                        ? "orange"
+                                        : "grey"
+                                }
+                                className="w-fit"
+                              >
+                                {row.audience}
+                              </Badge>
+                              <Code className="block whitespace-pre-wrap break-words">
+                                {row.event}
+                              </Code>
+                            </div>
+                          </Table.Cell>
+                          <Table.Cell>
                             <Text
                               size="small"
                               leading="compact"
                               className="text-ui-fg-subtle"
                             >
-                              {row.purpose}
+                              {row.notes}
                             </Text>
-                          </div>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <div className="flex flex-col gap-y-1">
-                            <Text size="small" leading="compact" weight="plus">
-                              Required
-                            </Text>
-                            <Text size="small" leading="compact">
-                              {row.required}
-                            </Text>
-                          </div>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <div className="flex flex-col gap-y-1">
-                            <Text size="small" leading="compact" weight="plus">
-                              Optional
-                            </Text>
-                            <Text size="small" leading="compact">
-                              {row.optional}
-                            </Text>
-                          </div>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <div className="flex flex-col gap-y-1">
-                            <Badge
+                          </Table.Cell>
+                          <Table.Cell className="text-right">
+                            <Button
+                              type="button"
                               size="small"
-                              color={
-                                row.audience === "auth"
-                                  ? "blue"
-                                  : row.audience === "commerce"
-                                    ? "green"
-                                    : row.audience === "ops"
-                                      ? "orange"
-                                      : "grey"
-                              }
-                              className="w-fit"
+                              variant="secondary"
+                              onClick={() => {
+                                setTestForm((prev) => ({
+                                  ...prev,
+                                  template: row.template,
+                                }));
+                                setPreviewMode("rendered");
+                              }}
                             >
-                              {row.audience}
-                            </Badge>
-                            <Code className="block whitespace-pre-wrap break-words">
-                              {row.event}
-                            </Code>
+                              Use template
+                            </Button>
+                          </Table.Cell>
+                        </Table.Row>
+                      ))
+                    ) : (
+                      <Table.Row>
+                        <Table.Cell colSpan={6}>
+                          <div className="py-6 text-center">
+                            <Text size="small" leading="compact" weight="plus">
+                              No templates match the current filter.
+                            </Text>
+                            <Text
+                              size="small"
+                              leading="compact"
+                              className="mt-1 text-ui-fg-subtle"
+                            >
+                              Clear or reset the filters to see the full Postal template set.
+                            </Text>
                           </div>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                            {row.notes}
-                          </Text>
-                        </Table.Cell>
-                        <Table.Cell className="text-right">
-                          <Button
-                            type="button"
-                            size="small"
-                            variant="secondary"
-                            onClick={() => {
-                              setTestForm((prev) => ({
-                                ...prev,
-                                template: row.template,
-                              }));
-                              setPreviewMode("rendered");
-                            }}
-                          >
-                            Use template
-                          </Button>
                         </Table.Cell>
                       </Table.Row>
-                    ))}
+                    )}
                   </Table.Body>
                 </Table>
               </div>

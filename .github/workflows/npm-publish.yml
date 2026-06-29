@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -43,8 +45,13 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
-        run: pnpm typecheck
+      - name: Verify release provenance
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_PROTECTED}" != "true" ]; then
+            echo "Ref ${GITHUB_REF} must be protected before npm trusted publishing is allowed." >&2
+            exit 1
+          fi
 
       - name: Test
         run: pnpm test
@@ -52,8 +59,26 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Build
-        run: pnpm build
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            expected_tag="v$(node -p "require('./package.json').version")"
+            if [ "${GITHUB_REF_NAME}" != "${expected_tag}" ]; then
+              echo "Tag ${GITHUB_REF_NAME} does not match package version tag ${expected_tag}." >&2
+              exit 1
+            fi
+
+            git fetch --no-tags origin main
+            tag_commit="$(git rev-list -n 1 "${GITHUB_REF_NAME}")"
+            if ! git merge-base --is-ancestor "${tag_commit}" origin/main; then
+              echo "Tag ${GITHUB_REF_NAME} must point to a commit reachable from origin/main." >&2
+              exit 1
+            fi
+          elif [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            echo "Manual npm publishing is only allowed from the protected main branch." >&2
+            exit 1
+          fi
+
+      - name: Release check
+        run: pnpm release:check
 
       - name: Pack dry run
         run: npm pack --dry-run
