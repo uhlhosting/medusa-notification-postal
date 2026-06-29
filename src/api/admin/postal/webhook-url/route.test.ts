@@ -51,11 +51,11 @@ test("admin webhook url route returns tokenized callback details", async () => {
   assert.equal(responseBody.payload.token, "token_123")
   assert.equal(
     responseBody.payload.path,
-    "/store/postal/webhooks/token_123"
+    "/postal/webhooks/token_123"
   )
   assert.equal(
     responseBody.payload.callback_url,
-    "https://api.uhlhosting.ch/store/postal/webhooks/token_123"
+    "https://api.uhlhosting.ch/postal/webhooks/token_123"
   )
 })
 
@@ -108,7 +108,7 @@ test("admin webhook url route falls back to backend env origin", async () => {
     assert.equal(responseBody.status, 200)
     assert.equal(
       responseBody.payload.callback_url,
-      "https://env.uhlhosting.ch/store/postal/webhooks/token_456"
+      "https://env.uhlhosting.ch/postal/webhooks/token_456"
     )
   } finally {
     if (previousBackendUrl === undefined) {

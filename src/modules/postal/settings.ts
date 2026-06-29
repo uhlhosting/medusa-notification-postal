@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto"
 import { rename, unlink, writeFile } from "node:fs/promises"
 import path from "node:path"
 
-export type PostalAuthType = "smtp-api" | "smtp-ip" | "smtp"
+export type PostalAuthType = "smtp-api"
 
 export type PostalSettingsInput = {
   auth_type?: PostalAuthType
@@ -12,11 +12,6 @@ export type PostalSettingsInput = {
   reply_to?: string
   base_url?: string
   api_key?: string
-  smtp_host?: string
-  smtp_port?: string
-  smtp_secure?: string
-  smtp_user?: string
-  smtp_pass?: string
   test_to?: string
   webhook_token?: string
 }
@@ -26,11 +21,6 @@ export type PostalSettingsRecord = {
   POSTAL_FROM?: string
   POSTAL_BASE_URL?: string
   POSTAL_API_KEY?: string
-  POSTAL_SMTP_HOST?: string
-  POSTAL_SMTP_PORT?: string
-  POSTAL_SMTP_SECURE?: string
-  POSTAL_SMTP_USER?: string
-  POSTAL_SMTP_PASS?: string
   POSTAL_TEST_TO?: string
   POSTAL_WEBHOOK_TOKEN?: string
 }
@@ -44,25 +34,15 @@ export type PostalSettingsSnapshot = {
   base_url: string | null
   api_key: string
   test_to: string | null
-  smtp_host: string | null
-  smtp_port: string | null
-  smtp_secure: string | null
-  smtp_user: string | null
-  smtp_pass: string
   webhook_token: string
   configured: {
     from: boolean
     api_key: boolean
     base_url: boolean
-    smtp_host: boolean
-    smtp_port: boolean
-    smtp_user: boolean
-    smtp_pass: boolean
     webhook_token: boolean
   }
   secret_hints: {
     api_key_masked: string | null
-    smtp_pass_masked: string | null
     webhook_token_masked: string | null
   }
 }
@@ -99,11 +79,6 @@ const ENV_KEYS = [
   "POSTAL_FROM",
   "POSTAL_BASE_URL",
   "POSTAL_API_KEY",
-  "POSTAL_SMTP_HOST",
-  "POSTAL_SMTP_PORT",
-  "POSTAL_SMTP_SECURE",
-  "POSTAL_SMTP_USER",
-  "POSTAL_SMTP_PASS",
   "POSTAL_TEST_TO",
   "POSTAL_WEBHOOK_TOKEN",
 ] as const
@@ -208,24 +183,14 @@ export const normalizeSettings = (
   api_key: source?.POSTAL_API_KEY || "",
   test_to: source?.POSTAL_TEST_TO || null,
   webhook_token: source?.POSTAL_WEBHOOK_TOKEN || "",
-  smtp_host: source?.POSTAL_SMTP_HOST || null,
-  smtp_port: source?.POSTAL_SMTP_PORT || null,
-  smtp_secure: source?.POSTAL_SMTP_SECURE || null,
-  smtp_user: source?.POSTAL_SMTP_USER || null,
-  smtp_pass: source?.POSTAL_SMTP_PASS || "",
   configured: {
     from: Boolean(source?.POSTAL_FROM),
     api_key: Boolean(source?.POSTAL_API_KEY),
     base_url: Boolean(source?.POSTAL_BASE_URL),
-    smtp_host: Boolean(source?.POSTAL_SMTP_HOST),
-    smtp_port: Boolean(source?.POSTAL_SMTP_PORT),
-    smtp_user: Boolean(source?.POSTAL_SMTP_USER),
-    smtp_pass: Boolean(source?.POSTAL_SMTP_PASS),
     webhook_token: Boolean(source?.POSTAL_WEBHOOK_TOKEN),
   },
   secret_hints: {
     api_key_masked: maskSecret(source?.POSTAL_API_KEY),
-    smtp_pass_masked: maskSecret(source?.POSTAL_SMTP_PASS),
     webhook_token_masked: maskSecret(source?.POSTAL_WEBHOOK_TOKEN),
   },
 })
@@ -233,7 +198,6 @@ export const normalizeSettings = (
 export const toPublicPostalSettings = (settings: PostalSettingsSnapshot) => ({
   ...settings,
   api_key: "",
-  smtp_pass: "",
   webhook_token: "",
 })
 
@@ -302,31 +266,18 @@ export const persistPostalSettings = async (
   payload: PostalSettingsInput
 ) => {
   const current = await getPostalSettings(pgConnection)
-  const nextAuthType: PostalAuthType =
-    payload.auth_type === "smtp" ||
-    payload.auth_type === "smtp-ip" ||
-    payload.auth_type === "smtp-api"
-      ? payload.auth_type
-      : "smtp-api"
 
   const nextApiKey = sanitizeValue(payload.api_key) || (current.api_key || "")
-  const nextSmtpPass =
-    sanitizeValue(payload.smtp_pass) || (current.smtp_pass || "")
   const nextWebhookToken =
     sanitizeValue(payload.webhook_token) ||
     current.webhook_token ||
     createWebhookToken()
 
   const updates: Partial<Record<(typeof ENV_KEYS)[number], string>> = {
-    POSTAL_AUTH_TYPE: nextAuthType,
+    POSTAL_AUTH_TYPE: "smtp-api",
     POSTAL_FROM: sanitizeValue(payload.from) || (current.from || ""),
     POSTAL_BASE_URL: sanitizeValue(payload.base_url) || (current.base_url || ""),
     POSTAL_API_KEY: nextApiKey,
-    POSTAL_SMTP_HOST: sanitizeValue(payload.smtp_host) || (current.smtp_host || ""),
-    POSTAL_SMTP_PORT: sanitizeValue(payload.smtp_port) || (current.smtp_port || ""),
-    POSTAL_SMTP_SECURE: sanitizeValue(payload.smtp_secure) || (current.smtp_secure || ""),
-    POSTAL_SMTP_USER: sanitizeValue(payload.smtp_user) || (current.smtp_user || ""),
-    POSTAL_SMTP_PASS: nextSmtpPass,
     POSTAL_TEST_TO: sanitizeValue(payload.test_to) || (current.test_to || ""),
     POSTAL_WEBHOOK_TOKEN: nextWebhookToken,
   }
@@ -336,11 +287,6 @@ export const persistPostalSettings = async (
     POSTAL_FROM: updates.POSTAL_FROM,
     POSTAL_BASE_URL: updates.POSTAL_BASE_URL,
     POSTAL_API_KEY: updates.POSTAL_API_KEY,
-    POSTAL_SMTP_HOST: updates.POSTAL_SMTP_HOST,
-    POSTAL_SMTP_PORT: updates.POSTAL_SMTP_PORT,
-    POSTAL_SMTP_SECURE: updates.POSTAL_SMTP_SECURE,
-    POSTAL_SMTP_USER: updates.POSTAL_SMTP_USER,
-    POSTAL_SMTP_PASS: updates.POSTAL_SMTP_PASS,
     POSTAL_TEST_TO: updates.POSTAL_TEST_TO,
     POSTAL_WEBHOOK_TOKEN: updates.POSTAL_WEBHOOK_TOKEN,
   }
@@ -366,14 +312,6 @@ export const validateModeRequirements = (
     case "smtp-api":
       if (!settings.base_url) return "POSTAL_BASE_URL is required for smtp-api mode"
       if (!settings.configured.api_key) return "POSTAL_API_KEY is required for smtp-api mode"
-      break
-    case "smtp-ip":
-      if (!settings.smtp_host) return "POSTAL_SMTP_HOST is required for smtp-ip mode"
-      break
-    case "smtp":
-      if (!settings.smtp_host) return "POSTAL_SMTP_HOST is required for smtp mode"
-      if (!settings.smtp_user) return "POSTAL_SMTP_USER is required for smtp mode"
-      if (!settings.configured.smtp_pass) return "POSTAL_SMTP_PASS is required for smtp mode"
       break
   }
 

@@ -1,6 +1,8 @@
 # @uhlhosting/medusa-notification-postal
 
-A production-ready Postal notification provider for Medusa. Designed for reliable transactional email delivery, strong configuration validation, template-based workflows, and seamless integration with Medusa’s notification system.
+[![coverage](https://gitlab.uhlhost.net/uhlhosting/medusa-notification-postal/badges/main/coverage.svg?job=test)](https://gitlab.uhlhost.net/uhlhosting/medusa-notification-postal/-/jobs?scope=all&ref_type=branches&ref=main)
+
+A production-ready Postal notification provider for Medusa. Designed for reliable transactional email delivery through Postal's HTTP API, strong configuration validation, template-based workflows, and seamless integration with Medusa’s notification system.
 
 ## Release
 
@@ -10,29 +12,13 @@ A production-ready Postal notification provider for Medusa. Designed for reliabl
 
 ## Options
 
-- `auth_type` - one of `smtp-api`, `smtp-ip`, `smtp` (default `smtp-api`)
+- `auth_type` - `smtp-api`
 - `from` - default sender e-mail address
 
 ### `smtp-api` options
 
 - `base_url` - Postal base URL, for example `https://post.uhlhosting.ch`
 - `api_key` - Postal server API key used in `X-Server-API-Key`
-
-### `smtp-ip` options
-
-- `smtp_host` - Postal SMTP host
-- `smtp_port` - SMTP port, default `25`
-- `smtp_secure` - `true` for implicit TLS, default `false` (STARTTLS is required when false)
-- `smtp_timeout` - connection timeout in ms, default `10000`
-
-### `smtp` options
-
-- `smtp_host` - Postal SMTP host
-- `smtp_port` - SMTP port, default `25`
-- `smtp_secure` - `true` for implicit TLS, default `false` (STARTTLS is required when false)
-- `smtp_user` - SMTP username
-- `smtp_pass` - SMTP password
-- `smtp_timeout` - connection timeout in ms, default `10000`
 
 ## Usage
 
@@ -48,19 +34,10 @@ Add to `apps/backend/medusa-config.ts` under the notification module providers.
         id: "postal",
         options: {
           channels: ["email"],
-          auth_type: process.env.POSTAL_AUTH_TYPE || "smtp-api",
+          auth_type: "smtp-api",
           from: process.env.POSTAL_FROM,
-
-          // smtp-api
           base_url: process.env.POSTAL_BASE_URL,
           api_key: process.env.POSTAL_API_KEY,
-
-          // smtp and smtp-ip
-          smtp_host: process.env.POSTAL_SMTP_HOST,
-          smtp_port: Number(process.env.POSTAL_SMTP_PORT || 25),
-          smtp_secure: process.env.POSTAL_SMTP_SECURE === "true",
-          smtp_user: process.env.POSTAL_SMTP_USER,
-          smtp_pass: process.env.POSTAL_SMTP_PASS,
         },
       },
     ],
@@ -97,7 +74,7 @@ The provider logs `workflow_event` and `workflow_run_id` for traceability in Med
 The plugin now exposes a public ingestion endpoint for Postal delivery lifecycle webhooks:
 
 ```text
-POST /store/postal/webhooks/<postal-webhook-token>
+POST /postal/webhooks/<postal-webhook-token>
 ```
 
 The exact tokenized URL is shown in the Postal admin activity page after you save settings. The settings screen intentionally only shows the callback path so the secret stays out of the configuration surface.
@@ -178,7 +155,7 @@ provider_data: {
 }
 ```
 
-`from_name` formats the SMTP sender as `Name <email>`. `reply_to` is forwarded to the transport and preserved in provider data.
+`from_name` formats the sender as `Name <email>`. `reply_to` is forwarded to Postal and preserved in provider data.
 
 ### Programmatic Workflows
 

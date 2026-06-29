@@ -86,6 +86,61 @@ test("normalizePostalWebhookPayload handles missing values safely", () => {
   assert.equal(event.occurred_at, null)
 })
 
+test("normalizePostalWebhookPayload maps explicit delivery statuses", () => {
+  const delayed = normalizePostalWebhookPayload({
+    status: "message_delayed",
+    message: { id: "msg_delayed" },
+  })
+  const failed = normalizePostalWebhookPayload({
+    status: "error",
+    message: { id: "msg_failed" },
+  })
+  const loaded = normalizePostalWebhookPayload({
+    message_status: "loaded",
+    message: {
+      id: "msg_loaded",
+      recipient: "loaded@uhlhosting.ch",
+      user_agent: "Mozilla",
+      created_at: "2026-06-28T12:30:00Z",
+    },
+  })
+  const dnsError = normalizePostalWebhookPayload({
+    delivery_status: "domain_dns_error",
+    domain: "uhlhosting.ch",
+  })
+
+  assert.equal(delayed.status, "delayed")
+  assert.equal(delayed.event_type, "message.delayed")
+  assert.equal(failed.status, "failed")
+  assert.equal(failed.event_type, "message.delivery_failed")
+  assert.equal(loaded.status, "loaded")
+  assert.equal(loaded.event_type, "message.loaded")
+  assert.equal(dnsError.status, "dns_error")
+  assert.equal(dnsError.event_type, "domain.dns_error")
+})
+
+test("normalizePostalWebhookPayload infers status from nested bounce and click payloads", () => {
+  const bounced = normalizePostalWebhookPayload({
+    bounce: {
+      message_id: "msg_nested_bounced",
+      recipient: "bounce@uhlhosting.ch",
+    },
+  })
+
+  const clicked = normalizePostalWebhookPayload({
+    url: "https://uhlhosting.ch",
+    original_message: {
+      message_id: "msg_nested_clicked",
+      recipient: "click@uhlhosting.ch",
+    },
+  })
+
+  assert.equal(bounced.status, "bounced")
+  assert.equal(bounced.event_type, "message.bounced")
+  assert.equal(clicked.status, "clicked")
+  assert.equal(clicked.event_type, "message.link_clicked")
+})
+
 test("recordPostalWebhookEvent persists a normalized event", async () => {
   const calls: Array<{ sql: string; params?: unknown[] }> = []
   const pgConnection = {
@@ -110,6 +165,19 @@ test("recordPostalWebhookEvent persists a normalized event", async () => {
   assert.equal(event.status, "sent")
   assert.equal(event.message_id, "msg_recorded")
   assert.equal(event.recipient, "recipient@uhlhosting.ch")
+})
+
+test("recordPostalWebhookEvent returns event when pg connection is unavailable", async () => {
+  const event = await recordPostalWebhookEvent(undefined, {
+    status: "sent",
+    message: {
+      id: "msg_no_pg",
+      recipient: "recipient@uhlhosting.ch",
+    },
+  })
+
+  assert.equal(event.status, "sent")
+  assert.equal(event.message_id, "msg_no_pg")
 })
 
 test("listPostalWebhookEvents returns normalized rows with limit bounds", async () => {
@@ -141,4 +209,16 @@ test("listPostalWebhookEvents returns normalized rows with limit bounds", async 
   assert.deepEqual(calls[0]!.params, [100])
   assert.equal(rows[0]?.id, "postal_webhook_1")
   assert.equal(rows[0]?.status, "sent")
+})
+
+test("listPostalWebhookEvents returns an empty list when the query fails", async () => {
+  const pgConnection = {
+    raw: async () => {
+      throw new Error("database unavailable")
+    },
+  }
+
+  const rows = await listPostalWebhookEvents(pgConnection, Number.NaN)
+
+  assert.deepEqual(rows, [])
 })

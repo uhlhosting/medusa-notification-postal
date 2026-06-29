@@ -7,13 +7,8 @@ export const GET = async (
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) => {
-  let authType = process.env.POSTAL_AUTH_TYPE || "smtp-api"
-  let mode =
-    authType === "smtp-api"
-      ? "http-api"
-      : authType === "smtp-ip"
-        ? "smtp-ip-allowlist"
-        : "smtp-auth"
+  let authType = "smtp-api"
+  let mode = "http-api"
 
   try {
     const service = req.scope.resolve("notification-postal") as any

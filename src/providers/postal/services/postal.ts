@@ -13,24 +13,36 @@ import {
   resolvePostalSender,
 } from "../templates"
 
-type PostalAuthType = "smtp-api" | "smtp-ip" | "smtp"
+type PostalAuthType = "smtp-api"
 
 interface PostalOptions {
   auth_type?: PostalAuthType
   base_url?: string
   api_key?: string
   from: string
-  smtp_host?: string
-  smtp_port?: number
-  smtp_secure?: boolean
-  smtp_user?: string
-  smtp_pass?: string
-  smtp_timeout?: number
 }
 
 type PostalApiResult = {
   status?: string
   data?: any
+}
+
+type PostalSendPayload = {
+  to: string[]
+  cc?: string[]
+  bcc?: string[]
+  from: string
+  reply_to?: string
+  subject: string
+  html_body?: string
+  plain_body?: string
+  tag?: string
+  headers?: Record<string, string>
+  attachments?: Array<{
+    name: string
+    content_type: string
+    data: string
+  }>
 }
 
 type PostalNotificationProviderData = {
@@ -51,39 +63,14 @@ type PostalNotificationProviderData = {
 
 const POSTAL_REQUEST_TIMEOUT_MS = 10000
 
-const parseBooleanOption = (value: unknown, fallback = false) => {
-  if (typeof value === "boolean") {
-    return value
-  }
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase()
-    if (["true", "1", "yes", "on"].includes(normalized)) {
-      return true
-    }
-    if (["false", "0", "no", "off", ""].includes(normalized)) {
-      return false
-    }
-  }
-  if (typeof value === "number") {
-    return value !== 0
-  }
-  return fallback
-}
-
 export class PostalNotificationService extends AbstractNotificationProviderService {
   static readonly identifier = "notification-postal"
 
   protected config_: {
     authType: PostalAuthType
-    baseUrl?: string
-    apiKey?: string
+    baseUrl: string
+    apiKey: string
     from: string
-    smtpHost?: string
-    smtpPort: number
-    smtpSecure: boolean
-    smtpUser?: string
-    smtpPass?: string
-    smtpTimeout: number
   }
   protected logger_: Logger
   protected container_: any
@@ -97,18 +84,11 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     const baseUrl = (options.base_url || "").trim().replace(/\/$/, "")
     const apiKey = (options.api_key || "").trim()
     const from = (options.from || "").trim()
-    const smtpHost = (options.smtp_host || "").trim()
-    const smtpPort = Number(options.smtp_port || 25)
-    const smtpSecure = parseBooleanOption(options.smtp_secure, false)
-    const smtpUser = (options.smtp_user || "").trim()
-    const smtpPass = (options.smtp_pass || "").trim()
-    const smtpTimeout = Number(options.smtp_timeout || 10000)
 
-
-    if (!["smtp-api", "smtp-ip", "smtp"].includes(authType)) {
+    if (authType !== "smtp-api") {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        "Postal notification provider requires valid 'auth_type' (smtp-api | smtp-ip | smtp)"
+        "Postal notification provider only supports auth_type `smtp-api`."
       )
     }
 
@@ -119,54 +99,30 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
-    if (authType === "smtp-api") {
-      if (!baseUrl) {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          "Postal smtp-api mode requires 'base_url'"
-        )
-      }
-      if (!apiKey) {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          "Postal smtp-api mode requires 'api_key'"
-        )
-      }
-    }
-
-    if (authType === "smtp" || authType === "smtp-ip") {
-      if (!smtpHost) {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          `Postal ${authType} mode requires 'smtp_host'`
-        )
-      }
-    }
-
-    if (authType === "smtp" && (!smtpUser || !smtpPass)) {
+    if (!baseUrl) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        "Postal smtp mode requires 'smtp_user' and 'smtp_pass'"
+        "Postal smtp-api mode requires 'base_url'"
+      )
+    }
+
+    if (!apiKey) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Postal smtp-api mode requires 'api_key'"
       )
     }
 
     this.config_ = {
       authType,
-      baseUrl: baseUrl || undefined,
-      apiKey: apiKey || undefined,
+      baseUrl,
+      apiKey,
       from,
-      smtpHost: smtpHost || undefined,
-      smtpPort: Number.isFinite(smtpPort) ? smtpPort : 25,
-      smtpSecure,
-      smtpUser: smtpUser || undefined,
-      smtpPass: smtpPass || undefined,
-      smtpTimeout: Number.isFinite(smtpTimeout) ? smtpTimeout : 10000,
     }
     this.logger_ = logger
   }
 
   static validateOptions(options: Record<string, any>) {
-    const authType = (options?.auth_type || "smtp-api") as PostalAuthType
     const from = String(options?.from || "").trim()
 
     if (!from) {
@@ -176,43 +132,18 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
-    if (authType === "smtp-api") {
-      if (!String(options?.base_url || "").trim()) {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          "Option `base_url` is required when auth_type is `smtp-api`."
-        )
-      }
-      if (!String(options?.api_key || "").trim()) {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          "Option `api_key` is required when auth_type is `smtp-api`."
-        )
-      }
+    if (!String(options?.base_url || "").trim()) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Option `base_url` is required."
+      )
     }
 
-    if (authType === "smtp" || authType === "smtp-ip") {
-      if (!String(options?.smtp_host || "").trim()) {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          "Option `smtp_host` is required for smtp transport modes."
-        )
-      }
-    }
-
-    if (authType === "smtp") {
-      if (!String(options?.smtp_user || "").trim()) {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          "Option `smtp_user` is required when auth_type is `smtp`."
-        )
-      }
-      if (!String(options?.smtp_pass || "").trim()) {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          "Option `smtp_pass` is required when auth_type is `smtp`."
-        )
-      }
+    if (!String(options?.api_key || "").trim()) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Option `api_key` is required."
+      )
     }
   }
 
@@ -226,15 +157,11 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
-    const providerData =
-      ((notification.provider_data as PostalNotificationProviderData) ||
-        (notification.data as PostalNotificationProviderData) ||
-        {}) as PostalNotificationProviderData
+    const providerData = this.resolveProviderData(notification)
     const content = (notification.content as any) || {}
-
     const to = this.normalizeEmails(notification.to)
-    const cc = this.normalizeEmails(providerData?.cc)
-    const bcc = this.normalizeEmails(providerData?.bcc)
+    const cc = this.normalizeEmails(providerData.cc)
+    const bcc = this.normalizeEmails(providerData.bcc)
 
     if (!to.length && !cc.length && !bcc.length) {
       throw new MedusaError(
@@ -245,9 +172,9 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
 
     const sender = resolvePostalSender(
       {
-        from: providerData?.from || notification.from || undefined,
-        from_name: providerData?.from_name,
-        reply_to: providerData?.reply_to,
+        from: providerData.from || notification.from || undefined,
+        from_name: providerData.from_name,
+        reply_to: providerData.reply_to,
       },
       this.config_.from
     )
@@ -260,61 +187,30 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
 
     const template = resolvePostalTemplate(notification.template, {
-      subject: content?.subject || providerData?.subject,
-      html: content?.html || providerData?.html,
-      text: content?.text || providerData?.text,
+      subject: content?.subject || providerData.subject,
+      html: content?.html || providerData.html,
+      text: content?.text || providerData.text,
     })
 
-    const htmlBody = template.html || ""
-    const plainBody =
-      template.text ||
-      (htmlBody ? this.stripHtml(htmlBody) : "")
-    const customArgHeaders = normalizePostalCustomArgs(
-      providerData?.custom_args
-    )
-    const headers = {
-      ...(providerData?.headers || {}),
-      ...(sender.reply_to ? { "Reply-To": sender.reply_to } : {}),
-      ...customArgHeaders,
-    }
-
-    const attachments = this.normalizeAttachments(
-      notification.attachments as any
-    )
-
-    const payload = {
+    const payload = this.buildSendPayload({
       to,
       cc,
       bcc,
-      from: sender.from,
-      reply_to: sender.reply_to,
-      subject: template.subject,
-      html_body: htmlBody || undefined,
-      plain_body: plainBody || undefined,
-      tag: template.template_name || undefined,
-      headers: Object.keys(headers).length ? headers : undefined,
-      attachments,
-    }
-
-    const workflowEvent = String(providerData?.workflow_event || "")
-    const workflowRunId = String(providerData?.workflow_run_id || "")
-    const metadata = providerData?.metadata || {}
+      sender,
+      template,
+      attachments: notification.attachments as any,
+      providerData,
+    })
 
     this.logger_.info(
-      `Postal notification send started auth=${
-        this.config_.authType
-      } template=${template.template_name || "default"} event=${
-        workflowEvent || "none"
-      } run_id=${workflowRunId || "none"} metadata_keys=${
-        Object.keys(metadata).length || 0
-      } custom_args_keys=${Object.keys(providerData?.custom_args || {}).length}`
+      `Postal notification send started template=${
+        template.template_name || "default"
+      } recipients=${payload.to.length} event=${
+        providerData.workflow_event || "none"
+      } run_id=${providerData.workflow_run_id || "none"}`
     )
 
-    if (this.config_.authType === "smtp-api") {
-      return await this.sendViaApi(payload)
-    }
-
-    return await this.sendViaSmtp(payload)
+    return await this.sendViaApi(payload)
   }
 
   async getMessageDetails(id: string | number) {
@@ -330,7 +226,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     })
   }
 
-  private async sendViaApi(payload: any): Promise<{ id: string }> {
+  private async sendViaApi(payload: PostalSendPayload): Promise<{ id: string }> {
     try {
       const body = await this.fetchPostalApi("send/message", payload)
       const messageId = body?.message_id ? String(body.message_id) : ""
@@ -353,36 +249,24 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
 
       throw new MedusaError(
         MedusaError.Types.UNEXPECTED_STATE,
-        `Failed to send email with Postal API: ${
-          error?.message || "unknown error"
-        }`
+        `Failed to send email with Postal API: ${error?.message || "unknown error"}`
       )
     }
   }
 
   private async fetchPostalApi(path: string, payload: any) {
-    if (this.config_.authType !== "smtp-api") {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "Postal API lookup requires smtp-api mode"
-      )
-    }
-
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), POSTAL_REQUEST_TIMEOUT_MS)
 
-    const response = await fetch(
-      `${this.config_.baseUrl}/api/v1/${path}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Server-API-Key": this.config_.apiKey as string,
-        },
-        signal: controller.signal,
-        body: JSON.stringify(payload),
-      }
-    ).finally(() => clearTimeout(timeout))
+    const response = await fetch(`${this.config_.baseUrl}/api/v1/${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Server-API-Key": this.config_.apiKey,
+      },
+      signal: controller.signal,
+      body: JSON.stringify(payload),
+    }).finally(() => clearTimeout(timeout))
 
     const body = (await response.json().catch(() => null)) as PostalApiResult | null
 
@@ -399,6 +283,49 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
 
     return body?.data
+  }
+
+  private resolveProviderData(
+    notification: ProviderSendNotificationDTO
+  ): PostalNotificationProviderData {
+    return (
+      (notification.provider_data as PostalNotificationProviderData) ||
+      (notification.data as PostalNotificationProviderData) ||
+      {}
+    ) as PostalNotificationProviderData
+  }
+
+  private buildSendPayload(input: {
+    to: string[]
+    cc: string[]
+    bcc: string[]
+    sender: { from: string; reply_to?: string }
+    template: { template_name?: string; subject: string; html?: string; text?: string }
+    attachments: any
+    providerData: PostalNotificationProviderData
+  }): PostalSendPayload {
+    const htmlBody = input.template.html || ""
+    const plainBody = input.template.text || (htmlBody ? this.stripHtml(htmlBody) : "")
+    const customArgHeaders = normalizePostalCustomArgs(input.providerData.custom_args)
+    const headers = {
+      ...(input.providerData.headers || {}),
+      ...(input.sender.reply_to ? { "Reply-To": input.sender.reply_to } : {}),
+      ...customArgHeaders,
+    }
+
+    return {
+      to: input.to,
+      cc: input.cc.length ? input.cc : undefined,
+      bcc: input.bcc.length ? input.bcc : undefined,
+      from: input.sender.from,
+      reply_to: input.sender.reply_to,
+      subject: input.template.subject,
+      html_body: htmlBody || undefined,
+      plain_body: plainBody || undefined,
+      tag: input.template.template_name || undefined,
+      headers: Object.keys(headers).length ? headers : undefined,
+      attachments: this.normalizeAttachments(input.attachments),
+    }
   }
 
   private getFirstRecipientMessage(messages: unknown) {
@@ -428,69 +355,14 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     if (!Number.isFinite(normalized) || String(normalized) !== String(id).trim()) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        "Postal message lookup requires the numeric per-recipient message id stored by new smtp-api sends"
+        "Postal message lookup requires the numeric per-recipient message id stored by API sends"
       )
     }
 
     return normalized
   }
 
-  private async sendViaSmtp(payload: any): Promise<{ id: string }> {
-    try {
-      const nodemailer = (await import("nodemailer")).default
-      const transporter = nodemailer.createTransport({
-        host: this.config_.smtpHost,
-        port: this.config_.smtpPort,
-        secure: this.config_.smtpSecure,
-        requireTLS: !this.config_.smtpSecure,
-        connectionTimeout: this.config_.smtpTimeout,
-        auth:
-          this.config_.authType === "smtp"
-            ? {
-                user: this.config_.smtpUser,
-                pass: this.config_.smtpPass,
-              }
-            : undefined,
-      })
-
-      const result = await transporter.sendMail({
-        from: payload.from,
-        replyTo: payload.reply_to,
-        to: payload.to.length ? payload.to : undefined,
-        cc: payload.cc.length ? payload.cc : undefined,
-        bcc: payload.bcc.length ? payload.bcc : undefined,
-        subject: payload.subject,
-        html: payload.html_body,
-        text: payload.plain_body,
-        headers: payload.headers,
-        attachments: (payload.attachments || []).map((attachment: any) => ({
-          filename: attachment.name,
-          content: attachment.data,
-          contentType: attachment.content_type,
-          encoding: "base64",
-        })),
-      })
-
-      this.logger_.info(
-        `Postal notification send succeeded auth=${
-          this.config_.authType
-        } message_id=${result?.messageId || "unknown"}`
-      )
-
-      return {
-        id: result?.messageId,
-      }
-    } catch (error: any) {
-      throw new MedusaError(
-        MedusaError.Types.UNEXPECTED_STATE,
-        `Failed to send email with Postal SMTP: ${
-          error?.message || "unknown error"
-        }`
-      )
-    }
-  }
-
-  protected normalizeEmails(value: any): string[] {
+  protected normalizeEmails(value: unknown): string[] {
     if (!value) {
       return []
     }
@@ -503,7 +375,9 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       .filter(Boolean)
   }
 
-  protected normalizeAttachments(attachments: any[] | null | undefined) {
+  protected normalizeAttachments(
+    attachments: any[] | null | undefined
+  ): PostalSendPayload["attachments"] | undefined {
     if (!Array.isArray(attachments) || !attachments.length) {
       return undefined
     }
@@ -520,7 +394,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
           data: attachment.content,
         }
       })
-      .filter(Boolean)
+      .filter(Boolean) as NonNullable<PostalSendPayload["attachments"]>
   }
 
   protected stripHtml(html: string): string {
@@ -528,18 +402,9 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
   }
 
   getHealthSnapshot() {
-    const authType = this.config_.authType
-    let mode = "smtp-auth"
-
-    if (authType === "smtp-api") {
-      mode = "http-api"
-    } else if (authType === "smtp-ip") {
-      mode = "smtp-ip-allowlist"
-    }
-
     return {
-      auth_type: authType,
-      mode,
+      auth_type: this.config_.authType,
+      mode: "http-api",
     }
   }
 }

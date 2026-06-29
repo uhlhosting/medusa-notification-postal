@@ -77,6 +77,7 @@ const normalizeStatus = (value: string): PostalWebhookStatus => {
     case "domaindnserror":
     case "domain.dns.error":
     case "domain.dns_error":
+    case "domain_dnserror":
     case "dnserror":
       return "dns_error"
     default:
@@ -116,6 +117,8 @@ const normalizeEventType = (value: string) => {
       return "message.loaded"
     case "domaindnserror":
     case "domain.dns.error":
+    case "domain.dns_error":
+    case "domain_dnserror":
       return "domain.dns_error"
     default:
       return normalized

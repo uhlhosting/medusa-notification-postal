@@ -39,6 +39,25 @@ test("resolvePostalTemplate preserves custom template names", () => {
   assert.match(resolved.text, /generic Postal notification preview/)
 })
 
+test("resolvePostalTemplate falls back to default subject and rich html", () => {
+  const resolved = resolvePostalTemplate("  ")
+
+  assert.equal(resolved.template_name, "default")
+  assert.equal(resolved.subject, "Notification")
+  assert.match(resolved.html, /Postal Notification/)
+  assert.match(resolved.text, /generic Postal notification preview/)
+})
+
+test("resolvePostalTemplate strips html and rehydrates missing body text", () => {
+  const resolved = resolvePostalTemplate("custom-template", {
+    subject: "Custom subject",
+    html: "<p>Hello <strong>world</strong> &amp; team</p>",
+  })
+
+  assert.equal(resolved.text, "Hello world & team")
+  assert.equal(resolved.subject, "Custom subject")
+})
+
 test("resolvePostalTemplate derives text from html when text is missing", () => {
   const resolved = resolvePostalTemplate("custom-template", {
     subject: "Custom subject",
@@ -148,4 +167,48 @@ test("getPostalTemplatePreview returns the email verification content", () => {
   assert.equal(preview.subject, "Verify your email address")
   assert.match(preview.html, /Verify your email address/)
   assert.match(preview.text, /verify your email address/)
+})
+
+test("getPostalTemplatePreview keeps registry metadata for recovery templates", () => {
+  const preview = getPostalTemplatePreview("abandoned-cart")
+
+  assert.equal(preview.label, "Abandoned Cart")
+  assert.equal(preview.description, "You left items in your cart")
+  assert.match(preview.html, /Cart Recovery/)
+})
+
+test("getPostalTemplateExample carries workflow metadata and headers", () => {
+  const example = getPostalTemplateExample("restock-available")
+
+  assert.equal(example.workflow_event, "restock.available")
+  assert.equal(example.workflow_run_id, "wf_example_restock_available")
+  assert.equal(example.headers["X-Trace-Id"], undefined)
+  assert.deepEqual(example.cc, [])
+  assert.deepEqual(example.bcc, [])
+  assert.equal(example.metadata.store, "main")
+})
+
+test("getPostalTemplateExample covers all built-in templates", () => {
+  const templateNames = [
+    "default",
+    "postal-test",
+    "postal-admin-test",
+    "order-placed",
+    "password-reset",
+    "email-verification",
+    "welcome",
+    "abandoned-cart",
+    "restock-available",
+  ] as const
+
+  for (const template of templateNames) {
+    const example = getPostalTemplateExample(template)
+    assert.equal(example.value, template)
+    assert.equal(typeof example.workflow_event, "string")
+    assert.equal(typeof example.workflow_run_id, "string")
+    assert.equal(typeof example.to, "string")
+    assert.equal(typeof example.from, "string")
+    assert.equal(typeof example.from_name, "string")
+    assert.equal(typeof example.reply_to, "string")
+  }
 })
