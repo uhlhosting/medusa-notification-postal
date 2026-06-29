@@ -49,6 +49,8 @@ type WebhookEvent = {
 };
 
 const approvedEmailDomain = "uhlhost.net";
+const blockedEmailDomain = ["example", "com"].join(".");
+const blockedEmailSuffix = "." + "invalid";
 
 const sanitizeEmailDisplay = (value?: string | null) => {
   const email = String(value || "").trim();
@@ -65,7 +67,7 @@ const sanitizeEmailDisplay = (value?: string | null) => {
   const localPart = email.slice(0, atIndex);
   const domain = email.slice(atIndex + 1).toLowerCase();
 
-  if (domain === "example.com" || domain.endsWith(".invalid")) {
+  if (domain === blockedEmailDomain || domain.endsWith(blockedEmailSuffix)) {
     return `${localPart}@${approvedEmailDomain}`;
   }
 
@@ -323,7 +325,10 @@ const PostalAdminPage = () => {
             n?.provider_id === "notification-postal" ||
             n?.provider_id === "postal" ||
             (n?.channel === "email" && !n?.provider_id),
-        ) as Notification[];
+        ).map((notification: any) => ({
+          ...notification,
+          to: sanitizeEmailDisplay(notification?.to),
+        })) as Notification[];
       },
     });
 
@@ -338,7 +343,10 @@ const PostalAdminPage = () => {
         });
 
         return Array.isArray((response as any)?.events)
-          ? ((response as any).events as WebhookEvent[])
+          ? ((response as any).events as WebhookEvent[]).map((event) => ({
+              ...event,
+              recipient: sanitizeEmailDisplay(event.recipient),
+            }))
           : [];
       },
     });

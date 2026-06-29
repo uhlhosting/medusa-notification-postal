@@ -24,7 +24,7 @@ test("resolvePostalTemplate provides rich html for built-in text templates", () 
 
   assert.match(defaultTemplate.html, /Postal Notification/)
   assert.match(defaultTemplate.html, /generic Postal notification preview/)
-  assert.match(postalTestTemplate.html, /Postal Test Send/)
+  assert.match(postalTestTemplate.html, /Postal test send/)
   assert.match(postalTestTemplate.html, /Postal test message from Medusa/)
 })
 
@@ -37,6 +37,29 @@ test("resolvePostalTemplate preserves custom template names", () => {
   assert.equal(resolved.subject, "Custom subject")
   assert.match(resolved.html, /Notification/)
   assert.match(resolved.text, /generic Postal notification preview/)
+})
+
+test("resolvePostalTemplate derives text from html when text is missing", () => {
+  const resolved = resolvePostalTemplate("custom-template", {
+    subject: "Custom subject",
+    html: "<p>Hello <strong>world</strong></p>",
+  })
+
+  assert.equal(resolved.subject, "Custom subject")
+  assert.equal(resolved.html, "<p>Hello <strong>world</strong></p>")
+  assert.equal(resolved.text, "Hello world")
+})
+
+test("resolvePostalTemplate derives html from text when html is missing", () => {
+  const resolved = resolvePostalTemplate("custom-template", {
+    subject: "Custom subject",
+    text: "Plain text body",
+  })
+
+  assert.equal(resolved.subject, "Custom subject")
+  assert.equal(resolved.text, "Plain text body")
+  assert.match(resolved.html, /Custom subject/)
+  assert.match(resolved.html, /Plain text body/)
 })
 
 test("normalizePostalCustomArgs converts safe keys to headers", () => {
@@ -70,6 +93,7 @@ test("getPostalTemplateOptions returns the built-in examples in order", () => {
   assert.equal(options[0]?.value, "postal-admin-test")
   assert.equal(options[0]?.description, "Postal test from Medusa Admin")
   assert.equal(options.some((option) => option.value === "password-reset"), true)
+  assert.equal(options.some((option) => option.value === "email-verification"), true)
   assert.equal(options.some((option) => option.value === "abandoned-cart"), true)
   assert.equal(options.some((option) => option.value === "restock-available"), true)
 })
@@ -80,7 +104,7 @@ test("getPostalTemplatePreview returns the template content", () => {
   assert.equal(preview.value, "order-placed")
   assert.equal(preview.subject, "Order confirmation")
   assert.match(preview.html, /Thanks for your order/)
-  assert.match(preview.text, /Thanks for your order/)
+  assert.match(preview.text, /We have received your order/)
 })
 
 test("getPostalTemplateExample returns example payload data", () => {
@@ -100,10 +124,28 @@ test("getPostalTemplatePreview returns the template content for new templates", 
   const cartPreview = getPostalTemplatePreview("abandoned-cart")
   assert.equal(cartPreview.value, "abandoned-cart")
   assert.equal(cartPreview.subject, "You left items in your cart")
-  assert.match(cartPreview.html, /You left some items/)
+  assert.match(cartPreview.html, /We saved the items you added to your cart/)
 
   const restockPreview = getPostalTemplatePreview("restock-available")
   assert.equal(restockPreview.value, "restock-available")
   assert.equal(restockPreview.subject, "Product is back in stock")
-  assert.match(restockPreview.html, /back in stock/)
+  assert.match(restockPreview.html, /available again/)
+})
+
+test("getPostalTemplatePreview returns the password reset content", () => {
+  const preview = getPostalTemplatePreview("password-reset")
+
+  assert.equal(preview.value, "password-reset")
+  assert.equal(preview.subject, "Reset your password")
+  assert.match(preview.html, /We received a request to reset the password/)
+  assert.match(preview.text, /We received a request to reset the password/)
+})
+
+test("getPostalTemplatePreview returns the email verification content", () => {
+  const preview = getPostalTemplatePreview("email-verification")
+
+  assert.equal(preview.value, "email-verification")
+  assert.equal(preview.subject, "Verify your email address")
+  assert.match(preview.html, /Verify your email address/)
+  assert.match(preview.text, /verify your email address/)
 })

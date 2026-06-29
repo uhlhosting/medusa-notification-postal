@@ -32,6 +32,8 @@
   "postal.template_subject": "Betreff",
   "postal.template_text": "Text",
   "postal.template_html": "HTML",
+  "postal.template_rendered_preview": "Gerenderte Vorschau",
+  "postal.template_rendered_preview_hint": "Abgesichertes Browser-Rendering",
   "postal.template_example": "Beispiel-Payload",
   "postal.copy_example_values": "Beispiel-JSON kopieren",
   "postal.template_example_copied": "Beispiel-Payload kopiert",

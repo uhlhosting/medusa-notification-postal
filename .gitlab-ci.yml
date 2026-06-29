@@ -1,3 +1,15 @@
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+
+sast:
+  before_script: []
+  cache: []
+
+secret_detection:
+  before_script: []
+  cache: []
+
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
@@ -7,6 +19,7 @@ workflow:
 
 stages:
   - validate
+  - test
   - build
   - release
   - mirror
@@ -18,6 +31,7 @@ variables:
   NEXT_TELEMETRY_DISABLED: "1"
   NODE_OPTIONS: "--max-old-space-size=4096"
   GIT_STRATEGY: clone
+  AST_ENABLE_MR_PIPELINES: "true"
 
 default:
   image: "node:${NODE_VERSION}-bookworm"

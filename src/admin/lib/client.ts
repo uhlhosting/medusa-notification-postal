@@ -1,4 +1,5 @@
 import Medusa from "@medusajs/js-sdk";
+import { resolveBackendBaseUrl } from "./backend-url";
 
 const runtimeEnv =
   (globalThis as { __VITE_ENV__?: Record<string, string | boolean> })
@@ -9,47 +10,24 @@ const backendUrl =
     ? runtimeEnv.VITE_BACKEND_URL
     : undefined) ??
   "/";
+const resolvedBackendUrl = resolveBackendBaseUrl(
+  backendUrl,
+  typeof window !== "undefined" ? window.location?.origin : null,
+);
 
 const isDev =
   ((import.meta as any).env?.NODE_ENV === "development" || (import.meta as any).env?.MODE === "development") ||
   runtimeEnv.DEV === true ||
   runtimeEnv.DEV === "true";
 
-const toAbsoluteOrigin = (value: string | undefined | null) => {
-  const candidate = typeof value === "string" ? value.trim() : ""
-  if (!candidate) {
-    return null
-  }
-
-  try {
-    return new URL(candidate).origin.replace(/\/+$/, "")
-  } catch {
-    return null
-  }
-}
-
 export const sdk = new Medusa({
-  baseUrl: backendUrl,
+  baseUrl: resolvedBackendUrl,
   debug: Boolean(isDev),
   auth: {
     type: "session",
   },
 });
 
-export const getBackendBaseUrl = () => backendUrl;
+export const getBackendBaseUrl = () => resolvedBackendUrl;
 
-export const getPublicBackendBaseUrl = () => {
-  const absoluteBackend = toAbsoluteOrigin(backendUrl)
-  if (absoluteBackend) {
-    return absoluteBackend
-  }
-
-  if (typeof window !== "undefined" && window.location?.origin) {
-    const absoluteWindow = toAbsoluteOrigin(window.location.origin)
-    if (absoluteWindow) {
-      return absoluteWindow
-    }
-  }
-
-  return "http://localhost:9000"
-}
+export const getPublicBackendBaseUrl = () => resolvedBackendUrl;

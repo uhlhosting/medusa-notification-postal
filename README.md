@@ -121,13 +121,19 @@ Postal's HTTP payload docs are separate from webhook delivery callbacks and are 
 
 ### Template registry and metadata passthrough
 
-The plugin includes a small built-in template registry for common notification flows:
+The plugin includes a built-in template registry for common notification flows:
 
-- `postal-test`
-- `postal-admin-test`
-- `order-placed`
-- `password-reset`
-- `welcome`
+| Template | Purpose | Typical Medusa event | Notes |
+| --- | --- | --- | --- |
+| `default` | Generic fallback preview | Any custom template name | Used when no registry match exists and content is incomplete. |
+| `postal-test` | Provider transport validation | `postal.example.test` | Used for operator sends and transport checks. |
+| `postal-admin-test` | Admin settings validation | `admin.postal.test` | Used by the admin test-send form. |
+| `order-placed` | Customer order confirmation | `order.placed` | Shared transactional order mail. |
+| `password-reset` | Account password reset | `customer.password_reset` | Shared auth email template. |
+| `email-verification` | Account email verification | `customer.email_verification` | Shared auth email template. |
+| `welcome` | Customer onboarding | `customer.welcome` | Shared onboarding and first-contact template. |
+| `abandoned-cart` | Cart recovery | `cart.abandoned` | Shared recovery reminder template. |
+| `restock-available` | Back-in-stock alert | `restock.available` | Shared inventory alert template. |
 
 If a template key is not in the registry, Postal still uses the provided template string and falls back to the passed content. You can also pass extra tracing data through `provider_data.metadata` and `provider_data.custom_args`:
 
