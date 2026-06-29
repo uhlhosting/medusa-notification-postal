@@ -28,5 +28,6 @@ build
 .turbo/
 test-results/
 playwright-report/
+.playwright-mcp/
 *.log
 test-*.ts
