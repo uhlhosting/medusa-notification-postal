@@ -22,6 +22,9 @@ importers:
       '@medusajs/admin-shared':
         specifier: 2.17.1
         version: 2.17.1
+      '@medusajs/cli':
+        specifier: 2.17.1
+        version: 2.17.1(@types/node@20.19.26)
       '@medusajs/eslint-plugin':
         specifier: 2.17.1
         version: 2.17.1(eslint@9.39.4(jiti@1.21.7))(typescript@5.6.2)
