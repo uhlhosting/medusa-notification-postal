@@ -26,6 +26,10 @@ type SendPostalEmailStepInput = {
   }
 }
 
+type NotificationRecord = {
+  id?: string | null
+}
+
 export const sendPostalEmailStep = createStep(
   "send-postal-email",
   async (input: SendPostalEmailStepInput, { container }) => {
@@ -33,36 +37,56 @@ export const sendPostalEmailStep = createStep(
       Modules.NOTIFICATION
     )
 
-    const to = Array.isArray(input.to) ? input.to.join(",") : input.to
+    const recipients = normalizeRecipients(input.to)
+    if (!recipients.length) {
+      throw new Error("Postal notification requires at least one recipient")
+    }
 
-    const result = await notificationModuleService.createNotifications({
-      to,
-      channel: "email",
-      template: input.template || "default",
-      content: {
-        subject: input.provider_data.subject,
-        html: input.provider_data.html,
-        text: input.provider_data.text,
-      },
-      provider_data: {
-        from: input.provider_data.from || input.from,
-        from_name: input.provider_data.from_name || input.from_name,
-        reply_to: input.provider_data.reply_to || input.reply_to,
-        cc: input.provider_data.cc,
-        bcc: input.provider_data.bcc,
-        headers: input.provider_data.headers,
-        custom_args: input.provider_data.custom_args,
-        metadata: input.provider_data.metadata,
-        workflow_event: input.provider_data.workflow_event,
-        workflow_run_id: input.provider_data.workflow_run_id,
-      },
-    })
+    const template = input.template || "default"
+    const providerData = buildProviderData(input)
+
+    const deliveries = await Promise.all(
+      recipients.map(async (to) => {
+        const result = (await notificationModuleService.createNotifications({
+          to,
+          channel: "email",
+          template,
+          content: {
+            subject: input.provider_data.subject,
+            html: input.provider_data.html,
+            text: input.provider_data.text,
+          },
+          provider_data: providerData,
+        })) as NotificationRecord | NotificationRecord[]
+
+        return Array.isArray(result) ? result[0] || null : result || null
+      })
+    )
 
     return new StepResponse({
-      id: Array.isArray(result) ? result[0]?.id : result?.id || null,
-      to: Array.isArray(input.to) ? input.to : [input.to],
+      id: deliveries[0]?.id || null,
+      to: recipients,
       subject: input.provider_data?.subject || "",
       delivered_at: new Date().toISOString(),
+      deliveries,
     })
   }
 )
+
+const normalizeRecipients = (value: string | string[]) => {
+  const list = Array.isArray(value) ? value : [value]
+  return list.map((entry) => entry.trim()).filter(Boolean)
+}
+
+const buildProviderData = (input: SendPostalEmailStepInput) => ({
+  from: input.provider_data.from || input.from,
+  from_name: input.provider_data.from_name || input.from_name,
+  reply_to: input.provider_data.reply_to || input.reply_to,
+  cc: input.provider_data.cc,
+  bcc: input.provider_data.bcc,
+  headers: input.provider_data.headers,
+  custom_args: input.provider_data.custom_args,
+  metadata: input.provider_data.metadata,
+  workflow_event: input.provider_data.workflow_event,
+  workflow_run_id: input.provider_data.workflow_run_id,
+})

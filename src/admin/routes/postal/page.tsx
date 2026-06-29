@@ -195,7 +195,7 @@ const webhookStatusBadgeColor = (status: string) => {
 };
 
 const buildPostalCallbackUrl = (token: string) => {
-  const path = `/store/postal/webhooks/${token}`;
+  const path = `/postal/webhooks/${token}`;
   const base = getPublicBackendBaseUrl();
 
   try {
@@ -293,7 +293,7 @@ const PostalAdminPage = () => {
   const { t } = useTranslation();
   const [searchValue, setSearchValue] = useState("");
   const columns = useColumns();
-  const webhookCallbackPath = "/store/postal/webhooks";
+  const webhookCallbackPath = "/postal/webhooks";
 
   // Health check query
   const { data: health, isLoading: isHealthLoading, dataUpdatedAt: healthUpdatedAt } = useQuery({
@@ -446,7 +446,7 @@ const PostalAdminPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <PluginStatusCard
           title={t("postal.activity.auth_mode")}
-          value={(health as any)?.auth_type || "smtp-api"}
+          value="smtp-api"
           description={t("postal.activity.configured_transport")}
           icon={Envelope}
           color="grey"

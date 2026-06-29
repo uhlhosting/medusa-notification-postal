@@ -7,9 +7,9 @@ import { z } from "@medusajs/framework/zod"
 
 const zod = z as any
 
-const postalSettingsSchema = zod.object({
-  action: zod.enum(["save", "test"]).optional(),
-  to: zod.string().optional(),
+  const postalSettingsSchema = zod.object({
+    action: zod.enum(["save", "test"]).optional(),
+    to: zod.string().optional(),
   cc: zod.union([zod.string(), zod.array(zod.string())]).optional(),
   bcc: zod.union([zod.string(), zod.array(zod.string())]).optional(),
   from_name: zod.string().optional(),
@@ -20,23 +20,18 @@ const postalSettingsSchema = zod.object({
   text: zod.string().optional(),
   headers: zod.record(zod.string()).optional(),
   custom_args: zod.record(zod.any()).optional(),
-  metadata: zod.record(zod.any()).optional(),
-  settings: zod
-    .object({
-      auth_type: zod.enum(["smtp-api", "smtp-ip", "smtp"]).optional(),
+    metadata: zod.record(zod.any()).optional(),
+    settings: zod
+      .object({
+      auth_type: zod.enum(["smtp-api"]).optional(),
       from: zod.string().optional(),
       base_url: zod.string().optional(),
       api_key: zod.string().optional(),
-      smtp_host: zod.string().optional(),
-      smtp_port: zod.string().optional(),
-      smtp_secure: zod.string().optional(),
-      smtp_user: zod.string().optional(),
-      smtp_pass: zod.string().optional(),
       test_to: zod.string().optional(),
     })
-    .partial()
-    .optional(),
-})
+      .partial()
+      .optional(),
+  })
 
 const postalSendTestSchema = zod
   .object({

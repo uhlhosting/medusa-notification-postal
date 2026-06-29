@@ -446,9 +446,7 @@ export const resolvePostalTemplate = (
   const defaults = templateName
     ? POSTAL_TEMPLATE_REGISTRY[templateName]
     : POSTAL_TEMPLATE_REGISTRY.default
-  const subject =
-    content.subject?.trim() ||
-    (templateName ? defaults.subject : templateLabel)
+  const subject = content.subject?.trim() || defaults.subject
   const contentHtml = content.html?.trim() || ""
   const contentText = content.text?.trim() || ""
   const text = normalizeTemplateText(

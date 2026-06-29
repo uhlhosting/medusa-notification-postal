@@ -31,15 +31,10 @@ import {
 } from "../../../../providers/postal/templates";
 
 type PostalSettingsForm = {
-  auth_type: "smtp-api" | "smtp-ip" | "smtp";
+  auth_type: "smtp-api";
   from: string;
   base_url: string;
   api_key: string;
-  smtp_host: string;
-  smtp_port: string;
-  smtp_secure: string;
-  smtp_user: string;
-  smtp_pass: string;
   test_to: string;
 };
 
@@ -65,11 +60,6 @@ const emptyForm: PostalSettingsForm = {
   from: "",
   base_url: "",
   api_key: "",
-  smtp_host: "",
-  smtp_port: "",
-  smtp_secure: "false",
-  smtp_user: "",
-  smtp_pass: "",
   test_to: "",
 };
 
@@ -90,17 +80,7 @@ const emptyTestForm: PostalTestForm = {
   metadata_json: JSON.stringify(defaultPostalTemplateExample.metadata, null, 2),
 };
 
-const activeConfigKeys = (authType: PostalSettingsForm["auth_type"]) => {
-  if (authType === "smtp-api") {
-    return ["from", "base_url", "api_key"];
-  }
-
-  if (authType === "smtp-ip") {
-    return ["from", "smtp_host"];
-  }
-
-  return ["from", "smtp_host", "smtp_port", "smtp_user", "smtp_pass"];
-};
+const configKeys = ["from", "base_url", "api_key"] as const;
 
 const toTextareaClassName =
   "min-h-[160px] rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 font-mono text-sm text-ui-fg-base outline-none transition-colors placeholder:text-ui-fg-muted focus:border-ui-border-interactive";
@@ -222,7 +202,9 @@ export const PostalSettingsPage = () => {
     (testForm.template || "postal-admin-test") as PostalTemplateName,
   );
   const renderedTemplateHtml = (testForm.html || templatePreview.html || "").trim();
-  const webhookCallbackPath = "/store/postal/webhooks";
+  const webhookCallbackPath = "/postal/webhooks";
+  const webhookCallbackUrl =
+    webhookUrlData?.callback_url || webhookCallbackPath;
   const normalizedTemplateSearch = templateSearch.trim().toLowerCase();
   const filteredTemplateRows = postalTemplateReferenceRows.filter((row) => {
     const audienceMatches =
@@ -303,6 +285,11 @@ export const PostalSettingsPage = () => {
     queryKey: ["plugin-settings-postal"],
     queryFn: () => sdk.client.fetch("/admin/plugin-settings/postal"),
   });
+  const { data: webhookUrlData } = useQuery<any>({
+    queryKey: ["plugin-settings-postal-webhook-url"],
+    queryFn: () => sdk.client.fetch("/admin/postal/webhook-url"),
+    enabled: Boolean(data),
+  });
 
   useEffect(() => {
     if (!data) {
@@ -310,15 +297,10 @@ export const PostalSettingsPage = () => {
     }
 
     setForm({
-      auth_type: data.auth_type || "smtp-api",
+      auth_type: "smtp-api",
       from: data.from || "",
       base_url: data.base_url || "",
       api_key: "",
-      smtp_host: data.smtp_host || "",
-      smtp_port: data.smtp_port || "",
-      smtp_secure: data.smtp_secure || "false",
-      smtp_user: data.smtp_user || "",
-      smtp_pass: "",
       test_to: data.test_to || "",
     });
     setTestForm((prev) => ({
@@ -337,16 +319,11 @@ export const PostalSettingsPage = () => {
       const next = res?.settings;
       setForm((prev) => ({
         ...prev,
-        auth_type: next?.auth_type || prev.auth_type,
+        auth_type: "smtp-api",
         from: next?.from || "",
         base_url: next?.base_url || "",
-        smtp_host: next?.smtp_host || "",
-        smtp_port: next?.smtp_port || "",
-        smtp_secure: next?.smtp_secure || "false",
-        smtp_user: next?.smtp_user || "",
         test_to: next?.test_to || "",
         api_key: "",
-        smtp_pass: "",
       }));
       toast.success(t("postal.toast.saved"));
       refetch();
@@ -388,9 +365,6 @@ export const PostalSettingsPage = () => {
     },
   });
 
-  const showApiFields = form.auth_type === "smtp-api";
-  const showSmtpFields =
-    form.auth_type === "smtp-ip" || form.auth_type === "smtp";
   const isConfigured =
     data?.configured && Object.values(data.configured).some((v) => v === true);
   const disabled = saveMutation.isPending || testMutation.isPending;
@@ -459,21 +433,21 @@ export const PostalSettingsPage = () => {
         <div className="flex flex-col gap-4">
           <PluginSection
             title={t("postal.configuration")}
-            description={t("postal.subtitle")}
+            description="Postal API credentials, sender identity, and test recipient."
             bodyClassName="flex flex-col gap-4"
           >
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
                 <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                  {t("postal.auth_type")}
+                  Delivery mode
                 </Text>
                 <Text size="small" leading="compact" weight="plus">
-                  {t(`postal.auth.${form.auth_type.replace("-", "_")}`)}
+                  Postal API only
                 </Text>
               </div>
               <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
                 <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                  {t("postal.default_test_recipient")}
+                  Default test recipient
                 </Text>
                 <Text size="small" leading="compact" weight="plus">
                   {form.test_to || t("postal.recipient_fallback")}
@@ -481,39 +455,10 @@ export const PostalSettingsPage = () => {
               </div>
               <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
                 <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                  {t("postal.webhook_callback_path")}
+                  Webhook URL
                 </Text>
-                <Code className="mt-1 block truncate">{webhookCallbackPath}</Code>
+                <Code className="mt-1 block truncate">{webhookCallbackUrl}</Code>
               </div>
-            </div>
-
-            <div className="flex flex-col gap-y-2">
-              <Label htmlFor="postal-auth-type">{t("postal.auth_type")}</Label>
-              <Select
-                value={form.auth_type}
-                onValueChange={(v) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    auth_type: v as PostalSettingsForm["auth_type"],
-                  }))
-                }
-                disabled={disabled}
-              >
-                <Select.Trigger id="postal-auth-type">
-                  <Select.Value placeholder={t("postal.select_auth_type")} />
-                </Select.Trigger>
-                <Select.Content>
-                  <Select.Item value="smtp-api">
-                    {t("postal.auth.smtp_api")}
-                  </Select.Item>
-                  <Select.Item value="smtp-ip">
-                    {t("postal.auth.smtp_ip")}
-                  </Select.Item>
-                  <Select.Item value="smtp">
-                    {t("postal.auth.smtp")}
-                  </Select.Item>
-                </Select.Content>
-              </Select>
             </div>
 
             <div className="flex flex-col gap-y-2">
@@ -530,135 +475,40 @@ export const PostalSettingsPage = () => {
               />
             </div>
 
-            {showApiFields && (
-              <div className="grid gap-4">
-                <div className="flex flex-col gap-y-2">
-                  <Label htmlFor="postal-base-url">
-                    {t("postal.base_url")}
-                  </Label>
-                  <Input
-                    id="postal-base-url"
-                    placeholder={t("postal.placeholder.base_url")}
-                    value={form.base_url}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, base_url: e.target.value }))
-                    }
-                    disabled={disabled}
-                  />
-                </div>
-                <div className="flex flex-col gap-y-2">
-                  <Label htmlFor="postal-api-key">{t("postal.api_key")}</Label>
-                  <Input
-                    id="postal-api-key"
-                    type="password"
-                    placeholder={
-                      data?.secret_hints?.api_key_masked ||
-                      t("postal.masked_long")
-                    }
-                    value={form.api_key}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, api_key: e.target.value }))
-                    }
-                    disabled={disabled}
-                  />
-                  <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                    {data?.secret_hints?.api_key_masked
-                      ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.saved_key_suffix")}`
-                      : t("postal.no_api_key_saved")}
-                  </Text>
-                </div>
+            <div className="grid gap-4">
+              <div className="flex flex-col gap-y-2">
+                <Label htmlFor="postal-base-url">{t("postal.base_url")}</Label>
+                <Input
+                  id="postal-base-url"
+                  placeholder={t("postal.placeholder.base_url")}
+                  value={form.base_url}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, base_url: e.target.value }))
+                  }
+                  disabled={disabled}
+                />
               </div>
-            )}
-
-            {showSmtpFields && (
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-y-2 md:col-span-2">
-                  <Label htmlFor="postal-smtp-host">
-                    {t("postal.smtp_host")}
-                  </Label>
-                  <Input
-                    id="postal-smtp-host"
-                    placeholder={t("postal.placeholder.smtp_host")}
-                    value={form.smtp_host}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        smtp_host: e.target.value,
-                      }))
-                    }
-                    disabled={disabled}
-                  />
-                </div>
-                {form.auth_type === "smtp" && (
-                  <>
-                    <div className="flex flex-col gap-y-2 md:col-span-2">
-                      <Label htmlFor="postal-smtp-port">
-                        {t("postal.smtp_port")}
-                      </Label>
-                      <Input
-                        id="postal-smtp-port"
-                        placeholder={t("postal.placeholder.smtp_port")}
-                        value={form.smtp_port}
-                        onChange={(e) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            smtp_port: e.target.value,
-                          }))
-                        }
-                        disabled={disabled}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-y-2 md:col-span-2">
-                      <Label htmlFor="postal-smtp-user">
-                        {t("postal.smtp_user")}
-                      </Label>
-                      <Input
-                        id="postal-smtp-user"
-                        placeholder={t("postal.placeholder.smtp_user")}
-                        value={form.smtp_user}
-                        onChange={(e) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            smtp_user: e.target.value,
-                          }))
-                        }
-                        disabled={disabled}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-y-2 md:col-span-2">
-                      <Label htmlFor="postal-smtp-pass">
-                        {t("postal.smtp_pass")}
-                      </Label>
-                      <Input
-                        id="postal-smtp-pass"
-                        type="password"
-                        placeholder={
-                          data?.secret_hints?.smtp_pass_masked ||
-                          t("postal.masked_short")
-                        }
-                        value={form.smtp_pass}
-                        onChange={(e) =>
-                          setForm((prev) => ({
-                            ...prev,
-                            smtp_pass: e.target.value,
-                          }))
-                        }
-                        disabled={disabled}
-                      />
-                      <Text
-                        size="small"
-                        leading="compact"
-                        className="text-ui-fg-subtle"
-                      >
-                        {data?.secret_hints?.smtp_pass_masked
-                          ? `${t("postal.saved_password_prefix")} ${data.secret_hints.smtp_pass_masked}. ${t("postal.saved_password_suffix")}`
-                          : t("postal.no_smtp_pass_saved")}
-                      </Text>
-                    </div>
-                  </>
-                )}
+              <div className="flex flex-col gap-y-2">
+                <Label htmlFor="postal-api-key">{t("postal.api_key")}</Label>
+                <Input
+                  id="postal-api-key"
+                  type="password"
+                  placeholder={
+                    data?.secret_hints?.api_key_masked || t("postal.masked_long")
+                  }
+                  value={form.api_key}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, api_key: e.target.value }))
+                  }
+                  disabled={disabled}
+                />
+                <Text size="small" leading="compact" className="text-ui-fg-subtle">
+                  {data?.secret_hints?.api_key_masked
+                    ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.saved_key_suffix")}`
+                    : t("postal.no_api_key_saved")}
+                </Text>
               </div>
-            )}
+            </div>
 
             <div className="flex flex-col gap-y-2">
               <Label htmlFor="postal-test-to-default">
@@ -697,35 +547,35 @@ export const PostalSettingsPage = () => {
           <PluginSidebarSection title={t("postal.webhook_callback")}>
             <div className="flex flex-col gap-y-3">
               <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                {t("postal.webhook_callback_hint")}
+                Postal should POST delivery and tracking events to this exact URL.
               </Text>
               <div className="flex flex-col gap-y-2">
                 <Label htmlFor="postal-webhook-callback">
-                  {t("postal.webhook_callback_path")}
+                  {t("postal.webhook_callback_url")}
                 </Label>
                 <div className="flex items-center gap-2">
                   <Code
                     id="postal-webhook-callback"
                     className="min-w-0 flex-1 truncate"
                   >
-                    {webhookCallbackPath}
+                    {webhookCallbackUrl}
                   </Code>
                   <Button
                     type="button"
                     size="small"
                     variant="secondary"
                     onClick={async () => {
-                      await navigator.clipboard.writeText(webhookCallbackPath);
+                      await navigator.clipboard.writeText(webhookCallbackUrl);
                       toast.success(t("postal.webhook_callback_copied"));
                     }}
                     disabled={disabled}
                   >
-                    {t("postal.copy_callback_path")}
+                    {t("postal.copy_callback_url")}
                   </Button>
                 </div>
               </div>
               <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                {t("postal.webhook_callback_hint_suffix")}
+                Keep this URL in Postal and do not paste it into the settings form.
               </Text>
             </div>
           </PluginSidebarSection>
@@ -733,15 +583,13 @@ export const PostalSettingsPage = () => {
           {data?.configured && (
             <PluginSidebarSection title={t("postal.active_config_checklist")}>
               <div className="flex flex-col gap-y-3">
-                <Badge size="small" color="blue" className="w-fit">
-                  {form.auth_type.replace("-", " ")}
-                </Badge>
+                <Text size="small" leading="compact" className="text-ui-fg-subtle">
+                  The following values are saved and used by the provider at runtime.
+                </Text>
                 <Table>
                   <Table.Body>
                     {Object.entries(data.configured)
-                      .filter(([key]) =>
-                        activeConfigKeys(form.auth_type).includes(key),
-                      )
+                      .filter(([key]) => configKeys.includes(key as typeof configKeys[number]))
                       .map(([key, val]) => (
                         <Table.Row key={key}>
                           <Table.Cell>
@@ -804,16 +652,16 @@ export const PostalSettingsPage = () => {
 
             <div className="flex flex-col gap-y-2">
               <Label htmlFor="postal-test-template">{t("postal.template")}</Label>
-              <Select
-                value={testForm.template}
-                onValueChange={(v) =>
-                  setTestForm((prev) => ({
-                    ...prev,
-                    template: v,
-                  }))
-                }
-                disabled={disabled}
-              >
+                <Select
+                  value={testForm.template}
+                  onValueChange={(v) =>
+                    setTestForm((prev) => ({
+                      ...prev,
+                      template: v,
+                    }))
+                  }
+                  disabled={disabled}
+                >
                 <Select.Trigger id="postal-test-template">
                   <Select.Value placeholder={t("postal.template")} />
                 </Select.Trigger>

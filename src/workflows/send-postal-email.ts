@@ -27,7 +27,7 @@ export type SendPostalEmailWorkflowInput = {
 
 export const sendPostalEmailWorkflow: ReturnWorkflow<
   SendPostalEmailWorkflowInput,
-  { success: boolean; delivery: any },
+  { success: boolean; delivery: any; deliveries: any[] },
   []
 > = createWorkflow(
   "send-postal-email",

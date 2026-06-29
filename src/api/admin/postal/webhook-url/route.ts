@@ -72,9 +72,9 @@ export const GET = async (req: AuthenticatedMedusaRequest, res: MedusaResponse) 
 
   return res.status(200).json({
     token,
-    path: `/store/postal/webhooks/${token}`,
+    path: `/postal/webhooks/${token}`,
     callback_url: origin
-      ? new URL(`/store/postal/webhooks/${token}`, origin).toString()
+      ? new URL(`/postal/webhooks/${token}`, origin).toString()
       : null,
   })
 }

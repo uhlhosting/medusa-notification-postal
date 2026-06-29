@@ -23,7 +23,7 @@
 - Use `glab` for GitLab CI and variable management, and `gh` for GitHub mirror checks when needed
 
 ## Postal Plugin Invariants
-1. Provider auth modes are `smtp-api`, `smtp-ip`, and `smtp`
+1. Provider auth mode is `smtp-api`
 2. `provider_data` must carry email content and workflow metadata such as `subject`, `html`, `text`, `workflow_event`, and `workflow_run_id`
 3. The admin settings route under `/admin/plugin-settings/postal` is a configuration visibility surface and must not expose secrets
 4. Postal admin routes must require authenticated Medusa admin users through route-local middleware
