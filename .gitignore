@@ -31,3 +31,6 @@ playwright-report/
 .playwright-mcp/
 *.log
 test-*.ts
+
+# Codex
+.codex/
