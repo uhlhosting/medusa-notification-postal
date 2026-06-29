@@ -61,7 +61,8 @@
     "dev": "medusa plugin:develop",
     "lint": "medusa lint",
     "prepublishOnly": "medusa plugin:build",
-    "release:check": "pnpm run lint && pnpm run typecheck && pnpm run build && node scripts/verify-release.mjs",
+    "release:check": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && node scripts/verify-release.mjs",
+    "test": "tsx --test $(find src -name '*.test.ts' | sort)",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -70,12 +71,10 @@
   "devDependencies": {
     "@medusajs/admin-sdk": "2.17.1",
     "@medusajs/admin-shared": "2.17.1",
-    "@medusajs/cli": "2.17.1",
     "@medusajs/eslint-plugin": "2.17.1",
     "@medusajs/framework": "2.17.1",
     "@medusajs/icons": "2.17.1",
     "@medusajs/medusa": "2.17.1",
-    "@medusajs/test-utils": "2.17.1",
     "@medusajs/ui": "4.1.18",
     "@swc/core": "^1.15.43",
     "@tanstack/react-query": "^5.101.0",
@@ -91,17 +90,16 @@
     "react-dom": "18.3.1",
     "react-i18next": "13.5.0",
     "react-router-dom": "6.30.4",
+    "tsx": "^4.22.4",
     "ts-node": "^10.9.2",
     "typescript": "5.6.2",
     "zod": "4.4.3"
   },
   "peerDependencies": {
     "@medusajs/admin-sdk": "2.17.1",
-    "@medusajs/cli": "2.17.1",
     "@medusajs/framework": "2.17.1",
     "@medusajs/icons": "2.17.1",
     "@medusajs/medusa": "2.17.1",
-    "@medusajs/test-utils": "2.17.1",
     "@medusajs/ui": "4.1.18",
     "@tanstack/react-query": "^5.101.0",
     "i18next": "^26.3.1",

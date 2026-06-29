@@ -48,10 +48,6 @@ type WebhookEvent = {
   payload?: any;
 };
 
-const approvedEmailDomain = "uhlhost.net";
-const blockedEmailDomain = ["example", "com"].join(".");
-const blockedEmailSuffix = "." + "invalid";
-
 const sanitizeEmailDisplay = (value?: string | null) => {
   const email = String(value || "").trim();
 
@@ -67,11 +63,16 @@ const sanitizeEmailDisplay = (value?: string | null) => {
   const localPart = email.slice(0, atIndex);
   const domain = email.slice(atIndex + 1).toLowerCase();
 
-  if (domain === blockedEmailDomain || domain.endsWith(blockedEmailSuffix)) {
-    return `${localPart}@${approvedEmailDomain}`;
+  if (!localPart || !domain) {
+    return email;
   }
 
-  return email;
+  const maskedLocal =
+    localPart.length <= 2
+      ? `${localPart[0] || ""}*`
+      : `${localPart[0]}***${localPart.slice(-1)}`
+
+  return `${maskedLocal}@${domain}`;
 };
 
 const statusFromNotification = (notification: Notification) => {
@@ -295,11 +296,14 @@ const PostalAdminPage = () => {
   const webhookCallbackPath = "/store/postal/webhooks";
 
   // Health check query
-  const { data: health, isLoading: isHealthLoading } = useQuery({
+  const { data: health, isLoading: isHealthLoading, dataUpdatedAt: healthUpdatedAt } = useQuery({
     queryKey: ["postal-health"],
     queryFn: () => sdk.client.fetch("/admin/postal/health"),
     refetchInterval: 30000, // Refetch every 30s
   });
+  const lastCheckedAt = healthUpdatedAt
+    ? new Date(healthUpdatedAt).toLocaleString()
+    : undefined;
 
   // Notifications query
   const { data: notificationsData, isLoading: isNotificationsLoading } =
@@ -408,9 +412,13 @@ const PostalAdminPage = () => {
               ? t("postal.activity.connected")
               : t("postal.activity.disconnected")
         }
-        lastSuccessfulExecution={t("postal.activity.last_checked", {
-          time: new Date().toLocaleString(),
-        })}
+        lastSuccessfulExecution={
+          lastCheckedAt
+            ? t("postal.activity.last_checked", {
+                time: lastCheckedAt,
+              })
+            : undefined
+        }
         helpLinks={[
           {
             label: t("postal.activity.help_postal"),
