@@ -52,6 +52,11 @@ validate:
     - pnpm run lint
     - pnpm run typecheck
 
+test:
+  stage: test
+  script:
+    - pnpm run test
+
 build:
   stage: build
   script:
