@@ -22,14 +22,14 @@ A production-ready Postal notification provider for Medusa. Designed for reliabl
 
 - `smtp_host` - Postal SMTP host
 - `smtp_port` - SMTP port, default `25`
-- `smtp_secure` - `true` for TLS, default `false`
+- `smtp_secure` - `true` for implicit TLS, default `false` (STARTTLS is required when false)
 - `smtp_timeout` - connection timeout in ms, default `10000`
 
 ### `smtp` options
 
 - `smtp_host` - Postal SMTP host
 - `smtp_port` - SMTP port, default `25`
-- `smtp_secure` - `true` for TLS, default `false`
+- `smtp_secure` - `true` for implicit TLS, default `false` (STARTTLS is required when false)
 - `smtp_user` - SMTP username
 - `smtp_pass` - SMTP password
 - `smtp_timeout` - connection timeout in ms, default `10000`

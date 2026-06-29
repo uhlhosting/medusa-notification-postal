@@ -56,8 +56,10 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Lint
-        run: pnpm lint
+          if [ "${GITHUB_REF_PROTECTED}" != "true" ]; then
+            echo "Ref ${GITHUB_REF} must be protected before npm trusted publishing is allowed." >&2
+            exit 1
+          fi
 
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             expected_tag="v$(node -p "require('./package.json').version")"
