@@ -52,7 +52,7 @@ Use Medusa notification workflows and pass workflow metadata in `provider_data`:
 ```ts
 await notificationModuleService.createNotifications({
   channel: "email",
-  to: "customer@uhlhost.net",
+  to: "cosmin@uhlhost.net",
   template: "order-placed",
   provider_id: "postal",
   content: {
@@ -147,8 +147,8 @@ provider_data: {
   from: "no-reply@uhlhosting.ch",
   from_name: "Postal Admin",
   reply_to: "support@uhlhosting.ch",
-  cc: "copy@uhlhost.net",
-  bcc: ["audit@highacid.com"],
+  cc: "cosmin@uhl-services.ch",
+  bcc: ["siravecavec@gmail.com"],
   headers: {
     "X-Trace-Id": "trace_123",
   },
@@ -166,14 +166,14 @@ import { sendPostalEmailWorkflow } from "@uhlhosting/medusa-notification-postal"
 
 const { result } = await sendPostalEmailWorkflow(req.scope).run({
   input: {
-    to: "customer@uhlhost.net",
+    to: "cosmin@uhlhost.net",
     from: "custom-sender@uhlhosting.ch", // Optional, defaults to POSTAL_FROM
     template: "custom-template-id",    // Optional
     provider_data: {
       subject: "Test Programmatic Email",
       html: "<p>Hello, this is a test email sent programmatically.</p>",
       text: "Hello, this is a test email sent programmatically.",
-      cc: "copy@uhlhost.net",
+      cc: "cosmin@uhl-services.ch",
       workflow_event: "admin.test_send",
       workflow_run_id: "wf_run_manual_123"
     }

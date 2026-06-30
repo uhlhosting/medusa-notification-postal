@@ -80,8 +80,6 @@ const emptyTestForm: PostalTestForm = {
   metadata_json: JSON.stringify(defaultPostalTemplateExample.metadata, null, 2),
 };
 
-const configKeys = ["from", "base_url", "api_key"] as const;
-
 const toTextareaClassName =
   "min-h-[160px] rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 font-mono text-sm text-ui-fg-base outline-none transition-colors placeholder:text-ui-fg-muted focus:border-ui-border-interactive";
 
@@ -96,6 +94,61 @@ type PostalTemplateReferenceRow = {
 };
 
 type PostalTemplateAudienceFilter = "all" | PostalTemplateReferenceRow["audience"];
+
+type SummaryCardProps = {
+  label: string;
+  value: string;
+};
+
+const SummaryCard = ({ label, value }: SummaryCardProps) => (
+  <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
+    <Text size="small" leading="compact" className="text-ui-fg-subtle">
+      {label}
+    </Text>
+    <Text size="small" leading="compact" weight="plus" className="break-words">
+      {value}
+    </Text>
+  </div>
+)
+
+type SettingsFieldProps = {
+  label: string;
+  value: string;
+  type?: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+  hint?: string;
+  id: string;
+}
+
+const SettingsField = ({
+  label,
+  value,
+  type = "text",
+  placeholder,
+  onChange,
+  disabled,
+  hint,
+  id,
+}: SettingsFieldProps) => (
+  <div className="flex flex-col gap-y-2">
+    <Label htmlFor={id}>{label}</Label>
+    <Input
+      id={id}
+      type={type}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+    />
+    {hint ? (
+      <Text size="small" leading="compact" className="text-ui-fg-subtle">
+        {hint}
+      </Text>
+    ) : null}
+  </div>
+)
 
 const postalTemplateReferenceRows: PostalTemplateReferenceRow[] = [
   {
@@ -226,6 +279,24 @@ export const PostalSettingsPage = () => {
 
     return audienceMatches && searchMatches;
   });
+
+  const checklistRows = [
+    {
+      key: "from",
+      label: "Sender email",
+      value: form.from || "",
+    },
+    {
+      key: "base_url",
+      label: "Postal base URL",
+      value: form.base_url || "",
+    },
+    {
+      key: "api_key",
+      label: "API key",
+      value: form.api_key ? "Set" : "Missing",
+    },
+  ];
 
   const parseJsonObject = (value: string, fieldLabel: string) => {
     const trimmed = value.trim();
@@ -437,97 +508,60 @@ export const PostalSettingsPage = () => {
             bodyClassName="flex flex-col gap-4"
           >
             <div className="grid gap-3 md:grid-cols-3">
-              <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
-                <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                  Delivery mode
-                </Text>
-                <Text size="small" leading="compact" weight="plus">
-                  Postal API only
-                </Text>
-              </div>
-              <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
-                <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                  Default test recipient
-                </Text>
-                <Text size="small" leading="compact" weight="plus">
-                  {form.test_to || t("postal.recipient_fallback")}
-                </Text>
-              </div>
-              <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
-                <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                  Webhook URL
-                </Text>
-                <Code className="mt-1 block truncate">{webhookCallbackUrl}</Code>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-y-2">
-              <Label htmlFor="postal-from">{t("postal.from_email")}</Label>
-              <Input
-                id="postal-from"
-                type="email"
-                placeholder={t("postal.placeholder.from_email")}
-                value={form.from}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, from: e.target.value }))
-                }
-                disabled={disabled}
+              <SummaryCard label="Delivery mode" value="Postal API only" />
+              <SummaryCard
+                label="Default test recipient"
+                value={form.test_to || t("postal.recipient_fallback")}
               />
+              <SummaryCard label="Webhook URL" value={webhookCallbackUrl} />
             </div>
-
+            <SettingsField
+              id="postal-from"
+              label={t("postal.from_email")}
+              type="email"
+              placeholder={t("postal.placeholder.from_email")}
+              value={form.from}
+              onChange={(value) => setForm((prev) => ({ ...prev, from: value }))}
+              disabled={disabled}
+            />
             <div className="grid gap-4">
-              <div className="flex flex-col gap-y-2">
-                <Label htmlFor="postal-base-url">{t("postal.base_url")}</Label>
-                <Input
-                  id="postal-base-url"
-                  placeholder={t("postal.placeholder.base_url")}
-                  value={form.base_url}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, base_url: e.target.value }))
-                  }
-                  disabled={disabled}
-                />
-              </div>
-              <div className="flex flex-col gap-y-2">
-                <Label htmlFor="postal-api-key">{t("postal.api_key")}</Label>
-                <Input
-                  id="postal-api-key"
-                  type="password"
-                  placeholder={
-                    data?.secret_hints?.api_key_masked || t("postal.masked_long")
-                  }
-                  value={form.api_key}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, api_key: e.target.value }))
-                  }
-                  disabled={disabled}
-                />
-                <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                  {data?.secret_hints?.api_key_masked
-                    ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.saved_key_suffix")}`
-                    : t("postal.no_api_key_saved")}
-                </Text>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-y-2">
-              <Label htmlFor="postal-test-to-default">
-                {t("postal.default_test_recipient")}
-              </Label>
-              <Input
-                id="postal-test-to-default"
-                type="email"
-                placeholder={t("postal.placeholder.test_recipient")}
-                value={form.test_to}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, test_to: e.target.value }))
+              <SettingsField
+                id="postal-base-url"
+                label={t("postal.base_url")}
+                placeholder={t("postal.placeholder.base_url")}
+                value={form.base_url}
+                onChange={(value) =>
+                  setForm((prev) => ({ ...prev, base_url: value }))
                 }
                 disabled={disabled}
               />
-              <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                {t("postal.default_test_recipient_hint")}
-              </Text>
+              <SettingsField
+                id="postal-api-key"
+                label={t("postal.api_key")}
+                type="password"
+                placeholder={
+                  data?.secret_hints?.api_key_masked || t("postal.masked_long")
+                }
+                value={form.api_key}
+                onChange={(value) => setForm((prev) => ({ ...prev, api_key: value }))}
+                disabled={disabled}
+                hint={
+                  data?.secret_hints?.api_key_masked
+                    ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.saved_key_suffix")}`
+                    : t("postal.no_api_key_saved")
+                }
+              />
             </div>
+            <SettingsField
+              id="postal-test-to-default"
+              label={t("postal.default_test_recipient")}
+              type="email"
+              placeholder={t("postal.placeholder.test_recipient")}
+              value={form.test_to}
+              onChange={(value) => setForm((prev) => ({ ...prev, test_to: value }))}
+              disabled={disabled}
+              hint={t("postal.default_test_recipient_hint")}
+            />
 
             <div className="flex justify-end border-t pt-4">
               <Button
@@ -588,22 +622,26 @@ export const PostalSettingsPage = () => {
                 </Text>
                 <Table>
                   <Table.Body>
-                    {Object.entries(data.configured)
-                      .filter(([key]) => configKeys.includes(key as typeof configKeys[number]))
-                      .map(([key, val]) => (
-                        <Table.Row key={key}>
+                    {checklistRows.map((row) => (
+                      <Table.Row key={row.key}>
                           <Table.Cell>
                             <Text size="small" leading="compact" weight="plus">
-                              {key.replace("_", " ")}
+                              {row.label}
                             </Text>
                           </Table.Cell>
                           <Table.Cell className="text-right">
-                            <StatusBadge color={val ? "green" : "red"}>
-                              {val ? t("postal.set") : t("postal.missing")}
-                            </StatusBadge>
+                            {row.key === "api_key" ? (
+                              <StatusBadge color={data.configured.api_key ? "green" : "red"}>
+                                {data.configured.api_key ? t("postal.set") : t("postal.missing")}
+                              </StatusBadge>
+                            ) : (
+                              <Text size="small" leading="compact">
+                                {row.value || t("postal.missing")}
+                              </Text>
+                            )}
                           </Table.Cell>
                         </Table.Row>
-                      ))}
+                    ))}
                   </Table.Body>
                 </Table>
               </div>
