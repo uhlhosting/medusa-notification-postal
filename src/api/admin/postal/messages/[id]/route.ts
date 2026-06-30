@@ -30,10 +30,27 @@ const postPostalApi = async (path: string, payload: Record<string, unknown>) => 
     )
   }
 
+  let parsedBaseUrl: URL
+  try {
+    parsedBaseUrl = new URL(baseUrl)
+  } catch {
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      "Postal message lookup requires a valid absolute POSTAL_BASE_URL"
+    )
+  }
+
+  if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      "Postal message lookup requires an http or https POSTAL_BASE_URL"
+    )
+  }
+
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), POSTAL_REQUEST_TIMEOUT_MS)
 
-  const response = await fetch(`${baseUrl}/api/v1/${path}`, {
+  const response = await fetch(new URL(`/api/v1/${path}`, parsedBaseUrl).toString(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
