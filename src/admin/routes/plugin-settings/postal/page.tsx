@@ -256,8 +256,6 @@ export const PostalSettingsPage = () => {
   );
   const renderedTemplateHtml = (testForm.html || templatePreview.html || "").trim();
   const webhookCallbackPath = "/postal/webhooks";
-  const webhookCallbackUrl =
-    webhookUrlData?.callback_url || webhookCallbackPath;
   const normalizedTemplateSearch = templateSearch.trim().toLowerCase();
   const filteredTemplateRows = postalTemplateReferenceRows.filter((row) => {
     const audienceMatches =
@@ -356,11 +354,14 @@ export const PostalSettingsPage = () => {
     queryKey: ["plugin-settings-postal"],
     queryFn: () => sdk.client.fetch("/admin/plugin-settings/postal"),
   });
+
   const { data: webhookUrlData } = useQuery<any>({
     queryKey: ["plugin-settings-postal-webhook-url"],
     queryFn: () => sdk.client.fetch("/admin/postal/webhook-url"),
     enabled: Boolean(data),
   });
+  const webhookCallbackUrl =
+    webhookUrlData?.callback_url || webhookCallbackPath;
 
   useEffect(() => {
     if (!data) {
@@ -437,7 +438,7 @@ export const PostalSettingsPage = () => {
   });
 
   const isConfigured =
-    data?.configured && Object.values(data.configured).some((v) => v === true);
+    data?.configured && Object.values(data.configured).includes(true);
   const disabled = saveMutation.isPending || testMutation.isPending;
 
   const sendTestEmail = () => {
@@ -1021,7 +1022,7 @@ export const PostalSettingsPage = () => {
                       ))
                     ) : (
                       <Table.Row>
-                        <Table.Cell colSpan={6}>
+                        <Table.Cell {...({ colSpan: 6 } as { colSpan?: number })}>
                           <div className="py-6 text-center">
                             <Text size="small" leading="compact" weight="plus">
                               No templates match the current filter.
