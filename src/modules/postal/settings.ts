@@ -72,7 +72,7 @@ const resolveBackendRoot = () => {
     : path.join(cwd, "apps", "backend")
 }
 
-const ENV_FILE_PATH = path.join(resolveBackendRoot(), ".env")
+const getEnvFilePath = () => path.join(resolveBackendRoot(), ".env")
 
 const ENV_KEYS = [
   "POSTAL_AUTH_TYPE",
@@ -88,12 +88,13 @@ const SETTINGS_TABLE = "admin_plugin_settings"
 
 const readEnvMap = () => {
   const envMap = new Map<string, string>()
+  const envFilePath = getEnvFilePath()
 
-  if (!fs.existsSync(ENV_FILE_PATH)) {
+  if (!fs.existsSync(envFilePath)) {
     return envMap
   }
 
-  const content = fs.readFileSync(ENV_FILE_PATH, "utf8")
+  const content = fs.readFileSync(envFilePath, "utf8")
   const lines = content.split(/\r?\n/)
 
   for (const line of lines) {
@@ -130,8 +131,9 @@ const readEnvMap = () => {
 const writeEnvValues = async (
   updates: Partial<Record<(typeof ENV_KEYS)[number], string>>
 ) => {
-  const existing = fs.existsSync(ENV_FILE_PATH)
-    ? fs.readFileSync(ENV_FILE_PATH, "utf8")
+  const envFilePath = getEnvFilePath()
+  const existing = fs.existsSync(envFilePath)
+    ? fs.readFileSync(envFilePath, "utf8")
     : ""
   const lines = existing ? existing.split(/\r?\n/) : []
   const seen = new Set<string>()
@@ -160,11 +162,11 @@ const writeEnvValues = async (
 
   const normalized = nextLines.filter((line, i, arr) => !(i === arr.length - 1 && line === ""))
   const content = `${normalized.join("\n")}\n`
-  const tmpPath = `${ENV_FILE_PATH}.tmp`
+  const tmpPath = `${envFilePath}.tmp`
 
   try {
     await writeFile(tmpPath, content, "utf8")
-    await rename(tmpPath, ENV_FILE_PATH)
+    await rename(tmpPath, envFilePath)
   } catch (error) {
     if (fs.existsSync(tmpPath)) {
       await unlink(tmpPath).catch(() => {})
