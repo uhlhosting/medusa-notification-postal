@@ -4,7 +4,6 @@ import { chdir, cwd } from "node:process"
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { tmpdir } from "node:os"
-import { pathToFileURL } from "node:url"
 import {
   normalizeSettings,
   toPublicPostalSettings,
@@ -193,10 +192,7 @@ test("getPostalSettings and persistPostalSettings merge env and db state", async
   chdir(tempRoot)
 
   try {
-    const moduleUrl = pathToFileURL(
-      "/Users/cosmic/Developer/MedusaJS/Plugins/medusa-notification-postal/src/modules/postal/settings.ts"
-    )
-    const settings = await import(`${moduleUrl.href}?merge=env`)
+    const settings = await import("./settings?merge=env")
     const pgState: { value: Record<string, unknown> | null } = { value: null }
     const rawCalls: Array<{ sql: string; params?: unknown[] }> = []
     const pgConnection = {
