@@ -180,6 +180,28 @@ test("recordPostalWebhookEvent returns event when pg connection is unavailable",
   assert.equal(event.message_id, "msg_no_pg")
 })
 
+test("recordPostalWebhookEvent returns event when persistence fails", async () => {
+  const pgConnection = {
+    raw: async () => {
+      throw new Error("database unavailable")
+    },
+  }
+
+  const event = await recordPostalWebhookEvent(pgConnection, {
+    event_type: "MessageSent",
+    status: "Sent",
+    message: {
+      message_id: "msg_failed_write",
+      recipient: "recipient@uhlhosting.ch",
+    },
+  })
+
+  assert.equal(event.event_type, "message.sent")
+  assert.equal(event.status, "sent")
+  assert.equal(event.message_id, "msg_failed_write")
+  assert.equal(event.recipient, "recipient@uhlhosting.ch")
+})
+
 test("listPostalWebhookEvents returns normalized rows with limit bounds", async () => {
   const calls: Array<{ sql: string; params?: unknown[] }> = []
   const pgConnection = {

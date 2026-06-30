@@ -286,20 +286,24 @@ export const recordPostalWebhookEvent = async (
     return event
   }
 
-  await pgConnection.raw(
-    `INSERT INTO ${POSTAL_WEBHOOK_EVENTS_TABLE}
-      (id, event_type, status, message_id, recipient, occurred_at, payload, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, now())`,
-    [
-      event.id,
-      event.event_type,
-      event.status,
-      event.message_id,
-      event.recipient,
-      event.occurred_at,
-      JSON.stringify(event.payload),
-    ]
-  )
+  try {
+    await pgConnection.raw(
+      `INSERT INTO ${POSTAL_WEBHOOK_EVENTS_TABLE}
+        (id, event_type, status, message_id, recipient, occurred_at, payload, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, now())`,
+      [
+        event.id,
+        event.event_type,
+        event.status,
+        event.message_id,
+        event.recipient,
+        event.occurred_at,
+        JSON.stringify(event.payload),
+      ]
+    )
+  } catch {
+    return event
+  }
 
   return event
 }
