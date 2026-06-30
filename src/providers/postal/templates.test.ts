@@ -129,10 +129,10 @@ test("getPostalTemplatePreview returns the template content", () => {
 test("getPostalTemplateExample returns example payload data", () => {
   const example = getPostalTemplateExample("order-placed")
 
-  assert.equal(example.to, "customer@uhlhosting.ch")
+  assert.equal(example.to, "cosmin@uhlhost.net")
   assert.equal(example.from, "orders@uhlhosting.ch")
-  assert.deepEqual(example.cc, ["ops@uhlhosting.ch"])
-  assert.deepEqual(example.bcc, ["audit@uhlhosting.ch"])
+  assert.deepEqual(example.cc, ["cosmin@uhl-services.ch"])
+  assert.deepEqual(example.bcc, ["siravecavec@gmail.com"])
   assert.equal(example.headers["X-Order-Id"], "ord_123")
   assert.equal(example.workflow_event, "order.placed")
   assert.equal(example.custom_args.order_id, "ord_123")
@@ -183,8 +183,8 @@ test("getPostalTemplateExample carries workflow metadata and headers", () => {
   assert.equal(example.workflow_event, "restock.available")
   assert.equal(example.workflow_run_id, "wf_example_restock_available")
   assert.equal(example.headers["X-Trace-Id"], undefined)
-  assert.deepEqual(example.cc, [])
-  assert.deepEqual(example.bcc, [])
+  assert.deepEqual(example.cc, ["cosmin@uhl-services.ch"])
+  assert.deepEqual(example.bcc, ["siravecavec@gmail.com"])
   assert.equal(example.metadata.store, "main")
 })
 

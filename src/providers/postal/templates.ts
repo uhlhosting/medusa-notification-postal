@@ -53,6 +53,10 @@ export type PostalTemplateExample = PostalTemplatePreview & {
   metadata: Record<string, string>
 }
 
+const TEST_TO = "cosmin@uhlhost.net"
+const TEST_CC = "cosmin@uhl-services.ch"
+const TEST_BCC = "siravecavec@gmail.com"
+
 const normalizeWhitespace = (value: string) => value.trim().replace(/\s+/g, " ")
 
 const stripHtmlTags = (value: string) =>
@@ -512,12 +516,12 @@ export const getPostalTemplateExample = (
     keyof PostalTemplatePreview
   >> = {
     default: {
-      to: "customer@uhlhosting.ch",
+      to: TEST_TO,
       from: "no-reply@uhlhosting.ch",
       from_name: "Postal Admin",
       reply_to: "support@uhlhosting.ch",
       cc: [],
-      bcc: [],
+      bcc: [TEST_BCC],
       headers: {
         "X-Trace-Id": "trace_default",
       },
@@ -531,12 +535,12 @@ export const getPostalTemplateExample = (
       },
     },
     "postal-test": {
-      to: "admin@uhlhosting.ch",
+      to: TEST_TO,
       from: "no-reply@uhlhosting.ch",
       from_name: "Postal Admin",
       reply_to: "support@uhlhosting.ch",
-      cc: ["copy@uhlhosting.ch"],
-      bcc: ["audit@uhlhosting.ch"],
+      cc: [TEST_CC],
+      bcc: [TEST_BCC],
       headers: {
         "X-Trace-Id": "trace_postal_test",
       },
@@ -550,12 +554,12 @@ export const getPostalTemplateExample = (
       },
     },
     "postal-admin-test": {
-      to: "admin@uhlhosting.ch",
+      to: TEST_TO,
       from: "no-reply@uhlhosting.ch",
       from_name: "Postal Admin",
       reply_to: "support@uhlhosting.ch",
-      cc: ["copy@uhlhosting.ch"],
-      bcc: ["audit@uhlhosting.ch"],
+      cc: [TEST_CC],
+      bcc: [TEST_BCC],
       headers: {
         "X-Trace-Id": "trace_admin_test",
       },
@@ -569,12 +573,12 @@ export const getPostalTemplateExample = (
       },
     },
     "order-placed": {
-      to: "customer@uhlhosting.ch",
+      to: TEST_TO,
       from: "orders@uhlhosting.ch",
       from_name: "Example Store",
       reply_to: "orders@uhlhosting.ch",
-      cc: ["ops@uhlhosting.ch"],
-      bcc: ["audit@uhlhosting.ch"],
+      cc: [TEST_CC],
+      bcc: [TEST_BCC],
       headers: {
         "X-Order-Id": "ord_123",
       },
@@ -588,12 +592,12 @@ export const getPostalTemplateExample = (
       },
     },
     "password-reset": {
-      to: "customer@uhlhosting.ch",
+      to: TEST_TO,
       from: "security@uhlhosting.ch",
       from_name: "Example Store",
       reply_to: "support@uhlhosting.ch",
       cc: [],
-      bcc: ["security-audit@uhlhosting.ch"],
+      bcc: [TEST_BCC],
       headers: {
         "X-Reset-Flow": "password-reset",
       },
@@ -607,12 +611,12 @@ export const getPostalTemplateExample = (
       },
     },
     "email-verification": {
-      to: "customer@uhlhosting.ch",
+      to: TEST_TO,
       from: "security@uhlhosting.ch",
       from_name: "Example Store",
       reply_to: "support@uhlhosting.ch",
       cc: [],
-      bcc: ["security-audit@uhlhosting.ch"],
+      bcc: [TEST_BCC],
       headers: {
         "X-Verification-Flow": "email-verification",
       },
@@ -626,12 +630,12 @@ export const getPostalTemplateExample = (
       },
     },
     welcome: {
-      to: "customer@uhlhosting.ch",
+      to: TEST_TO,
       from: "hello@uhlhosting.ch",
       from_name: "Example Store",
       reply_to: "support@uhlhosting.ch",
-      cc: ["growth@uhlhosting.ch"],
-      bcc: [],
+      cc: [TEST_CC],
+      bcc: [TEST_BCC],
       headers: {
         "X-Welcome-Campaign": "default",
       },
@@ -645,12 +649,12 @@ export const getPostalTemplateExample = (
       },
     },
     "abandoned-cart": {
-      to: "customer@uhlhosting.ch",
+      to: TEST_TO,
       from: "orders@uhlhosting.ch",
       from_name: "Tabaklaedeli",
       reply_to: "orders@uhlhosting.ch",
-      cc: [],
-      bcc: [],
+      cc: [TEST_CC],
+      bcc: [TEST_BCC],
       headers: {},
       workflow_event: "cart.abandoned",
       workflow_run_id: "wf_example_abandoned_cart",
@@ -662,12 +666,12 @@ export const getPostalTemplateExample = (
       },
     },
     "restock-available": {
-      to: "customer@uhlhosting.ch",
+      to: TEST_TO,
       from: "hello@uhlhosting.ch",
       from_name: "Tabaklaedeli",
       reply_to: "support@uhlhosting.ch",
-      cc: [],
-      bcc: [],
+      cc: [TEST_CC],
+      bcc: [TEST_BCC],
       headers: {},
       workflow_event: "restock.available",
       workflow_run_id: "wf_example_restock_available",
