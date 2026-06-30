@@ -104,22 +104,18 @@ publish:
       EOF
     - NPM_PACKAGE_NAME=$(node -p "require('./package.json').name")
     - NPM_PACKAGE_VERSION=$(node -p "require('./package.json').version")
-    - PACKAGE_NAME_ENCODED=$(node -p "encodeURIComponent(require('./package.json').name)")
     - |
       if [[ ! $NPM_PACKAGE_NAME =~ ^@$CI_PROJECT_ROOT_NAMESPACE/ ]]; then
         echo "Invalid package scope! Packages must be scoped in the root namespace of the project, e.g. \"@${CI_PROJECT_ROOT_NAMESPACE}/${CI_PROJECT_NAME}\""
         exit 1
       fi
     - |
-      existing_versions="$(
-        curl --silent --header "JOB-TOKEN: ${CI_JOB_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages?package_type=npm&package_name=${PACKAGE_NAME_ENCODED}&per_page=100" \
-          | node -e 'let input=""; process.stdin.on("data", (chunk) => { input += chunk; }).on("end", () => { const parsed = JSON.parse(input || "[]"); const versions = parsed.map((item) => item.version).filter(Boolean); process.stdout.write(JSON.stringify(versions)); });'
-      )"
+      existing_versions="$(npm view "${NPM_PACKAGE_NAME}" --registry "${NPM_REGISTRY}" versions --json 2>/dev/null || true)"
       if ! node -e 'const raw = process.argv[1] || "[]"; const current = process.argv[2]; let parsed; try { parsed = JSON.parse(raw); } catch { process.exit(2); } const versions = Array.isArray(parsed) ? parsed : [parsed]; process.exit(versions.includes(current) ? 0 : 1);' "$existing_versions" "$NPM_PACKAGE_VERSION"; then
         publish_dir="$(mktemp -d)"
         tar --exclude='.git' --exclude='.npmrc' --exclude='.npmrc.publish' --exclude='node_modules' -cf - . | tar -xf - -C "$publish_dir"
         cd "$publish_dir"
-        npm publish --registry "${NPM_REGISTRY}"
+        npm publish --ignore-scripts --registry "${NPM_REGISTRY}"
       fi
 
 mirror:github:
