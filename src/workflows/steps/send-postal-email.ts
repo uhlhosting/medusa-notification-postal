@@ -1,5 +1,5 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
-import { Modules } from "@medusajs/framework/utils"
+import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { INotificationModuleService } from "@medusajs/framework/types"
 import type { PostalTemplateName } from "../../providers/postal/templates"
 
@@ -39,7 +39,10 @@ export const sendPostalEmailStep = createStep(
 
     const recipients = normalizeRecipients(input.to)
     if (!recipients.length) {
-      throw new Error("Postal notification requires at least one recipient")
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Postal notification requires at least one recipient"
+      )
     }
 
     const template = input.template || "default"
