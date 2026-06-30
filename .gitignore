@@ -31,6 +31,8 @@ playwright-report/
 .playwright-mcp/
 *.log
 test-*.ts
+!src/api/admin/plugin-settings/postal/test-payload.ts
+!src/api/admin/plugin-settings/postal/test-payload.test.ts
 
 # Codex
 .codex/
