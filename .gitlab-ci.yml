@@ -22,6 +22,7 @@ stages:
   - test
   - build
   - release
+  - deploy
   - mirror
 
 variables:
@@ -81,10 +82,46 @@ release:verify:
   script:
     - pnpm run release:check
 
+publish:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - export NPM_REGISTRY="${CI_SERVER_URL}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/"
+    - export NPM_CONFIG_USERCONFIG="$CI_PROJECT_DIR/.npmrc.publish"
+    - |
+      if [[ -f .npmrc ]]; then
+        mv .npmrc .npmrc.ci
+        trap 'mv .npmrc.ci .npmrc' EXIT
+      fi
+    - |
+      cat > "$NPM_CONFIG_USERCONFIG" <<EOF
+      engine-strict=true
+      registry=${NPM_REGISTRY}
+      @${CI_PROJECT_ROOT_NAMESPACE}:registry=${NPM_REGISTRY}
+      //${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}
+      always-auth=true
+      EOF
+    - NPM_PACKAGE_NAME=$(node -p "require('./package.json').name")
+    - NPM_PACKAGE_VERSION=$(node -p "require('./package.json').version")
+    - |
+      if [[ ! $NPM_PACKAGE_NAME =~ ^@$CI_PROJECT_ROOT_NAMESPACE/ ]]; then
+        echo "Invalid package scope! Packages must be scoped in the root namespace of the project, e.g. \"@${CI_PROJECT_ROOT_NAMESPACE}/${CI_PROJECT_NAME}\""
+        exit 1
+      fi
+    - |
+      existing_versions="$(npm view "${NPM_PACKAGE_NAME}" --registry "${NPM_REGISTRY}" versions --json 2>/dev/null || true)"
+      if ! node -e 'const raw = process.argv[1] || "[]"; const current = process.argv[2]; let parsed; try { parsed = JSON.parse(raw); } catch { process.exit(2); } const versions = Array.isArray(parsed) ? parsed : [parsed]; process.exit(versions.includes(current) ? 0 : 1);' "$existing_versions" "$NPM_PACKAGE_VERSION"; then
+        publish_dir="$(mktemp -d)"
+        tar --exclude='.git' --exclude='.npmrc' --exclude='.npmrc.publish' --exclude='node_modules' -cf - . | tar -xf - -C "$publish_dir"
+        cd "$publish_dir"
+        npm publish --registry "${NPM_REGISTRY}"
+      fi
+
 mirror:github:
   stage: mirror
   needs:
-    - release:verify
+    - publish
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - if: '$CI_COMMIT_TAG'
