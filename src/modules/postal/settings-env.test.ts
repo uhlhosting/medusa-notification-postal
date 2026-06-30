@@ -4,6 +4,7 @@ import { chdir, cwd } from "node:process"
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { tmpdir } from "node:os"
+import { pathToFileURL } from "node:url"
 
 test("postal settings reads and writes the backend env file", async () => {
   const originalCwd = cwd()
@@ -31,7 +32,8 @@ test("postal settings reads and writes the backend env file", async () => {
   chdir(tempRoot)
 
   try {
-    const settings = await import("./settings?case=env")
+    const moduleUrl = pathToFileURL(path.join(__dirname, "settings.js"))
+    const settings = await import(`${moduleUrl.href}?case=env`)
 
     const pgCalls: Array<{ sql: string; params?: unknown[] }> = []
     let storedDbValue: Record<string, unknown> | null = {
