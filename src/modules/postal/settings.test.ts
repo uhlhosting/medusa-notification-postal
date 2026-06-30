@@ -1,5 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
+import { randomUUID } from "node:crypto"
 import { chdir, cwd } from "node:process"
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path"
@@ -12,39 +13,51 @@ import {
 } from "./settings"
 
 test("normalizeSettings fills configuration and masks secrets", () => {
+  const apiKeyValue = randomUUID().replace(/-/g, "").slice(0, 12)
+  const webhookTokenValue = randomUUID().replace(/-/g, "").slice(0, 12)
+
   const settings = normalizeSettings({
     POSTAL_AUTH_TYPE: "smtp-api",
     POSTAL_FROM: "  Postal <no-reply@uhlhosting.ch>  ",
     POSTAL_BASE_URL: "https://postal.example.test",
-    POSTAL_API_KEY: "  key_1234567890  ",
+    POSTAL_API_KEY: `  ${apiKeyValue}  `,
     POSTAL_TEST_TO: "ops@uhlhosting.ch",
-    POSTAL_WEBHOOK_TOKEN: "webhook-token-1234",
+    POSTAL_WEBHOOK_TOKEN: webhookTokenValue,
   })
 
   assert.equal(settings.provider_id, "postal")
   assert.equal(settings.auth_type, "smtp-api")
   assert.equal(settings.from, "  Postal <no-reply@uhlhosting.ch>  ")
   assert.equal(settings.base_url, "https://postal.example.test")
-  assert.equal(settings.api_key, "  key_1234567890  ")
+  assert.equal(settings.api_key, `  ${apiKeyValue}  `)
   assert.equal(settings.test_to, "ops@uhlhosting.ch")
-  assert.equal(settings.webhook_token, "webhook-token-1234")
+  assert.equal(settings.webhook_token, webhookTokenValue)
   assert.equal(settings.configured.from, true)
   assert.equal(settings.configured.api_key, true)
   assert.equal(settings.configured.base_url, true)
   assert.equal(settings.configured.webhook_token, true)
-  assert.match(settings.secret_hints.api_key_masked ?? "", /^\*+7890$/)
-  assert.match(settings.secret_hints.webhook_token_masked ?? "", /^\*+oken$/)
+  assert.match(
+    settings.secret_hints.api_key_masked ?? "",
+    new RegExp(`^\\*+${apiKeyValue.slice(-4)}$`)
+  )
+  assert.match(
+    settings.secret_hints.webhook_token_masked ?? "",
+    new RegExp(`^\\*+${webhookTokenValue.slice(-4)}$`)
+  )
 })
 
 test("toPublicPostalSettings strips secrets from the snapshot", () => {
+  const apiKeyValue = randomUUID().replace(/-/g, "").slice(0, 12)
+  const webhookTokenValue = randomUUID().replace(/-/g, "").slice(0, 12)
+
   const publicSettings = toPublicPostalSettings({
     provider_id: "postal",
     auth_type: "smtp-api",
     from: "Postal <no-reply@uhlhosting.ch>",
     base_url: "https://postal.example.test",
-    api_key: "api-key-1234",
+    api_key: apiKeyValue,
     test_to: null,
-    webhook_token: "webhook-token-1234",
+    webhook_token: webhookTokenValue,
     configured: {
       from: true,
       api_key: true,
@@ -134,15 +147,18 @@ test("validateModeRequirements enforces smtp-api configuration", () => {
 })
 
 test("validateModeRequirements allows complete smtp-api settings", () => {
+  const apiKeyValue = randomUUID().replace(/-/g, "").slice(0, 12)
+  const webhookTokenValue = randomUUID().replace(/-/g, "").slice(0, 12)
+
   assert.equal(
     validateModeRequirements({
       provider_id: "postal",
       auth_type: "smtp-api",
       from: "Postal <no-reply@uhlhosting.ch>",
       base_url: "https://postal.example.test",
-      api_key: "api-key-1234",
+      api_key: apiKeyValue,
       test_to: null,
-      webhook_token: "webhook-token-1234",
+      webhook_token: webhookTokenValue,
       configured: {
         from: true,
         api_key: true,
@@ -172,6 +188,8 @@ test("normalizeSettings falls back to default auth type and nullish fields", () 
 })
 
 test("getPostalSettings and persistPostalSettings merge env and db state", async () => {
+  const savedApiKeyValue = randomUUID().replace(/-/g, "").slice(0, 12)
+  const savedWebhookTokenValue = randomUUID().replace(/-/g, "").slice(0, 12)
   const originalCwd = cwd()
   const tempRoot = mkdtempSync(path.join(tmpdir(), "postal-settings-merge-"))
   const backendDir = path.join(tempRoot, "apps", "backend")
@@ -223,16 +241,16 @@ test("getPostalSettings and persistPostalSettings merge env and db state", async
     await settings.persistPostalSettings(pgConnection, {
       from: "Saved Postal <saved@uhlhosting.ch>",
       base_url: "https://postal.saved.example.test",
-      api_key: "saved-key",
+      api_key: savedApiKeyValue,
       test_to: "saved-test@uhlhosting.ch",
-      webhook_token: "saved-token",
+      webhook_token: savedWebhookTokenValue,
     })
 
     const updated = await settings.getPostalSettings(pgConnection)
     assert.equal(updated.from, "Saved Postal <saved@uhlhosting.ch>")
     assert.equal(updated.base_url, "https://postal.saved.example.test")
-    assert.equal(updated.api_key, "saved-key")
-    assert.equal(updated.webhook_token, "saved-token")
+    assert.equal(updated.api_key, savedApiKeyValue)
+    assert.equal(updated.webhook_token, savedWebhookTokenValue)
     assert.ok(rawCalls.some((call) => call.sql.includes("INSERT INTO admin_plugin_settings")))
   } finally {
     chdir(originalCwd)
