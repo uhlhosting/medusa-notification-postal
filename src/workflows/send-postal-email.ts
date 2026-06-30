@@ -37,6 +37,7 @@ export const sendPostalEmailWorkflow: ReturnWorkflow<
     return new WorkflowResponse({
       success: true,
       delivery,
+      deliveries: delivery.deliveries,
     })
   }
 )

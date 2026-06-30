@@ -1,7 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
 import { timingSafeEqual } from "node:crypto"
-import { recordPostalWebhookWorkflow } from "../../../../../workflows/record-postal-webhook"
+import { recordPostalWebhookWorkflow } from "../../../../workflows/record-postal-webhook"
 
 const normalizeToken = (value: unknown) =>
   typeof value === "string" ? value.trim() : ""
