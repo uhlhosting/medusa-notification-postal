@@ -54,7 +54,6 @@ export type PostalTemplateExample = PostalTemplatePreview & {
 }
 
 const TEST_TO = "recipient@example.com"
-const TEST_BCC = "bcc@example.com"
 
 const normalizeWhitespace = (value: string) => value.trim().replace(/\s+/g, " ")
 
@@ -530,7 +529,7 @@ export const getPostalTemplateExample = (
       from_name: "Example Store",
       reply_to: "support@example.com",
       cc: [],
-      bcc: [TEST_BCC],
+      bcc: [],
       headers: {
         "X-Trace-Id": "trace_default",
       },
