@@ -174,6 +174,31 @@ test("validateModeRequirements allows complete smtp-api settings", () => {
   )
 })
 
+test("validateModeRequirements ignores unsupported auth modes", () => {
+  assert.equal(
+    validateModeRequirements({
+      provider_id: "postal",
+      auth_type: "webhook" as any,
+      from: "Postal <no-reply@uhlhosting.ch>",
+      base_url: "https://postal.example.test",
+      api_key: "api-key-1234",
+      test_to: null,
+      webhook_token: "webhook-token-1234",
+      configured: {
+        from: true,
+        api_key: true,
+        base_url: true,
+        webhook_token: true,
+      },
+      secret_hints: {
+        api_key_masked: null,
+        webhook_token_masked: null,
+      },
+    }),
+    null
+  )
+})
+
 test("normalizeSettings falls back to default auth type and nullish fields", () => {
   const settings = normalizeSettings({})
 

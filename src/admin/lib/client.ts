@@ -24,7 +24,7 @@ export const sdk = new Medusa({
   baseUrl: resolvedBackendUrl,
   debug: Boolean(isDev),
   auth: {
-    type: "jwt",
+    type: "session",
   },
 });
 

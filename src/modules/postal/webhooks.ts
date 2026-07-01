@@ -87,10 +87,6 @@ const normalizeStatus = (value: string): PostalWebhookStatus => {
 
 const normalizeEventType = (value: string) => {
   const normalized = value.trim()
-  if (!normalized) {
-    return "postal.webhook"
-  }
-
   const collapsed = normalized.toLowerCase().replace(/[\s_]+/g, ".")
   switch (collapsed.replace(/[^a-z.]/g, "")) {
     case "messagesent":

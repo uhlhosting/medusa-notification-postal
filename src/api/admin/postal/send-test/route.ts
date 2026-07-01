@@ -2,36 +2,29 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
-import { MedusaError } from "@medusajs/framework/utils"
 import { sendPostalEmailWorkflow } from "../../../../workflows/send-postal-email"
 
+type SendTestBody = {
+  to: string | string[]
+  from?: string
+  from_name?: string
+  reply_to?: string
+  template?: string
+  subject: string
+  html?: string
+  text?: string
+  cc?: string | string[]
+  bcc?: string | string[]
+  headers?: Record<string, string>
+  custom_args?: Record<string, string>
+  metadata?: Record<string, string>
+}
+
 export const POST = async (
-  req: AuthenticatedMedusaRequest,
+  req: AuthenticatedMedusaRequest<SendTestBody>,
   res: MedusaResponse
 ) => {
-  const body = (req.validatedBody || req.body || {}) as {
-    to?: string | string[]
-    from?: string
-    from_name?: string
-    reply_to?: string
-    template?: string
-    subject?: string
-    html?: string
-    text?: string
-    cc?: string | string[]
-    bcc?: string | string[]
-    headers?: Record<string, string>
-    custom_args?: Record<string, unknown>
-    metadata?: Record<string, unknown>
-  }
-
-  const subject = String(body.subject || "").trim()
-  if (!body.to || !subject) {
-    throw new MedusaError(
-      MedusaError.Types.INVALID_DATA,
-      "Postal test send requires `to` and `subject`."
-    )
-  }
+  const body = req.validatedBody
 
   const runId = `postal-test-${Date.now()}`
 
@@ -46,7 +39,7 @@ export const POST = async (
         from: body.from,
         from_name: body.from_name,
         reply_to: body.reply_to,
-        subject,
+        subject: body.subject,
         html: body.html || "",
         text: body.text || "",
         cc: body.cc,

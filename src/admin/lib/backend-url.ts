@@ -1,4 +1,4 @@
-const DEFAULT_BACKEND_ORIGIN = "http://localhost:9000";
+const DEFAULT_BACKEND_ORIGIN = "/";
 
 export const toAbsoluteOrigin = (
   value: string | undefined | null,

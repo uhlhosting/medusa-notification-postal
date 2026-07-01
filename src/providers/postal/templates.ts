@@ -53,9 +53,7 @@ export type PostalTemplateExample = PostalTemplatePreview & {
   metadata: Record<string, string>
 }
 
-const TEST_TO = "cosmin@uhlhost.net"
-const TEST_CC = "cosmin@uhl-services.ch"
-const TEST_BCC = "siravecavec@gmail.com"
+const TEST_TO = "recipient@example.com"
 
 const normalizeWhitespace = (value: string) => value.trim().replace(/\s+/g, " ")
 
@@ -160,15 +158,25 @@ const buildRichHtmlTemplate = (
   </body>
 </html>`
 
+const escapeHtml = (value: string): string =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+
 const buildModernFallbackHtml = (subject: string, text: string) => {
   const cleanSubject = subject.trim() || "Notification"
   const cleanText = text.trim() || "This is a transactional email."
+  const safeSubject = escapeHtml(cleanSubject)
+  const safeText = escapeHtml(cleanText).replace(/\n/g, "<br>")
   return buildRichHtmlTemplate(
     "Postal Notification",
-    cleanSubject,
-    cleanText,
+    safeSubject,
+    `<p style="margin:0">${safeText}</p>`,
     "This is an automatically generated HTML fallback so the message still renders well in clients that prefer rich formatting.",
-    cleanText
+    safeSubject
   )
 }
 
@@ -517,11 +525,11 @@ export const getPostalTemplateExample = (
   >> = {
     default: {
       to: TEST_TO,
-      from: "no-reply@uhlhosting.ch",
-      from_name: "Postal Admin",
-      reply_to: "support@uhlhosting.ch",
+      from: "no-reply@example.com",
+      from_name: "Example Store",
+      reply_to: "support@example.com",
       cc: [],
-      bcc: [TEST_BCC],
+      bcc: [],
       headers: {
         "X-Trace-Id": "trace_default",
       },
@@ -536,11 +544,11 @@ export const getPostalTemplateExample = (
     },
     "postal-test": {
       to: TEST_TO,
-      from: "no-reply@uhlhosting.ch",
-      from_name: "Postal Admin",
-      reply_to: "support@uhlhosting.ch",
-      cc: [TEST_CC],
-      bcc: [TEST_BCC],
+      from: "no-reply@example.com",
+      from_name: "Example Store",
+      reply_to: "support@example.com",
+      cc: [],
+      bcc: [],
       headers: {
         "X-Trace-Id": "trace_postal_test",
       },
@@ -555,11 +563,11 @@ export const getPostalTemplateExample = (
     },
     "postal-admin-test": {
       to: TEST_TO,
-      from: "no-reply@uhlhosting.ch",
-      from_name: "Postal Admin",
-      reply_to: "support@uhlhosting.ch",
-      cc: [TEST_CC],
-      bcc: [TEST_BCC],
+      from: "no-reply@example.com",
+      from_name: "Example Store",
+      reply_to: "support@example.com",
+      cc: [],
+      bcc: [],
       headers: {
         "X-Trace-Id": "trace_admin_test",
       },
@@ -574,11 +582,11 @@ export const getPostalTemplateExample = (
     },
     "order-placed": {
       to: TEST_TO,
-      from: "orders@uhlhosting.ch",
+      from: "orders@example.com",
       from_name: "Example Store",
-      reply_to: "orders@uhlhosting.ch",
-      cc: [TEST_CC],
-      bcc: [TEST_BCC],
+      reply_to: "orders@example.com",
+      cc: [],
+      bcc: [],
       headers: {
         "X-Order-Id": "ord_123",
       },
@@ -593,11 +601,11 @@ export const getPostalTemplateExample = (
     },
     "password-reset": {
       to: TEST_TO,
-      from: "security@uhlhosting.ch",
+      from: "security@example.com",
       from_name: "Example Store",
-      reply_to: "support@uhlhosting.ch",
+      reply_to: "support@example.com",
       cc: [],
-      bcc: [TEST_BCC],
+      bcc: [],
       headers: {
         "X-Reset-Flow": "password-reset",
       },
@@ -612,11 +620,11 @@ export const getPostalTemplateExample = (
     },
     "email-verification": {
       to: TEST_TO,
-      from: "security@uhlhosting.ch",
+      from: "security@example.com",
       from_name: "Example Store",
-      reply_to: "support@uhlhosting.ch",
+      reply_to: "support@example.com",
       cc: [],
-      bcc: [TEST_BCC],
+      bcc: [],
       headers: {
         "X-Verification-Flow": "email-verification",
       },
@@ -631,11 +639,11 @@ export const getPostalTemplateExample = (
     },
     welcome: {
       to: TEST_TO,
-      from: "hello@uhlhosting.ch",
+      from: "hello@example.com",
       from_name: "Example Store",
-      reply_to: "support@uhlhosting.ch",
-      cc: [TEST_CC],
-      bcc: [TEST_BCC],
+      reply_to: "support@example.com",
+      cc: [],
+      bcc: [],
       headers: {
         "X-Welcome-Campaign": "default",
       },
@@ -650,11 +658,11 @@ export const getPostalTemplateExample = (
     },
     "abandoned-cart": {
       to: TEST_TO,
-      from: "orders@uhlhosting.ch",
-      from_name: "Tabaklaedeli",
-      reply_to: "orders@uhlhosting.ch",
-      cc: [TEST_CC],
-      bcc: [TEST_BCC],
+      from: "orders@example.com",
+      from_name: "Example Store",
+      reply_to: "orders@example.com",
+      cc: [],
+      bcc: [],
       headers: {},
       workflow_event: "cart.abandoned",
       workflow_run_id: "wf_example_abandoned_cart",
@@ -667,11 +675,11 @@ export const getPostalTemplateExample = (
     },
     "restock-available": {
       to: TEST_TO,
-      from: "hello@uhlhosting.ch",
-      from_name: "Tabaklaedeli",
-      reply_to: "support@uhlhosting.ch",
-      cc: [TEST_CC],
-      bcc: [TEST_BCC],
+      from: "hello@example.com",
+      from_name: "Example Store",
+      reply_to: "support@example.com",
+      cc: [],
+      bcc: [],
       headers: {},
       workflow_event: "restock.available",
       workflow_run_id: "wf_example_restock_available",

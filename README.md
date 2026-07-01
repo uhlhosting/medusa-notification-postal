@@ -7,7 +7,7 @@ A production-ready Postal notification provider for Medusa. Designed for reliabl
 ## Release
 
 - Current package version: [![npm version](https://img.shields.io/npm/v/@uhlhosting/medusa-notification-postal.svg)](https://www.npmjs.com/package/@uhlhosting/medusa-notification-postal)
-- License: `BSD-2-Clause-Patent`
+- License: `MIT`
 - Changelog: [`CHANGELOG.md`](./CHANGELOG.md)
 
 ## Options

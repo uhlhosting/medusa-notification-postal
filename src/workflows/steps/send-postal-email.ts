@@ -1,7 +1,10 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
-import { MedusaError, Modules } from "@medusajs/framework/utils"
-import { INotificationModuleService } from "@medusajs/framework/types"
+import { MedusaError } from "@medusajs/framework/utils"
+import type { PostalNotificationService } from "../../providers/postal/services/postal"
 import type { PostalTemplateName } from "../../providers/postal/templates"
+
+/** Container key under which Medusa registers notification providers. */
+const POSTAL_PROVIDER_KEY = "np_notification-postal"
 
 type SendPostalEmailStepInput = {
   to: string | string[]
@@ -26,16 +29,22 @@ type SendPostalEmailStepInput = {
   }
 }
 
-type NotificationRecord = {
-  id?: string | null
-}
-
 export const sendPostalEmailStep = createStep(
   "send-postal-email",
   async (input: SendPostalEmailStepInput, { container }) => {
-    const notificationModuleService = container.resolve<INotificationModuleService>(
-      Modules.NOTIFICATION
+    // Resolve the Postal provider directly so email is always delivered through
+    // Postal, regardless of other notification providers that may be registered
+    // for the "email" channel in the notification module.
+    const postalService = container.resolve<PostalNotificationService>(
+      POSTAL_PROVIDER_KEY
     )
+
+    if (!postalService) {
+      throw new MedusaError(
+        MedusaError.Types.NOT_FOUND,
+        "Postal notification provider is not loaded. Ensure the plugin is configured and the backend has been restarted."
+      )
+    }
 
     const recipients = normalizeRecipients(input.to)
     if (!recipients.length) {
@@ -50,8 +59,9 @@ export const sendPostalEmailStep = createStep(
 
     const deliveries = await Promise.all(
       recipients.map(async (to) => {
-        const result = (await notificationModuleService.createNotifications({
+        const result = await postalService.send({
           to,
+          from: input.from,
           channel: "email",
           template,
           content: {
@@ -60,9 +70,9 @@ export const sendPostalEmailStep = createStep(
             text: input.provider_data.text,
           },
           provider_data: providerData,
-        })) as NotificationRecord | NotificationRecord[]
+        })
 
-        return Array.isArray(result) ? result[0] || null : result || null
+        return { id: result?.id || null }
       })
     )
 

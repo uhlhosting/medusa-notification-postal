@@ -1,10 +1,15 @@
 # AGENTS.md
 
-## Operating Mode
+## Operating mode
 - Act as a senior implementation partner
 - Default to implementation-first execution
-- Optimize for production correctness and the smallest viable fix
-- Avoid speculative rewrites and preserve the existing architecture unless explicitly requested
+- Optimize for production correctness and smallest viable fix
+- Avoid speculative rewrites and preserve existing architecture unless explicitly requested
+
+## Shared Medusa Skills
+- Follow `/Users/cosmic/Developer/MedusaJS/AGENTS.md` first.
+- Then read this repo's root `SKILL.md`.
+- Use the shared Medusa skills from the workspace policy when the task matches those surfaces.
 
 ## Repository Scope
 - This repository is the standalone source for `@uhlhosting/medusa-notification-postal`

@@ -48,6 +48,17 @@ test("resolvePostalTemplate falls back to default subject and rich html", () => 
   assert.match(resolved.text, /generic Postal notification preview/)
 })
 
+test("resolvePostalTemplate handles an undefined template name", () => {
+  const resolved = resolvePostalTemplate(undefined, {
+    text: "Direct plain body",
+  })
+
+  assert.equal(resolved.template_name, "default")
+  assert.equal(resolved.subject, "Notification")
+  assert.equal(resolved.text, "Direct plain body")
+  assert.match(resolved.html, /Direct plain body/)
+})
+
 test("resolvePostalTemplate strips html and rehydrates missing body text", () => {
   const resolved = resolvePostalTemplate("custom-template", {
     subject: "Custom subject",
@@ -86,6 +97,8 @@ test("normalizePostalCustomArgs converts safe keys to headers", () => {
     "order id": 123,
     customer_group: "vip",
     ignored: null,
+    "": "skip-me",
+    nested: { nope: true },
   })
 
   assert.equal(headers["X-Postal-Custom-Arg-order-id"], "123")
@@ -104,6 +117,13 @@ test("resolvePostalSender formats sender identity", () => {
 
   assert.equal(resolved.from, "Postal Admin <no-reply@uhlhosting.ch>")
   assert.equal(resolved.reply_to, "reply@uhlhosting.ch")
+})
+
+test("resolvePostalSender uses fallback from and omits empty reply-to", () => {
+  const resolved = resolvePostalSender({}, "fallback@example.com")
+
+  assert.equal(resolved.from, "fallback@example.com")
+  assert.equal(resolved.reply_to, undefined)
 })
 
 test("getPostalTemplateOptions returns the built-in examples in order", () => {
@@ -129,10 +149,10 @@ test("getPostalTemplatePreview returns the template content", () => {
 test("getPostalTemplateExample returns example payload data", () => {
   const example = getPostalTemplateExample("order-placed")
 
-  assert.equal(example.to, "cosmin@uhlhost.net")
-  assert.equal(example.from, "orders@uhlhosting.ch")
-  assert.deepEqual(example.cc, ["cosmin@uhl-services.ch"])
-  assert.deepEqual(example.bcc, ["siravecavec@gmail.com"])
+  assert.equal(example.to, "recipient@example.com")
+  assert.equal(example.from, "orders@example.com")
+  assert.deepEqual(example.cc, [])
+  assert.deepEqual(example.bcc, [])
   assert.equal(example.headers["X-Order-Id"], "ord_123")
   assert.equal(example.workflow_event, "order.placed")
   assert.equal(example.custom_args.order_id, "ord_123")
@@ -169,6 +189,17 @@ test("getPostalTemplatePreview returns the email verification content", () => {
   assert.match(preview.text, /verify your email address/)
 })
 
+test("getPostalTemplateExample returns the email verification example payload", () => {
+  const example = getPostalTemplateExample("email-verification")
+
+  assert.equal(example.to, "recipient@example.com")
+  assert.equal(example.from, "security@example.com")
+  assert.equal(example.reply_to, "support@example.com")
+  assert.equal(example.headers["X-Verification-Flow"], "email-verification")
+  assert.equal(example.custom_args.verification_token, "token_456")
+  assert.equal(example.metadata.store, "main")
+})
+
 test("getPostalTemplatePreview keeps registry metadata for recovery templates", () => {
   const preview = getPostalTemplatePreview("abandoned-cart")
 
@@ -183,8 +214,8 @@ test("getPostalTemplateExample carries workflow metadata and headers", () => {
   assert.equal(example.workflow_event, "restock.available")
   assert.equal(example.workflow_run_id, "wf_example_restock_available")
   assert.equal(example.headers["X-Trace-Id"], undefined)
-  assert.deepEqual(example.cc, ["cosmin@uhl-services.ch"])
-  assert.deepEqual(example.bcc, ["siravecavec@gmail.com"])
+  assert.deepEqual(example.cc, [])
+  assert.deepEqual(example.bcc, [])
   assert.equal(example.metadata.store, "main")
 })
 

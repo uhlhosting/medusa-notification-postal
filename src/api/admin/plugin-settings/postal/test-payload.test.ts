@@ -23,7 +23,7 @@ test("buildPostalAdminTestProviderData uses template defaults when fields are em
   assert.match(providerData.html || "", /Thanks for your order/)
   assert.match(providerData.text || "", /We have received your order/)
   assert.equal(providerData.from, "no-reply@example.com")
-  assert.equal(providerData.reply_to, "orders@uhlhosting.ch")
+  assert.equal(providerData.reply_to, "orders@example.com")
   assert.equal(providerData.workflow_run_id, "admin_123")
   assert.deepEqual(providerData.cc, undefined)
   assert.deepEqual(providerData.headers["X-Order-Id"], "ord_123")
@@ -34,7 +34,7 @@ test("buildPostalAdminTestProviderData preserves explicit overrides", () => {
     {
       from: "no-reply@example.com",
       test_to: "admin@example.com",
-      auth_type: "smtp-ip",
+      auth_type: "smtp-api",
     },
     {
       template: "postal-admin-test",
@@ -68,4 +68,25 @@ test("buildPostalAdminTestProviderData preserves explicit overrides", () => {
   assert.equal(providerData.headers["X-Trace-Id"], "trace_123")
   assert.equal(providerData.custom_args?.custom, "value")
   assert.equal(providerData.metadata?.scope, "unit-test")
+})
+
+test("buildPostalAdminTestProviderData trims list inputs and falls back to template defaults", () => {
+  const providerData = buildPostalAdminTestProviderData(
+    {
+      from: "no-reply@example.com",
+      test_to: "admin@example.com",
+      auth_type: "smtp-api",
+    },
+    {
+      template: "   ",
+      cc: " copy@example.com ",
+      bcc: [" audit@example.com ", ""],
+    },
+    "admin_789"
+  )
+
+  assert.equal(providerData.template, "postal-admin-test")
+  assert.equal(providerData.subject, "Postal test from Medusa Admin")
+  assert.deepEqual(providerData.cc, "copy@example.com")
+  assert.deepEqual(providerData.bcc, ["audit@example.com"])
 })

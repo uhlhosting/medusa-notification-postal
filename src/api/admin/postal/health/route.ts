@@ -8,7 +8,7 @@ export const GET = async (
   res: MedusaResponse
 ) => {
   let authType = "smtp-api"
-  let mode = "http-api"
+  let mode = "api"
 
   try {
     const service = req.scope.resolve("notification-postal") as any
@@ -28,6 +28,6 @@ export const GET = async (
     message: "Postal notification provider is active",
     auth_type: authType,
     mode,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   })
 }

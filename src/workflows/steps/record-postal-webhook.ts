@@ -11,5 +11,4 @@ export const recordPostalWebhookEventStep = createStep(
     const event = await recordPostalWebhookEvent(pgConnection, payload)
 
     return new StepResponse(event)
-  }
-)
+  })

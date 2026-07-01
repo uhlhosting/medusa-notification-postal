@@ -446,7 +446,7 @@ const PostalAdminPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <PluginStatusCard
           title={t("postal.activity.auth_mode")}
-          value="smtp-api"
+          value="API only"
           description={t("postal.activity.configured_transport")}
           icon={Envelope}
           color="grey"

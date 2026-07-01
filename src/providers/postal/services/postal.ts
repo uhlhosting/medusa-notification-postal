@@ -295,6 +295,49 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     ) as PostalNotificationProviderData
   }
 
+  // Allowed header name prefixes/exact names forwarded to Postal.
+  // Anything not on this list is silently dropped to prevent header smuggling.
+  private static readonly ALLOWED_HEADER_PREFIXES = [
+    "x-",
+    "reply-to",
+    "list-unsubscribe",
+    "list-unsubscribe-post",
+    "message-id",
+    "in-reply-to",
+    "references",
+    "mime-version",
+  ]
+
+  private static isAllowedHeader(name: string): boolean {
+    const lower = name.toLowerCase()
+    // Reject any value containing CR or LF regardless of name
+    return PostalNotificationService.ALLOWED_HEADER_PREFIXES.some((prefix) =>
+      lower.startsWith(prefix)
+    )
+  }
+
+  private filterHeaders(
+    raw: Record<string, string> | undefined
+  ): Record<string, string> {
+    if (!raw || typeof raw !== "object") {
+      return {}
+    }
+    const result: Record<string, string> = {}
+    for (const [key, value] of Object.entries(raw)) {
+      const name = String(key).trim()
+      const val = String(value ?? "").trim()
+      // Reject headers with CRLF injection characters in name or value
+      if (/[\r\n]/.test(name) || /[\r\n]/.test(val)) {
+        continue
+      }
+      if (!PostalNotificationService.isAllowedHeader(name)) {
+        continue
+      }
+      result[name] = val
+    }
+    return result
+  }
+
   private buildSendPayload(input: {
     to: string[]
     cc: string[]
@@ -307,10 +350,16 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     const htmlBody = input.template.html || ""
     const plainBody = input.template.text || (htmlBody ? this.stripHtml(htmlBody) : "")
     const customArgHeaders = normalizePostalCustomArgs(input.providerData.custom_args)
-    const headers = {
-      ...(input.providerData.headers || {}),
-      ...(input.sender.reply_to ? { "Reply-To": input.sender.reply_to } : {}),
-      ...customArgHeaders,
+    const filteredInputHeaders = this.filterHeaders(input.providerData.headers)
+    const filteredCustomArgHeaders = this.filterHeaders(customArgHeaders)
+    const replyToHeader: Record<string, string> =
+      input.sender.reply_to && !/[\r\n]/.test(input.sender.reply_to)
+        ? { "Reply-To": input.sender.reply_to }
+        : {}
+    const headers: Record<string, string> = {
+      ...filteredInputHeaders,
+      ...replyToHeader,
+      ...filteredCustomArgHeaders,
     }
 
     return {
@@ -398,7 +447,22 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
   }
 
   protected stripHtml(html: string): string {
-    return String(html).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+    // Linear single-pass strip: avoids O(n²) backtracking on '<'-heavy input.
+    const src = String(html)
+    const out: string[] = []
+    let inTag = false
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i]
+      if (ch === "<") {
+        inTag = true
+        out.push(" ")
+      } else if (ch === ">" && inTag) {
+        inTag = false
+      } else if (!inTag) {
+        out.push(ch)
+      }
+    }
+    return out.join("").replace(/\s+/g, " ").trim()
   }
 
   getHealthSnapshot() {
@@ -406,5 +470,4 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       auth_type: this.config_.authType,
       mode: "http-api",
     }
-  }
-}
+  }}
