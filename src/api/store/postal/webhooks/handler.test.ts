@@ -41,3 +41,22 @@ test("handlePostalWebhookPost uses validated body and returns workflow result", 
   assert.equal(response.body.id, "postal_webhook_123")
   assert.equal(response.body.status, "sent")
 })
+
+test("handlePostalWebhookPost falls back to the workflow path when no helper is injected", async () => {
+  const scope = {
+    resolve: () => null,
+  }
+
+  const response = await handlePostalWebhookPost({
+    scope,
+    body: {
+      event_type: "message.sent",
+      status: "sent",
+    },
+  })
+
+  assert.equal(response.status, 202)
+  assert.equal(response.body.ok, true)
+  assert.equal(response.body.event_type, "message.sent")
+  assert.equal(response.body.status, "sent")
+})

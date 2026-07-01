@@ -16,13 +16,13 @@ export type PostalSettingsInput = {
   webhook_token?: string
 }
 
+// Secret fields (POSTAL_API_KEY, POSTAL_WEBHOOK_TOKEN) are intentionally
+// excluded from the DB record — they are persisted to the .env file only.
 export type PostalSettingsRecord = {
   POSTAL_AUTH_TYPE?: string
   POSTAL_FROM?: string
   POSTAL_BASE_URL?: string
-  POSTAL_API_KEY?: string
   POSTAL_TEST_TO?: string
-  POSTAL_WEBHOOK_TOKEN?: string
 }
 
 export type PostalSettings = PostalSettingsSnapshot
@@ -284,13 +284,13 @@ export const persistPostalSettings = async (
     POSTAL_WEBHOOK_TOKEN: nextWebhookToken,
   }
 
+  // Store only non-secret fields in the database.
+  // POSTAL_API_KEY and POSTAL_WEBHOOK_TOKEN are written to .env only.
   const dbValues: PostalSettingsRecord = {
     POSTAL_AUTH_TYPE: updates.POSTAL_AUTH_TYPE,
     POSTAL_FROM: updates.POSTAL_FROM,
     POSTAL_BASE_URL: updates.POSTAL_BASE_URL,
-    POSTAL_API_KEY: updates.POSTAL_API_KEY,
     POSTAL_TEST_TO: updates.POSTAL_TEST_TO,
-    POSTAL_WEBHOOK_TOKEN: updates.POSTAL_WEBHOOK_TOKEN,
   }
 
   await writePostalSettingsToDb(pgConnection, dbValues)
@@ -312,8 +312,8 @@ export const validateModeRequirements = (
 
   switch (settings.auth_type) {
     case "smtp-api":
-      if (!settings.base_url) return "POSTAL_BASE_URL is required for smtp-api mode"
-      if (!settings.configured.api_key) return "POSTAL_API_KEY is required for smtp-api mode"
+      if (!settings.base_url) return "POSTAL_BASE_URL is required for API mode"
+      if (!settings.configured.api_key) return "POSTAL_API_KEY is required for API mode"
       break
   }
 

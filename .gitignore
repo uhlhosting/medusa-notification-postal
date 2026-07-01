@@ -27,7 +27,6 @@ build
 !.yarn/sdks
 !.yarn/versions
 
-.medusa
 .turbo/
 test-results/
 playwright-report/

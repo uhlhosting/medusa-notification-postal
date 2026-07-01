@@ -18,5 +18,4 @@ export const recordPostalWebhookWorkflow: ReturnWorkflow<
     const event = recordPostalWebhookEventStep(payload)
 
     return new WorkflowResponse(event)
-  }
-)
+  })

@@ -4,13 +4,13 @@ import { POST } from "./route"
 
 test("postal webhook route accepts a MessageSent payload and returns 202", async () => {
   const previousToken = process.env.POSTAL_WEBHOOK_TOKEN
-  process.env.POSTAL_WEBHOOK_TOKEN = "f17a2062502dc152436874b100f488a260a65007599b02f8ea64d31df873e34e"
+  process.env.POSTAL_WEBHOOK_TOKEN = "postal-webhook-token-test"
 
   try {
     const payload = {
       message: {
         id: 28638,
-        token: "l0QZ6rBrTJNX9bTr",
+        token: "message-token-test",
         direction: "outgoing",
         message_id: "20260630171223.124694.63496@uhlhosting.ch",
         to: "cosmin@uhlhost.net",
@@ -33,8 +33,7 @@ test("postal webhook route accepts a MessageSent payload and returns 202", async
 
     const req = {
       params: {
-        token:
-          "f17a2062502dc152436874b100f488a260a65007599b02f8ea64d31df873e34e",
+        token: "postal-webhook-token-test",
       },
       body: payload,
       scope: {},

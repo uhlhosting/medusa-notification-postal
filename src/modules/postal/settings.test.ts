@@ -22,7 +22,7 @@ test("normalizeSettings fills configuration and masks secrets", () => {
     POSTAL_BASE_URL: "https://postal.example.test",
     POSTAL_API_KEY: `  ${apiKeyValue}  `,
     POSTAL_TEST_TO: "ops@uhlhosting.ch",
-    POSTAL_WEBHOOK_TOKEN: webhookTokenValue,
+    POSTAL_WEBHOOK_TOKEN: "webhook-token-1234",
   })
 
   assert.equal(settings.provider_id, "postal")
@@ -31,7 +31,7 @@ test("normalizeSettings fills configuration and masks secrets", () => {
   assert.equal(settings.base_url, "https://postal.example.test")
   assert.equal(settings.api_key, `  ${apiKeyValue}  `)
   assert.equal(settings.test_to, "ops@uhlhosting.ch")
-  assert.equal(settings.webhook_token, webhookTokenValue)
+  assert.equal(settings.webhook_token, "webhook-token-1234")
   assert.equal(settings.configured.from, true)
   assert.equal(settings.configured.api_key, true)
   assert.equal(settings.configured.base_url, true)
@@ -42,7 +42,7 @@ test("normalizeSettings fills configuration and masks secrets", () => {
   )
   assert.match(
     settings.secret_hints.webhook_token_masked ?? "",
-    new RegExp(`^\\*+${webhookTokenValue.slice(-4)}$`)
+    /^\*+1234$/
   )
 })
 
@@ -75,7 +75,7 @@ test("toPublicPostalSettings strips secrets from the snapshot", () => {
   assert.equal(publicSettings.from, "Postal <no-reply@uhlhosting.ch>")
 })
 
-test("validateModeRequirements enforces smtp-api configuration", () => {
+test("validateModeRequirements enforces API mode configuration", () => {
   assert.equal(
     validateModeRequirements({
       provider_id: "postal",
@@ -119,7 +119,7 @@ test("validateModeRequirements enforces smtp-api configuration", () => {
         webhook_token_masked: null,
       },
     }),
-    "POSTAL_BASE_URL is required for smtp-api mode"
+    "POSTAL_BASE_URL is required for API mode"
   )
 
   assert.equal(
@@ -142,11 +142,11 @@ test("validateModeRequirements enforces smtp-api configuration", () => {
         webhook_token_masked: null,
       },
     }),
-    "POSTAL_API_KEY is required for smtp-api mode"
+    "POSTAL_API_KEY is required for API mode"
   )
 })
 
-test("validateModeRequirements allows complete smtp-api settings", () => {
+test("validateModeRequirements allows complete API settings", () => {
   const apiKeyValue = randomUUID().replace(/-/g, "").slice(0, 12)
   const webhookTokenValue = randomUUID().replace(/-/g, "").slice(0, 12)
 
@@ -159,6 +159,31 @@ test("validateModeRequirements allows complete smtp-api settings", () => {
       api_key: apiKeyValue,
       test_to: null,
       webhook_token: webhookTokenValue,
+      configured: {
+        from: true,
+        api_key: true,
+        base_url: true,
+        webhook_token: true,
+      },
+      secret_hints: {
+        api_key_masked: null,
+        webhook_token_masked: null,
+      },
+    }),
+    null
+  )
+})
+
+test("validateModeRequirements ignores unsupported auth modes", () => {
+  assert.equal(
+    validateModeRequirements({
+      provider_id: "postal",
+      auth_type: "webhook" as any,
+      from: "Postal <no-reply@uhlhosting.ch>",
+      base_url: "https://postal.example.test",
+      api_key: "api-key-1234",
+      test_to: null,
+      webhook_token: "webhook-token-1234",
       configured: {
         from: true,
         api_key: true,

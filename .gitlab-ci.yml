@@ -84,6 +84,9 @@ release:verify:
 
 publish:
   stage: deploy
+  needs:
+    - build
+    - release:verify
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:

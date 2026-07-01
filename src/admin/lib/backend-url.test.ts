@@ -16,6 +16,13 @@ test("resolveBackendBaseUrl falls back to the browser origin for relative input"
   );
 });
 
-test("resolveBackendBaseUrl uses the local fallback when no absolute origin exists", () => {
-  assert.equal(resolveBackendBaseUrl("/", null), "http://localhost:9000");
+test("resolveBackendBaseUrl uses the default fallback when no absolute origin exists", () => {
+  assert.equal(resolveBackendBaseUrl("/", null), "/");
+});
+
+test("resolveBackendBaseUrl prefers an absolute candidate over fallback", () => {
+  assert.equal(
+    resolveBackendBaseUrl("https://api.uhlhosting.ch/app", "https://fallback.example.test"),
+    "https://api.uhlhosting.ch"
+  );
 });

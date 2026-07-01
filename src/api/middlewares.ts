@@ -33,21 +33,43 @@ const zod = z as any
       .optional(),
   })
 
+const MAX_EMAIL = 254
+const MAX_NAME = 255
+const MAX_SUBJECT = 998 // RFC 5322 hard limit
+const MAX_BODY = 2_097_152 // 2 MB
+const MAX_HEADER_KEY = 78
+const MAX_HEADER_VAL = 998
+
 const postalSendTestSchema = zod
   .object({
-    to: zod.union([zod.string().min(1), zod.array(zod.string().min(1)).min(1)]),
-    from: zod.string().optional(),
-    from_name: zod.string().optional(),
-    reply_to: zod.string().optional(),
-    template: zod.string().optional(),
-    subject: zod.string().min(1),
-    html: zod.string().optional(),
-    text: zod.string().optional(),
-    cc: zod.union([zod.string(), zod.array(zod.string())]).optional(),
-    bcc: zod.union([zod.string(), zod.array(zod.string())]).optional(),
-    headers: zod.record(zod.string()).optional(),
-    custom_args: zod.record(zod.any()).optional(),
-    metadata: zod.record(zod.any()).optional(),
+    to: zod.union([
+      zod.string().min(1).max(MAX_EMAIL),
+      zod.array(zod.string().min(1).max(MAX_EMAIL)).min(1).max(50),
+    ]),
+    from: zod.string().max(MAX_EMAIL).optional(),
+    from_name: zod.string().max(MAX_NAME).optional(),
+    reply_to: zod.string().max(MAX_EMAIL).optional(),
+    template: zod.string().max(MAX_NAME).optional(),
+    subject: zod.string().min(1).max(MAX_SUBJECT),
+    html: zod.string().max(MAX_BODY).optional(),
+    text: zod.string().max(MAX_BODY).optional(),
+    cc: zod
+      .union([
+        zod.string().max(MAX_EMAIL),
+        zod.array(zod.string().max(MAX_EMAIL)).max(50),
+      ])
+      .optional(),
+    bcc: zod
+      .union([
+        zod.string().max(MAX_EMAIL),
+        zod.array(zod.string().max(MAX_EMAIL)).max(50),
+      ])
+      .optional(),
+    headers: zod
+      .record(zod.string().max(MAX_HEADER_KEY), zod.string().max(MAX_HEADER_VAL))
+      .optional(),
+    custom_args: zod.record(zod.string().max(MAX_NAME), zod.string().max(MAX_NAME)).optional(),
+    metadata: zod.record(zod.string().max(MAX_NAME), zod.string().max(MAX_NAME)).optional(),
   })
   .strict()
 
