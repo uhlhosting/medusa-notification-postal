@@ -530,7 +530,7 @@ test("helper methods normalize addresses, attachments, and health snapshots", ()
   assert.equal(normalizePostalLookupId("42"), 42)
   assert.throws(() => normalizePostalLookupId(" 42x "), MedusaError)
   assert.deepEqual(service.getHealthSnapshot(), {
-    auth_type: "smtp-api",
-    mode: "http-api",
+    auth_type: "api",
+    mode: "api",
   })
 })

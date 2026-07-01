@@ -312,8 +312,8 @@ export const validateModeRequirements = (
 
   switch (settings.auth_type) {
     case "smtp-api":
-      if (!settings.base_url) return "POSTAL_BASE_URL is required for smtp-api mode"
-      if (!settings.configured.api_key) return "POSTAL_API_KEY is required for smtp-api mode"
+      if (!settings.base_url) return "POSTAL_BASE_URL is required for API mode"
+      if (!settings.configured.api_key) return "POSTAL_API_KEY is required for API mode"
       break
   }
 

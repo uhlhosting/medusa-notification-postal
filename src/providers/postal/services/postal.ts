@@ -88,7 +88,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     if (authType !== "smtp-api") {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        "Postal notification provider only supports auth_type `smtp-api`."
+        "Postal notification provider only supports API auth mode."
       )
     }
 
@@ -102,14 +102,14 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     if (!baseUrl) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        "Postal smtp-api mode requires 'base_url'"
+        "Postal API mode requires 'base_url'"
       )
     }
 
     if (!apiKey) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        "Postal smtp-api mode requires 'api_key'"
+        "Postal API mode requires 'api_key'"
       )
     }
 
@@ -234,7 +234,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       const externalId = recipientMessage?.id || messageId
 
       this.logger_.info(
-        `Postal notification send succeeded auth=smtp-api message_id=${
+        `Postal notification send succeeded auth=api message_id=${
           messageId || "unknown"
         } postal_id=${recipientMessage?.id || "unknown"}`
       )
@@ -467,7 +467,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
 
   getHealthSnapshot() {
     return {
-      auth_type: this.config_.authType,
-      mode: "http-api",
+      auth_type: "api",
+      mode: "api",
     }
   }}

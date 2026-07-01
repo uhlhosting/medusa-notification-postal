@@ -75,7 +75,7 @@ test("toPublicPostalSettings strips secrets from the snapshot", () => {
   assert.equal(publicSettings.from, "Postal <no-reply@uhlhosting.ch>")
 })
 
-test("validateModeRequirements enforces smtp-api configuration", () => {
+test("validateModeRequirements enforces API mode configuration", () => {
   assert.equal(
     validateModeRequirements({
       provider_id: "postal",
@@ -119,7 +119,7 @@ test("validateModeRequirements enforces smtp-api configuration", () => {
         webhook_token_masked: null,
       },
     }),
-    "POSTAL_BASE_URL is required for smtp-api mode"
+    "POSTAL_BASE_URL is required for API mode"
   )
 
   assert.equal(
@@ -142,11 +142,11 @@ test("validateModeRequirements enforces smtp-api configuration", () => {
         webhook_token_masked: null,
       },
     }),
-    "POSTAL_API_KEY is required for smtp-api mode"
+    "POSTAL_API_KEY is required for API mode"
   )
 })
 
-test("validateModeRequirements allows complete smtp-api settings", () => {
+test("validateModeRequirements allows complete API settings", () => {
   const apiKeyValue = randomUUID().replace(/-/g, "").slice(0, 12)
   const webhookTokenValue = randomUUID().replace(/-/g, "").slice(0, 12)
 

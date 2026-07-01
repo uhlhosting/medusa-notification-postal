@@ -7,7 +7,7 @@ export const GET = async (
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) => {
-  let authType = "smtp-api"
+  let authType = "api"
   let mode = "api"
 
   try {

@@ -12,10 +12,10 @@ A production-ready Postal notification provider for Medusa. Designed for reliabl
 
 ## Options
 
-- `auth_type` - `smtp-api`
+- `auth_type` - Postal API mode
 - `from` - default sender e-mail address
 
-### `smtp-api` options
+### Postal API settings
 
 - `base_url` - Postal base URL, for example `https://post.uhlhosting.ch`
 - `api_key` - Postal server API key used in `X-Server-API-Key`

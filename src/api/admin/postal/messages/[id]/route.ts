@@ -19,7 +19,7 @@ const postPostalApi = async (path: string, payload: Record<string, unknown>) => 
   if (authType !== "smtp-api") {
     throw new MedusaError(
       MedusaError.Types.INVALID_DATA,
-      "Postal message lookup requires smtp-api mode"
+      "Postal message lookup requires API mode"
     )
   }
 
