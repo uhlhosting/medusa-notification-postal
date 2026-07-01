@@ -39,7 +39,7 @@ test("constructor and option validation reject invalid configuration", () => {
           from: "ops@example.com",
           base_url: "https://postal.example.com",
           api_key: "secret",
-          auth_type: "smtp",
+          auth_type: "legacy",
         } as any
       ),
     MedusaError

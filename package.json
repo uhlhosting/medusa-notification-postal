@@ -64,7 +64,7 @@
     "release:check": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && node scripts/verify-release.mjs",
     "test": "tsx --test $(find src -name '*.test.ts' | sort)",
     "test:unit": "jest --runInBand --passWithNoTests",
-    "test:coverage": "node --test --experimental-test-coverage --import tsx $(find src -name '*.test.ts' | sort)",
+    "test:coverage": "c8 --reporter=text --reporter=cobertura --report-dir coverage node --test --import tsx $(find src -name '*.test.ts' | sort)",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -89,6 +89,7 @@
     "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.61.1",
     "eslint": "^9.39.4",
+    "c8": "^11.0.0",
     "i18next": "26.3.1",
     "jest": "^30.4.2",
     "jest-junit": "^17.0.0",
