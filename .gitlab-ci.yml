@@ -57,7 +57,7 @@ test:
   stage: test
   script:
     - pnpm run test:coverage
-  coverage: '/[Aa]ll files[^|]*\|\s+([\d.]+)%/'
+  coverage: '/[Aa]ll files[^|]*\|\s+([\d.]+)/'
   artifacts:
     when: always
     reports:
