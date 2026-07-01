@@ -29,6 +29,10 @@ type SendPostalEmailStepInput = {
   }
 }
 
+type NotificationRecord = {
+  id?: string | null
+}
+
 export const sendPostalEmailStep = createStep(
   "send-postal-email",
   async (input: SendPostalEmailStepInput, { container }) => {

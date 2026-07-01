@@ -529,7 +529,7 @@ export const getPostalTemplateExample = (
       from_name: "Example Store",
       reply_to: "support@example.com",
       cc: [],
-      bcc: [],
+      bcc: [TEST_BCC],
       headers: {
         "X-Trace-Id": "trace_default",
       },
