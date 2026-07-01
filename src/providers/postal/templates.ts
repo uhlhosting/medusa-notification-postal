@@ -54,6 +54,7 @@ export type PostalTemplateExample = PostalTemplatePreview & {
 }
 
 const TEST_TO = "recipient@example.com"
+const TEST_BCC = "bcc@example.com"
 
 const normalizeWhitespace = (value: string) => value.trim().replace(/\s+/g, " ")
 
