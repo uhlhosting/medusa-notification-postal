@@ -52,6 +52,9 @@ test("handlePostalWebhookPost falls back to the workflow path when no helper is 
     body: {
       event_type: "message.sent",
       status: "sent",
+      message: {
+        tag: "uhlhosting.medusa-notification-postal:postal-test",
+      },
     },
   })
 

@@ -11,9 +11,14 @@ test("recordPostalWebhookWorkflow returns the recorded webhook event", async () 
     input: {
       event_type: "message.sent",
       status: "sent",
+      message: {
+        tag: "uhlhosting.medusa-notification-postal:postal-test",
+      },
     },
   })
 
-  assert.equal(result.result.event_type, "message.sent")
-  assert.equal(result.result.status, "sent")
+  const recorded = result.result as NonNullable<typeof result.result>
+  assert.notEqual(recorded, null)
+  assert.equal(recorded.event_type, "message.sent")
+  assert.equal(recorded.status, "sent")
 })

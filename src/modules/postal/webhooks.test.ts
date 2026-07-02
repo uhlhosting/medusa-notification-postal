@@ -2,6 +2,8 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import {
   listPostalWebhookEvents,
+  isPostalWebhookFromPlugin,
+  isPostalSentWebhookFromPlugin,
   normalizePostalWebhookPayload,
   recordPostalWebhookEvent,
 } from "./webhooks"
@@ -22,6 +24,63 @@ test("normalizePostalWebhookPayload maps Postal message delivery events", () => 
   assert.equal(event.message_id, "msg_123")
   assert.equal(event.recipient, "customer@uhlhost.net")
   assert.equal(event.occurred_at, "2026-06-28T10:00:00.000Z")
+})
+
+test("isPostalWebhookFromPlugin only accepts plugin-tagged messages", () => {
+  assert.equal(
+    isPostalWebhookFromPlugin({
+      message: {
+        tag: "uhlhosting.medusa-notification-postal:order-placed",
+      },
+    }),
+    true
+  )
+
+  assert.equal(
+    isPostalWebhookFromPlugin({
+      message: {
+        tag: "order-placed",
+      },
+    }),
+    false
+  )
+
+  assert.equal(isPostalWebhookFromPlugin({ message: {} }), false)
+})
+
+test("isPostalSentWebhookFromPlugin only accepts plugin-tagged sent message webhooks", () => {
+  assert.equal(
+    isPostalSentWebhookFromPlugin({
+      event_type: "MessageSent",
+      status: "Sent",
+      message: {
+        tag: "uhlhosting.medusa-notification-postal:order-placed",
+      },
+    }),
+    true
+  )
+
+  assert.equal(
+    isPostalSentWebhookFromPlugin({
+      event_type: "MessageBounced",
+      status: "Bounced",
+      message: {
+        tag: "uhlhosting.medusa-notification-postal:order-placed",
+      },
+    }),
+    false
+  )
+
+  assert.equal(
+    isPostalSentWebhookFromPlugin({
+      event_type: "MessageSent",
+      status: "Sent",
+      message: {
+        tag: "external-app:order-placed",
+      },
+    }),
+    false
+  )
 })
 
 test("normalizePostalWebhookPayload falls back to nested message data", () => {
@@ -423,27 +482,79 @@ test("recordPostalWebhookEvent persists a normalized event", async () => {
       id: "msg_recorded",
       recipient: "recipient@uhlhosting.ch",
       created_at: "2026-06-28T12:00:00Z",
+      tag: "uhlhosting.medusa-notification-postal:postal-test",
     },
   })
 
   assert.equal(calls.length, 1)
   assert.match(calls[0]!.sql, /INSERT INTO postal_webhook_events/)
-  assert.equal(event.status, "sent")
-  assert.equal(event.message_id, "msg_recorded")
-  assert.equal(event.recipient, "recipient@uhlhosting.ch")
+  assert.notEqual(event, null)
+  const recorded = event as NonNullable<typeof event>
+  assert.equal(recorded.status, "sent")
+  assert.equal(recorded.message_id, "msg_recorded")
+  assert.equal(recorded.recipient, "recipient@uhlhosting.ch")
+})
+
+test("recordPostalWebhookEvent ignores non-plugin messages", async () => {
+  const calls: Array<{ sql: string; params?: unknown[] }> = []
+  const pgConnection = {
+    raw: async (sql: string, params?: unknown[]) => {
+      calls.push({ sql, params })
+      return { rows: [] }
+    },
+  }
+
+  const event = await recordPostalWebhookEvent(pgConnection, {
+    event: "message.sent",
+    status: "sent",
+    message: {
+      id: "msg_other",
+      recipient: "recipient@uhlhosting.ch",
+      tag: "external-app:order-placed",
+    },
+  })
+
+  assert.equal(event, null)
+  assert.equal(calls.length, 0)
+})
+
+test("recordPostalWebhookEvent ignores plugin-tagged non-sent messages", async () => {
+  const calls: Array<{ sql: string; params?: unknown[] }> = []
+  const pgConnection = {
+    raw: async (sql: string, params?: unknown[]) => {
+      calls.push({ sql, params })
+      return { rows: [] }
+    },
+  }
+
+  const event = await recordPostalWebhookEvent(pgConnection, {
+    event: "message.bounced",
+    status: "bounced",
+    message: {
+      id: "msg_bounced",
+      recipient: "recipient@uhlhosting.ch",
+      tag: "uhlhosting.medusa-notification-postal:postal-test",
+    },
+  })
+
+  assert.equal(event, null)
+  assert.equal(calls.length, 0)
 })
 
 test("recordPostalWebhookEvent returns event when pg connection is unavailable", async () => {
   const event = await recordPostalWebhookEvent(undefined, {
-    status: "sent",
     message: {
+      tag: "uhlhosting.medusa-notification-postal:postal-test",
       id: "msg_no_pg",
       recipient: "recipient@uhlhosting.ch",
     },
+    status: "sent",
   })
 
-  assert.equal(event.status, "sent")
-  assert.equal(event.message_id, "msg_no_pg")
+  assert.notEqual(event, null)
+  const recorded = event as NonNullable<typeof event>
+  assert.equal(recorded.status, "sent")
+  assert.equal(recorded.message_id, "msg_no_pg")
 })
 
 test("recordPostalWebhookEvent returns event when persistence fails", async () => {
@@ -459,13 +570,16 @@ test("recordPostalWebhookEvent returns event when persistence fails", async () =
     message: {
       message_id: "msg_failed_write",
       recipient: "recipient@uhlhosting.ch",
+      tag: "uhlhosting.medusa-notification-postal:postal-test",
     },
   })
 
-  assert.equal(event.event_type, "message.sent")
-  assert.equal(event.status, "sent")
-  assert.equal(event.message_id, "msg_failed_write")
-  assert.equal(event.recipient, "recipient@uhlhosting.ch")
+  assert.notEqual(event, null)
+  const recorded = event as NonNullable<typeof event>
+  assert.equal(recorded.event_type, "message.sent")
+  assert.equal(recorded.status, "sent")
+  assert.equal(recorded.message_id, "msg_failed_write")
+  assert.equal(recorded.recipient, "recipient@uhlhosting.ch")
 })
 
 test("listPostalWebhookEvents returns normalized rows with limit bounds", async () => {

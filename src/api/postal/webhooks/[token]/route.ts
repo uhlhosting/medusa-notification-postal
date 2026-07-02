@@ -31,6 +31,13 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     input: payload,
   })
 
+  if (!result) {
+    return res.status(202).json({
+      ok: true,
+      ignored: true,
+    })
+  }
+
   return res.status(202).json({
     ok: true,
     id: result.id,

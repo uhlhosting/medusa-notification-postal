@@ -2,6 +2,13 @@
 !.medusa/
 !.medusa/server/
 !.medusa/server/**
+.medusa/cache/
+.medusa/server/**/*.test.js
+.medusa/server/**/*.test.mjs
+.medusa/server/**/*.test.d.ts
+.medusa/server/**/*.test.js.map
+.medusa/server/**/*.test.mjs.map
+.medusa/server/**/*.test.d.ts.map
 !README.md
 !CHANGELOG.md
 !LICENSE

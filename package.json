@@ -1,6 +1,6 @@
 {
   "name": "@uhlhosting/medusa-notification-postal",
-  "version": "0.1.7",
+  "version": "0.1.9",
   "description": "Postal notification provider for Medusa",
   "author": "uhlhosting",
   "private": false,
@@ -14,7 +14,14 @@
     "provenance": true
   },
   "files": [
-    ".medusa/server"
+    ".medusa/server",
+    "!.medusa/cache",
+    "!.medusa/server/**/*.test.js",
+    "!.medusa/server/**/*.test.mjs",
+    "!.medusa/server/**/*.test.d.ts",
+    "!.medusa/server/**/*.test.js.map",
+    "!.medusa/server/**/*.test.mjs.map",
+    "!.medusa/server/**/*.test.d.ts.map"
   ],
   "main": "./.medusa/server/src/index.js",
   "types": "./.medusa/server/src/index.d.ts",

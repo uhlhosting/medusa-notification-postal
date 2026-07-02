@@ -10,7 +10,7 @@ export type RecordPostalWebhookWorkflowInput = Record<string, unknown>
 
 export const recordPostalWebhookWorkflow: ReturnWorkflow<
   RecordPostalWebhookWorkflowInput,
-  PostalWebhookRecord,
+  PostalWebhookRecord | null,
   []
 > = createWorkflow(
   "record-postal-webhook",

@@ -23,6 +23,7 @@ export type PostalWebhookRecord = {
 }
 
 const POSTAL_WEBHOOK_EVENTS_TABLE = "postal_webhook_events"
+export const POSTAL_WEBHOOK_TAG_PREFIX = "uhlhosting.medusa-notification-postal:"
 
 const sanitizeString = (value: unknown) =>
   typeof value === "string" ? value.trim() : ""
@@ -36,6 +37,33 @@ const pickString = (...values: unknown[]) => {
   }
 
   return ""
+}
+
+const pickNestedTag = (value: unknown) =>
+  value && typeof value === "object"
+    ? pickString((value as Record<string, unknown>).tag)
+    : ""
+
+const extractPostalWebhookTag = (payload: Record<string, unknown>) =>
+  pickString(
+    payload.tag,
+    pickNestedTag(payload.message),
+    pickNestedTag(payload.original_message),
+    pickNestedTag(payload.data),
+    pickNestedTag(
+      (payload.data as Record<string, unknown> | undefined)?.message
+    )
+  )
+
+export const isPostalWebhookFromPlugin = (payload: Record<string, unknown>) =>
+  extractPostalWebhookTag(payload).startsWith(POSTAL_WEBHOOK_TAG_PREFIX)
+
+export const isPostalSentWebhookFromPlugin = (payload: Record<string, unknown>) => {
+  if (!isPostalWebhookFromPlugin(payload)) {
+    return false
+  }
+
+  return normalizePostalWebhookPayload(payload).status === "sent"
 }
 
 const normalizeStatus = (value: string): PostalWebhookStatus => {
@@ -275,7 +303,11 @@ export const normalizePostalWebhookPayload = (
 export const recordPostalWebhookEvent = async (
   pgConnection: any,
   payload: Record<string, unknown>
-) => {
+): Promise<PostalWebhookRecord | null> => {
+  if (!isPostalSentWebhookFromPlugin(payload)) {
+    return null
+  }
+
   const event = normalizePostalWebhookPayload(payload)
 
   if (!pgConnection || typeof pgConnection.raw !== "function") {

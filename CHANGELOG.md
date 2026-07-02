@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.9 - 2026-07-02
+
+- Remove prefilled CC, BCC, reply-to, sender, and advanced payload sample values from the Postal admin test-send UI.
+- Keep admin test sends on the native `send-postal-email` workflow path with workflow trace metadata.
+- Tag Postal API sends from this plugin and only record tagged `message.sent` webhook callbacks.
+- Add settings-route and webhook-filter regression coverage.
+
 ## 0.2.1 - 2026-06-29
 
 - Restored the Postal admin test payload helper so the admin route typechecks and the GitLab validate job can complete.

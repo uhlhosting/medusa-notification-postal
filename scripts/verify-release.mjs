@@ -84,6 +84,13 @@ if (packFiles.some((file) => file === "src" || file.startsWith("src/"))) {
   fail("npm pack output must not include the source src/ tree")
 }
 
+const testFiles = packFiles.filter((file) =>
+  /(^|\/)[^/]+\.test\.(js|mjs|cjs|ts|tsx|d\.ts)(\.map)?$/.test(file)
+)
+if (testFiles.length > 0) {
+  fail(`npm pack output must not include compiled test files: ${testFiles.join(", ")}`)
+}
+
 const depsTree = JSON.parse(
   runPnpm(["list", "--depth", "0", "--prod", "--json"]),
 )

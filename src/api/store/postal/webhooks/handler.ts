@@ -9,7 +9,7 @@ export type PostalWebhookPostHandlerInput = {
       id: string | null
       event_type: string
       status: string
-    }
+    } | null
   }>
 }
 
@@ -29,6 +29,16 @@ export const handlePostalWebhookPost = async (
     : await recordPostalWebhookWorkflow(scope).run({
         input: payload,
       })
+
+  if (!result) {
+    return {
+      status: 202,
+      body: {
+        ok: true,
+        ignored: true,
+      },
+    }
+  }
 
   return {
     status: 202,

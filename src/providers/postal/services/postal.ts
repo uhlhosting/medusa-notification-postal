@@ -62,6 +62,7 @@ type PostalNotificationProviderData = {
 }
 
 const POSTAL_REQUEST_TIMEOUT_MS = 10000
+const POSTAL_WEBHOOK_TAG_PREFIX = "uhlhosting.medusa-notification-postal:"
 
 export class PostalNotificationService extends AbstractNotificationProviderService {
   static readonly identifier = "notification-postal"
@@ -371,7 +372,9 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       subject: input.template.subject,
       html_body: htmlBody || undefined,
       plain_body: plainBody || undefined,
-      tag: input.template.template_name || undefined,
+      tag: input.template.template_name
+        ? `${POSTAL_WEBHOOK_TAG_PREFIX}${input.template.template_name}`
+        : undefined,
       headers: Object.keys(headers).length ? headers : undefined,
       attachments: this.normalizeAttachments(input.attachments),
     }

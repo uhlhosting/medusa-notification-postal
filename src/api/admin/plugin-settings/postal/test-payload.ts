@@ -54,7 +54,7 @@ const normalizeEmailList = (value?: string | string[]) => {
   return undefined
 }
 
-const normalizeString = (value?: string) => value?.trim() || undefined
+const normalizeString = (value?: string | null) => value?.trim() || undefined
 
 const mergeHeaders = (
   base: Record<string, string>,
@@ -88,14 +88,14 @@ export const buildPostalAdminTestProviderData = (
     subject: normalizeString(body.subject) || example.subject,
     text: normalizeString(body.text) || example.text,
     html: normalizeString(body.html) || example.html,
-    from: normalizeString(body.from) || settings.from || example.from,
-    from_name: normalizeString(body.from_name) || example.from_name,
-    reply_to: normalizeString(body.reply_to) || example.reply_to,
+    from: normalizeString(body.from) || normalizeString(settings.from),
+    from_name: normalizeString(body.from_name),
+    reply_to: normalizeString(body.reply_to),
     cc: normalizeEmailList(body.cc),
     bcc: normalizeEmailList(body.bcc),
-    headers: mergeHeaders(example.headers, body.headers),
-    custom_args: mergeRecord(example.custom_args, body.custom_args),
-    metadata: mergeRecord(example.metadata, body.metadata),
+    headers: mergeHeaders({}, body.headers),
+    custom_args: mergeRecord({}, body.custom_args),
+    metadata: mergeRecord({}, body.metadata),
     workflow_event: "postal.admin.test_send",
     workflow_run_id: runId,
   }

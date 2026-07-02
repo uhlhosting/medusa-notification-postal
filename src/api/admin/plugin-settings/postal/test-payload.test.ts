@@ -23,10 +23,12 @@ test("buildPostalAdminTestProviderData uses template defaults when fields are em
   assert.match(providerData.html || "", /Thanks for your order/)
   assert.match(providerData.text || "", /We have received your order/)
   assert.equal(providerData.from, "no-reply@example.com")
-  assert.equal(providerData.reply_to, "orders@example.com")
+  assert.equal(providerData.reply_to, undefined)
   assert.equal(providerData.workflow_run_id, "admin_123")
   assert.deepEqual(providerData.cc, undefined)
-  assert.deepEqual(providerData.headers["X-Order-Id"], "ord_123")
+  assert.deepEqual(providerData.headers, {})
+  assert.deepEqual(providerData.custom_args, {})
+  assert.deepEqual(providerData.metadata, {})
 })
 
 test("buildPostalAdminTestProviderData preserves explicit overrides", () => {

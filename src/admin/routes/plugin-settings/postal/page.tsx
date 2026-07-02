@@ -63,21 +63,19 @@ const emptyForm: PostalSettingsForm = {
   test_to: "",
 };
 
-const defaultPostalTemplateExample = getPostalTemplateExample("postal-admin-test");
-
 const emptyTestForm: PostalTestForm = {
-  to: defaultPostalTemplateExample.to,
-  cc: defaultPostalTemplateExample.cc.join(", "),
-  bcc: defaultPostalTemplateExample.bcc.join(", "),
-  from_name: defaultPostalTemplateExample.from_name,
-  reply_to: defaultPostalTemplateExample.reply_to,
-  template: defaultPostalTemplateExample.value,
-  subject: defaultPostalTemplateExample.subject,
-  text: defaultPostalTemplateExample.text,
-  html: defaultPostalTemplateExample.html,
-  headers_json: JSON.stringify(defaultPostalTemplateExample.headers, null, 2),
-  custom_args_json: JSON.stringify(defaultPostalTemplateExample.custom_args, null, 2),
-  metadata_json: JSON.stringify(defaultPostalTemplateExample.metadata, null, 2),
+  to: "",
+  cc: "",
+  bcc: "",
+  from_name: "",
+  reply_to: "",
+  template: "postal-admin-test",
+  subject: "",
+  text: "",
+  html: "",
+  headers_json: "{}",
+  custom_args_json: "{}",
+  metadata_json: "{}",
 };
 
 const toTextareaClassName =
@@ -251,6 +249,18 @@ export const PostalSettingsPage = () => {
   const templateExample = getPostalTemplateExample(
     (testForm.template || "postal-admin-test") as PostalTemplateName,
   );
+  const templateExampleForUi = {
+    ...templateExample,
+    to: "",
+    from: "",
+    from_name: "",
+    reply_to: "",
+    cc: [],
+    bcc: [],
+    headers: {},
+    custom_args: {},
+    metadata: {},
+  };
   const templatePreview = getPostalTemplatePreview(
     (testForm.template || "postal-admin-test") as PostalTemplateName,
   );
@@ -322,7 +332,9 @@ export const PostalSettingsPage = () => {
 
   const copyTemplateExample = async () => {
     try {
-      await navigator.clipboard.writeText(JSON.stringify(templateExample, null, 2));
+      await navigator.clipboard.writeText(
+        JSON.stringify(templateExampleForUi, null, 2),
+      );
       toast.success(t("postal.template_example_copied"));
     } catch {
       toast.error(t("postal.template_example_copy_failed"));
@@ -330,23 +342,19 @@ export const PostalSettingsPage = () => {
   };
 
   const loadTemplateExample = () => {
-    const example = getPostalTemplateExample(
-      (testForm.template || "postal-admin-test") as PostalTemplateName,
-    );
-
     setTestForm({
-      to: example.to,
-      cc: example.cc.join(", "),
-      bcc: example.bcc.join(", "),
-      from_name: example.from_name,
-      reply_to: example.reply_to,
-      template: example.value,
-      subject: example.subject,
-      text: example.text,
-      html: example.html,
-      headers_json: JSON.stringify(example.headers, null, 2),
-      custom_args_json: JSON.stringify(example.custom_args, null, 2),
-      metadata_json: JSON.stringify(example.metadata, null, 2),
+      to: "",
+      cc: "",
+      bcc: "",
+      from_name: "",
+      reply_to: "",
+      template: (testForm.template || "postal-admin-test") as PostalTemplateName,
+      subject: templateExampleForUi.subject,
+      text: templateExampleForUi.text,
+      html: templateExampleForUi.html,
+      headers_json: "{}",
+      custom_args_json: "{}",
+      metadata_json: "{}",
     });
   };
 
@@ -843,7 +851,7 @@ export const PostalSettingsPage = () => {
                     {t("postal.template_example")}
                   </Text>
                   <Code className="mt-2 block max-h-[720px] overflow-auto whitespace-pre-wrap break-words">
-                    {JSON.stringify(templateExample, null, 2)}
+                    {JSON.stringify(templateExampleForUi, null, 2)}
                   </Code>
                 </div>
               </div>
@@ -1064,67 +1072,6 @@ export const PostalSettingsPage = () => {
                 />
               </div>
 
-              <div className="flex flex-col gap-y-2">
-                <Label htmlFor="postal-test-from-name">
-                  {t("postal.sender_name")}
-                </Label>
-                <Input
-                  id="postal-test-from-name"
-                  placeholder={t("postal.placeholder.sender_name")}
-                  value={testForm.from_name}
-                  onChange={(e) =>
-                    setTestForm((prev) => ({
-                      ...prev,
-                      from_name: e.target.value,
-                    }))
-                  }
-                  disabled={disabled}
-                />
-              </div>
-
-              <div className="flex flex-col gap-y-2">
-                <Label htmlFor="postal-test-reply-to">{t("postal.reply_to")}</Label>
-                <Input
-                  id="postal-test-reply-to"
-                  type="email"
-                  placeholder={t("postal.placeholder.reply_to")}
-                  value={testForm.reply_to}
-                  onChange={(e) =>
-                    setTestForm((prev) => ({
-                      ...prev,
-                      reply_to: e.target.value,
-                    }))
-                  }
-                  disabled={disabled}
-                />
-              </div>
-
-              <div className="flex flex-col gap-y-2">
-                <Label htmlFor="postal-test-cc">{t("postal.cc")}</Label>
-                <Input
-                  id="postal-test-cc"
-                  placeholder={t("postal.placeholder.recipients_list")}
-                  value={testForm.cc}
-                  onChange={(e) =>
-                    setTestForm((prev) => ({ ...prev, cc: e.target.value }))
-                  }
-                  disabled={disabled}
-                />
-              </div>
-
-              <div className="flex flex-col gap-y-2">
-                <Label htmlFor="postal-test-bcc">{t("postal.bcc")}</Label>
-                <Input
-                  id="postal-test-bcc"
-                  placeholder={t("postal.placeholder.recipients_list")}
-                  value={testForm.bcc}
-                  onChange={(e) =>
-                    setTestForm((prev) => ({ ...prev, bcc: e.target.value }))
-                  }
-                  disabled={disabled}
-                />
-              </div>
-
               <div className="flex flex-col gap-y-2 md:col-span-2">
                 <Label htmlFor="postal-test-subject">
                   {t("postal.template_subject")}
@@ -1149,6 +1096,71 @@ export const PostalSettingsPage = () => {
                 Advanced payload
               </summary>
               <div className="grid gap-4 border-t border-ui-border-base p-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="flex flex-col gap-y-2">
+                    <Label htmlFor="postal-test-from-name">
+                      {t("postal.sender_name")}
+                    </Label>
+                    <Input
+                      id="postal-test-from-name"
+                      placeholder={t("postal.placeholder.sender_name")}
+                      value={testForm.from_name}
+                      onChange={(e) =>
+                        setTestForm((prev) => ({
+                          ...prev,
+                          from_name: e.target.value,
+                        }))
+                      }
+                      disabled={disabled}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-y-2">
+                    <Label htmlFor="postal-test-reply-to">
+                      {t("postal.reply_to")}
+                    </Label>
+                    <Input
+                      id="postal-test-reply-to"
+                      type="email"
+                      placeholder={t("postal.placeholder.reply_to")}
+                      value={testForm.reply_to}
+                      onChange={(e) =>
+                        setTestForm((prev) => ({
+                          ...prev,
+                          reply_to: e.target.value,
+                        }))
+                      }
+                      disabled={disabled}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-y-2">
+                    <Label htmlFor="postal-test-cc">{t("postal.cc")}</Label>
+                    <Input
+                      id="postal-test-cc"
+                      placeholder={t("postal.placeholder.recipients_list")}
+                      value={testForm.cc}
+                      onChange={(e) =>
+                        setTestForm((prev) => ({ ...prev, cc: e.target.value }))
+                      }
+                      disabled={disabled}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-y-2">
+                    <Label htmlFor="postal-test-bcc">{t("postal.bcc")}</Label>
+                    <Input
+                      id="postal-test-bcc"
+                      placeholder={t("postal.placeholder.recipients_list")}
+                      value={testForm.bcc}
+                      onChange={(e) =>
+                        setTestForm((prev) => ({ ...prev, bcc: e.target.value }))
+                      }
+                      disabled={disabled}
+                    />
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-y-2">
                   <Label htmlFor="postal-test-text">{t("postal.template_text")}</Label>
                   <textarea

@@ -4,6 +4,7 @@ import { MedusaError } from "@medusajs/framework/utils"
 import { PostalNotificationService } from "./postal"
 
 const originalFetch = globalThis.fetch
+const POSTAL_WEBHOOK_TAG_PREFIX = "uhlhosting.medusa-notification-postal:"
 const logger = {
   info: () => undefined,
   error: () => undefined,
@@ -415,7 +416,10 @@ test("send falls back to notification.data and recipient message ids", async () 
   assert.equal(calls[0]?.body.subject, "Order confirmation")
   assert.match(calls[0]?.body.html_body, /<title>Order confirmation<\/title>/)
   assert.match(calls[0]?.body.plain_body, /Thanks for your order/)
-  assert.equal(calls[0]?.body.tag, "order-placed")
+  assert.equal(
+    calls[0]?.body.tag,
+    `${POSTAL_WEBHOOK_TAG_PREFIX}order-placed`
+  )
   assert.equal(calls[0]?.body.headers["Reply-To"], "reply@example.com")
   assert.equal(calls[0]?.body.headers["List-Unsubscribe"], "<mailto:unsubscribe@example.com>")
   assert.equal(calls[0]?.body.headers["X-Postal-Custom-Arg-order-id"], "ord_2")

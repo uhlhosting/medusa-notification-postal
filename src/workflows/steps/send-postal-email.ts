@@ -1,10 +1,9 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
-import { MedusaError } from "@medusajs/framework/utils"
-import type { PostalNotificationService } from "../../providers/postal/services/postal"
+import { MedusaError, Modules } from "@medusajs/framework/utils"
+import type { INotificationModuleService } from "@medusajs/framework/types"
 import type { PostalTemplateName } from "../../providers/postal/templates"
 
-/** Container key under which Medusa registers notification providers. */
-const POSTAL_PROVIDER_KEY = "np_notification-postal"
+const POSTAL_PROVIDER_ID = "postal"
 
 type SendPostalEmailStepInput = {
   to: string | string[]
@@ -32,17 +31,14 @@ type SendPostalEmailStepInput = {
 export const sendPostalEmailStep = createStep(
   "send-postal-email",
   async (input: SendPostalEmailStepInput, { container }) => {
-    // Resolve the Postal provider directly so email is always delivered through
-    // Postal, regardless of other notification providers that may be registered
-    // for the "email" channel in the notification module.
-    const postalService = container.resolve<PostalNotificationService>(
-      POSTAL_PROVIDER_KEY
+    const notificationModuleService = container.resolve<INotificationModuleService>(
+      Modules.NOTIFICATION
     )
 
-    if (!postalService) {
+    if (!notificationModuleService) {
       throw new MedusaError(
         MedusaError.Types.NOT_FOUND,
-        "Postal notification provider is not loaded. Ensure the plugin is configured and the backend has been restarted."
+        "Notification module is not loaded. Ensure Medusa notification is configured and the backend has been restarted."
       )
     }
 
@@ -59,20 +55,11 @@ export const sendPostalEmailStep = createStep(
 
     const deliveries = await Promise.all(
       recipients.map(async (to) => {
-        const result = await postalService.send({
-          to,
-          from: input.from,
-          channel: "email",
-          template,
-          content: {
-            subject: input.provider_data.subject,
-            html: input.provider_data.html,
-            text: input.provider_data.text,
-          },
-          provider_data: providerData,
-        })
+        const result = await notificationModuleService.createNotifications(
+          buildPostalNotificationInput(input, to, template, providerData)
+        )
 
-        return { id: result?.id || null }
+        return { id: (result as any)?.id || null }
       })
     )
 
@@ -103,3 +90,24 @@ const buildProviderData = (input: SendPostalEmailStepInput) => ({
   workflow_event: input.provider_data.workflow_event,
   workflow_run_id: input.provider_data.workflow_run_id,
 })
+
+export const buildPostalNotificationInput = (
+  input: SendPostalEmailStepInput,
+  to: string,
+  template: string,
+  providerData: ReturnType<typeof buildProviderData>
+) =>
+  ({
+    to,
+    from: input.from,
+    channel: "email",
+    provider_id: POSTAL_PROVIDER_ID,
+    template,
+    content: {
+      subject: input.provider_data.subject,
+      html: input.provider_data.html,
+      text: input.provider_data.text,
+    },
+    data: providerData,
+    provider_data: providerData,
+  } as any)
