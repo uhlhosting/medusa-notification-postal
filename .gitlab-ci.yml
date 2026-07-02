@@ -128,7 +128,11 @@ mirror:github:
       optional: true
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
+      allow_failure: true
     - if: '$CI_COMMIT_TAG'
+      when: manual
+      allow_failure: true
   before_script: []
   script:
     # Configure this as a masked, protected GitLab CI/CD variable with write access to the GitHub mirror.
