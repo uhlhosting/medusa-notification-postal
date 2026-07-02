@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.11 - 2026-07-02
+## 0.1.12 - 2026-07-02
 
 - Remove prefilled CC, BCC, reply-to, sender, and advanced payload sample values from the Postal admin test-send UI.
 - Keep admin test sends on the native `send-postal-email` workflow path with workflow trace metadata.

@@ -50,19 +50,6 @@ jobs:
       - name: Verify release provenance
         run: |
           set -euo pipefail
-          if [ "${GITHUB_REF_PROTECTED}" != "true" ]; then
-            echo "Ref ${GITHUB_REF} must be protected before npm trusted publishing is allowed." >&2
-            exit 1
-          fi
-
-      - name: Test
-        run: pnpm test
-
-          if [ "${GITHUB_REF_PROTECTED}" != "true" ]; then
-            echo "Ref ${GITHUB_REF} must be protected before npm trusted publishing is allowed." >&2
-            exit 1
-          fi
-
           if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
             expected_tag="v$(node -p "require('./package.json').version")"
             if [ "${GITHUB_REF_NAME}" != "${expected_tag}" ]; then
@@ -80,6 +67,9 @@ jobs:
             echo "Manual npm publishing is only allowed from the protected main branch." >&2
             exit 1
           fi
+
+      - name: Test
+        run: pnpm test
 
       - name: Release check
         run: pnpm release:check
