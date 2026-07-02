@@ -118,7 +118,7 @@ publish:
         publish_dir="$(mktemp -d)"
         tar --exclude='.git' --exclude='.npmrc' --exclude='.npmrc.publish' --exclude='node_modules' -cf - . | tar -xf - -C "$publish_dir"
         cd "$publish_dir"
-        npm publish --ignore-scripts --registry "${NPM_REGISTRY}"
+        npm publish --ignore-scripts --provenance=false --registry "${NPM_REGISTRY}"
       fi
 
 mirror:github:
