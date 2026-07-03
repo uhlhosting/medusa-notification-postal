@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   Code,
+  Container,
   Input,
   Label,
   Select,
@@ -461,6 +462,20 @@ export const PostalSettingsPage = () => {
   const hasSavedApiKey =
     Boolean(data?.configured?.api_key) || Boolean(data?.secret_hints?.api_key_masked);
   const disabled = saveMutation.isPending || testMutation.isPending;
+  const configuredSummary = [
+    {
+      label: "Mode",
+      value: "Postal SMTP API",
+    },
+    {
+      label: "Webhook",
+      value: webhookCallbackUrl,
+    },
+    {
+      label: "Runtime state",
+      value: isConfigured ? "Ready" : "Needs attention",
+    },
+  ];
 
   const sendTestEmail = () => {
     try {
@@ -521,6 +536,41 @@ export const PostalSettingsPage = () => {
           },
         ]}
       />
+
+      <Container className="p-0">
+        <div className="grid gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge color={isConfigured ? "green" : "grey"} size="small">
+                {isConfigured ? t("postal.configured") : t("postal.not_configured")}
+              </Badge>
+              <Badge color="grey" size="small">
+                smtp-api
+              </Badge>
+            </div>
+            <div className="flex min-w-0 flex-col gap-y-1">
+              <Text size="small" leading="compact" weight="plus">
+                Configure Postal delivery and test routing from one place.
+              </Text>
+              <Text size="small" leading="compact" className="text-ui-fg-subtle">
+                Keep credentials in the settings form, keep webhook URLs in the callback view, and use the test panel to validate delivery end to end.
+              </Text>
+            </div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+            {configuredSummary.map((item) => (
+              <div key={item.label} className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
+                <Text size="small" leading="compact" className="text-ui-fg-subtle">
+                  {item.label}
+                </Text>
+                <Text size="small" leading="compact" weight="plus" className="break-words">
+                  {item.value}
+                </Text>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Container>
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:items-start">
         <div className="flex min-w-0 flex-col gap-4">
@@ -647,10 +697,10 @@ export const PostalSettingsPage = () => {
                   The following values are saved and used by the provider at runtime.
                 </Text>
                 <div className="overflow-x-auto">
-                <Table>
-                  <Table.Body>
-                    {checklistRows.map((row) => (
-                      <Table.Row key={row.key}>
+                  <Table>
+                    <Table.Body>
+                      {checklistRows.map((row) => (
+                        <Table.Row key={row.key}>
                           <Table.Cell>
                             <Text size="small" leading="compact" weight="plus">
                               {row.label}
@@ -668,9 +718,9 @@ export const PostalSettingsPage = () => {
                             )}
                           </Table.Cell>
                         </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table>
+                      ))}
+                    </Table.Body>
+                  </Table>
                 </div>
               </div>
             </PluginSidebarSection>
@@ -878,444 +928,443 @@ export const PostalSettingsPage = () => {
               </div>
             )}
 
-            <div className="rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4">
-              <div className="flex flex-col gap-y-1">
-                <Text size="small" leading="compact" weight="plus">
-                  Template contract
-                </Text>
-                <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                  Required fields, optional fields, and source for each built-in template.
-                </Text>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Badge size="small" color="blue" className="w-fit">
-                  auth only
-                </Badge>
-                <Badge size="small" color="green" className="w-fit">
-                  commerce only
-                </Badge>
-                <Badge size="small" color="orange" className="w-fit">
-                  ops only
-                </Badge>
-                <Badge size="small" color="grey" className="w-fit">
-                  shared fallback
-                </Badge>
-              </div>
-              <div className="mt-3 flex max-w-sm flex-col gap-y-2">
-                <Label htmlFor="postal-template-audience-filter">
-                  Filter by audience
-                </Label>
-                <Select
-                  value={templateAudienceFilter}
-                  onValueChange={(value) =>
-                    setTemplateAudienceFilter(value as PostalTemplateAudienceFilter)
-                  }
-                >
-                  <Select.Trigger id="postal-template-audience-filter">
-                    <Select.Value placeholder="All templates" />
-                  </Select.Trigger>
-                  <Select.Content>
-                    <Select.Item value="all">All templates</Select.Item>
-                    <Select.Item value="auth">Auth</Select.Item>
-                    <Select.Item value="commerce">Commerce</Select.Item>
-                    <Select.Item value="ops">Ops</Select.Item>
-                    <Select.Item value="shared">Shared</Select.Item>
-                  </Select.Content>
-                </Select>
-              </div>
-              <div className="mt-3 flex max-w-xl flex-col gap-y-2">
-                <Label htmlFor="postal-template-search">Search templates</Label>
-                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-                  <Input
-                    id="postal-template-search"
-                    value={templateSearch}
-                    onChange={(e) => setTemplateSearch(e.target.value)}
-                    placeholder="Search by template, event, or purpose"
-                  />
-                  <Button
-                    type="button"
-                    size="small"
-                    variant="secondary"
-                    onClick={() => setTemplateSearch("")}
-                    disabled={!templateSearch}
-                    className="w-full sm:w-auto"
-                  >
-                    Clear
-                  </Button>
-                  <Button
-                    type="button"
-                    size="small"
-                    variant="transparent"
-                    onClick={() => {
-                      setTemplateAudienceFilter("all");
-                      setTemplateSearch("");
-                    }}
-                    disabled={
-                      templateAudienceFilter === "all" && !templateSearch.trim()
-                    }
-                    className="w-full sm:w-auto"
-                  >
-                    Reset filters
-                  </Button>
-                </div>
-                <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                  {filteredTemplateRows.length} templates match the current filter.
-                </Text>
-              </div>
-              <div className="mt-3 overflow-x-auto rounded-lg border border-ui-border-base bg-white">
-                <Table className="min-w-[920px]">
-                  <Table.Body>
-                    {filteredTemplateRows.length ? (
-                      filteredTemplateRows.map((row) => (
-                        <Table.Row key={row.template}>
-                          <Table.Cell>
-                            <div className="flex flex-col gap-y-1">
-                              <Text size="small" leading="compact" weight="plus">
-                                {row.template}
-                              </Text>
-                              <Text
-                                size="small"
-                                leading="compact"
-                                className="text-ui-fg-subtle"
-                              >
-                                {row.purpose}
-                              </Text>
-                            </div>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <div className="flex flex-col gap-y-1">
-                              <Text size="small" leading="compact" weight="plus">
-                                Required
-                              </Text>
-                              <Text size="small" leading="compact">
-                                {row.required}
-                              </Text>
-                            </div>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <div className="flex flex-col gap-y-1">
-                              <Text size="small" leading="compact" weight="plus">
-                                Optional
-                              </Text>
-                              <Text size="small" leading="compact">
-                                {row.optional}
-                              </Text>
-                            </div>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <div className="flex flex-col gap-y-1">
-                              <Text size="small" leading="compact" weight="plus">
-                                Source
-                              </Text>
-                              <Text
-                                size="small"
-                                leading="compact"
-                                className="text-ui-fg-subtle"
-                              >
-                                {row.source}
-                              </Text>
-                            </div>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <div className="flex flex-col gap-y-1">
-                              <Badge
-                                size="small"
-                                color={
-                                  row.audience === "auth"
-                                    ? "blue"
-                                    : row.audience === "commerce"
-                                      ? "green"
-                                      : row.audience === "ops"
-                                        ? "orange"
-                                        : "grey"
-                                }
-                                className="w-fit"
-                              >
-                                {row.audience}
-                              </Badge>
-                              <Code className="block whitespace-pre-wrap break-words">
-                                {row.event}
-                              </Code>
-                            </div>
-                          </Table.Cell>
-                          <Table.Cell>
-                            <Text
-                              size="small"
-                              leading="compact"
-                              className="text-ui-fg-subtle"
-                            >
-                              {row.notes}
-                            </Text>
-                          </Table.Cell>
-                          <Table.Cell className="text-right">
-                            <Button
-                              type="button"
-                              size="small"
-                              variant="secondary"
-                              onClick={() => {
-                                setTestForm((prev) => ({
-                                  ...prev,
-                                  template: row.template,
-                                }));
-                                setPreviewMode("rendered");
-                              }}
-                              className="whitespace-nowrap"
-                            >
-                              Use template
-                            </Button>
-                          </Table.Cell>
-                        </Table.Row>
-                      ))
-                    ) : (
-                      <Table.Row>
-                        <Table.Cell {...({ colSpan: 7 } as { colSpan?: number })}>
-                          <div className="py-6 text-center">
-                            <Text size="small" leading="compact" weight="plus">
-                              No templates match the current filter.
-                            </Text>
-                            <Text
-                              size="small"
-                              leading="compact"
-                              className="mt-1 text-ui-fg-subtle"
-                            >
-                              Clear or reset the filters to see the full Postal template set.
-                            </Text>
-                          </div>
-                        </Table.Cell>
-                      </Table.Row>
-                    )}
-                  </Table.Body>
-                </Table>
-              </div>
-            </div>
           </PluginSection>
+        </div>
+      </div>
 
-          <PluginSection
-            title={t("postal.test_connectivity")}
-            description={t("postal.test_connectivity_hint")}
-            bodyClassName="flex flex-col gap-4"
-          >
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="flex flex-col gap-y-2 md:col-span-2">
-                <Label htmlFor="postal-test-to">{t("postal.recipient_address")}</Label>
+      <PluginSection
+        title={t("postal.template_contract")}
+        description="Reference payloads for built-in Postal templates, project workflows, and fallback content."
+        bodyClassName="flex flex-col gap-4"
+      >
+        <div className="flex flex-wrap gap-2">
+          <Badge size="small" color="blue" className="w-fit">
+            auth only
+          </Badge>
+          <Badge size="small" color="green" className="w-fit">
+            commerce only
+          </Badge>
+          <Badge size="small" color="orange" className="w-fit">
+            ops only
+          </Badge>
+          <Badge size="small" color="grey" className="w-fit">
+            shared fallback
+          </Badge>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex max-w-sm flex-col gap-y-2">
+              <Label htmlFor="postal-template-audience-filter">
+                Filter by audience
+              </Label>
+              <Select
+                value={templateAudienceFilter}
+                onValueChange={(value) =>
+                  setTemplateAudienceFilter(value as PostalTemplateAudienceFilter)
+                }
+              >
+                <Select.Trigger id="postal-template-audience-filter">
+                  <Select.Value placeholder="All templates" />
+                </Select.Trigger>
+                <Select.Content>
+                  <Select.Item value="all">All templates</Select.Item>
+                  <Select.Item value="auth">Auth</Select.Item>
+                  <Select.Item value="commerce">Commerce</Select.Item>
+                  <Select.Item value="ops">Ops</Select.Item>
+                  <Select.Item value="shared">Shared</Select.Item>
+                </Select.Content>
+              </Select>
+            </div>
+            <div className="flex max-w-xl flex-col gap-y-2">
+              <Label htmlFor="postal-template-search">Search templates</Label>
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
                 <Input
-                  id="postal-test-to"
-                  type="email"
-                  placeholder={t("postal.placeholder.customer_email")}
-                  value={testForm.to}
-                  onChange={(e) =>
-                    setTestForm((prev) => ({ ...prev, to: e.target.value }))
-                  }
-                  disabled={disabled}
+                  id="postal-template-search"
+                  value={templateSearch}
+                  onChange={(e) => setTemplateSearch(e.target.value)}
+                  placeholder="Search by template, event, or purpose"
                 />
+                <Button
+                  type="button"
+                  size="small"
+                  variant="secondary"
+                  onClick={() => setTemplateSearch("")}
+                  disabled={!templateSearch}
+                  className="w-full sm:w-auto"
+                >
+                  Clear
+                </Button>
+                <Button
+                  type="button"
+                  size="small"
+                  variant="transparent"
+                  onClick={() => {
+                    setTemplateAudienceFilter("all");
+                    setTemplateSearch("");
+                  }}
+                  disabled={
+                    templateAudienceFilter === "all" && !templateSearch.trim()
+                  }
+                  className="w-full sm:w-auto"
+                >
+                  Reset filters
+                </Button>
               </div>
+              <Text size="small" leading="compact" className="text-ui-fg-subtle">
+                {filteredTemplateRows.length} templates match the current filter.
+              </Text>
+            </div>
+          </div>
+          <div className="overflow-x-auto rounded-lg border border-ui-border-base bg-white">
+            <Table className="min-w-[920px]">
+              <Table.Body>
+                {filteredTemplateRows.length ? (
+                  filteredTemplateRows.map((row) => (
+                    <Table.Row key={row.template}>
+                      <Table.Cell>
+                        <div className="flex flex-col gap-y-1">
+                          <Text size="small" leading="compact" weight="plus">
+                            {row.template}
+                          </Text>
+                          <Text
+                            size="small"
+                            leading="compact"
+                            className="text-ui-fg-subtle"
+                          >
+                            {row.purpose}
+                          </Text>
+                        </div>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <div className="flex flex-col gap-y-1">
+                          <Text size="small" leading="compact" weight="plus">
+                            Required
+                          </Text>
+                          <Text size="small" leading="compact">
+                            {row.required}
+                          </Text>
+                        </div>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <div className="flex flex-col gap-y-1">
+                          <Text size="small" leading="compact" weight="plus">
+                            Optional
+                          </Text>
+                          <Text size="small" leading="compact">
+                            {row.optional}
+                          </Text>
+                        </div>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <div className="flex flex-col gap-y-1">
+                          <Text size="small" leading="compact" weight="plus">
+                            Source
+                          </Text>
+                          <Text
+                            size="small"
+                            leading="compact"
+                            className="text-ui-fg-subtle"
+                          >
+                            {row.source}
+                          </Text>
+                        </div>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <div className="flex flex-col gap-y-1">
+                          <Badge
+                            size="small"
+                            color={
+                              row.audience === "auth"
+                                ? "blue"
+                                : row.audience === "commerce"
+                                  ? "green"
+                                  : row.audience === "ops"
+                                    ? "orange"
+                                    : "grey"
+                            }
+                            className="w-fit"
+                          >
+                            {row.audience}
+                          </Badge>
+                          <Code className="block whitespace-pre-wrap break-words">
+                            {row.event}
+                          </Code>
+                        </div>
+                      </Table.Cell>
+                      <Table.Cell>
+                        <Text
+                          size="small"
+                          leading="compact"
+                          className="text-ui-fg-subtle"
+                        >
+                          {row.notes}
+                        </Text>
+                      </Table.Cell>
+                      <Table.Cell className="text-right">
+                        <Button
+                          type="button"
+                          size="small"
+                          variant="secondary"
+                          onClick={() => {
+                            setTestForm((prev) => ({
+                              ...prev,
+                              template: row.template,
+                            }));
+                            setPreviewMode("rendered");
+                          }}
+                          className="whitespace-nowrap"
+                        >
+                          Use template
+                        </Button>
+                      </Table.Cell>
+                    </Table.Row>
+                  ))
+                ) : (
+                  <Table.Row>
+                    <Table.Cell {...({ colSpan: 7 } as { colSpan?: number })}>
+                      <div className="py-6 text-center">
+                        <Text size="small" leading="compact" weight="plus">
+                          No templates match the current filter.
+                        </Text>
+                        <Text
+                          size="small"
+                          leading="compact"
+                          className="mt-1 text-ui-fg-subtle"
+                        >
+                          Clear or reset the filters to see the full Postal template set.
+                        </Text>
+                      </div>
+                    </Table.Cell>
+                  </Table.Row>
+                )}
+              </Table.Body>
+            </Table>
+          </div>
+        </div>
+      </PluginSection>
 
-              <div className="flex flex-col gap-y-2 md:col-span-2">
-                <Label htmlFor="postal-test-subject">
-                  {t("postal.template_subject")}
+      <PluginSection
+        title={t("postal.test_connectivity")}
+        description={t("postal.test_connectivity_hint")}
+        bodyClassName="flex flex-col gap-4"
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="flex flex-col gap-y-2 md:col-span-2">
+            <Label htmlFor="postal-test-to">{t("postal.recipient_address")}</Label>
+            <Input
+              id="postal-test-to"
+              type="email"
+              placeholder={t("postal.placeholder.customer_email")}
+              value={testForm.to}
+              onChange={(e) =>
+                setTestForm((prev) => ({ ...prev, to: e.target.value }))
+              }
+              disabled={disabled}
+            />
+          </div>
+
+          <div className="flex flex-col gap-y-2 md:col-span-2">
+            <Label htmlFor="postal-test-subject">
+              {t("postal.template_subject")}
+            </Label>
+            <Input
+              id="postal-test-subject"
+              placeholder={t("postal.template_subject")}
+              value={testForm.subject}
+              onChange={(e) =>
+                setTestForm((prev) => ({
+                  ...prev,
+                  subject: e.target.value,
+                }))
+              }
+              disabled={disabled}
+            />
+          </div>
+        </div>
+
+        <details className="rounded-xl border border-ui-border-base bg-ui-bg-subtle">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-ui-fg-base">
+            Advanced payload
+          </summary>
+          <div className="grid gap-4 border-t border-ui-border-base p-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-y-2">
+                <Label htmlFor="postal-test-from-name">
+                  {t("postal.sender_name")}
                 </Label>
                 <Input
-                  id="postal-test-subject"
-                  placeholder={t("postal.template_subject")}
-                  value={testForm.subject}
+                  id="postal-test-from-name"
+                  placeholder={t("postal.placeholder.sender_name")}
+                  value={testForm.from_name}
                   onChange={(e) =>
                     setTestForm((prev) => ({
                       ...prev,
-                      subject: e.target.value,
+                      from_name: e.target.value,
                     }))
                   }
                   disabled={disabled}
                 />
               </div>
-            </div>
 
-            <details className="rounded-xl border border-ui-border-base bg-ui-bg-subtle">
-              <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-ui-fg-base">
-                Advanced payload
-              </summary>
-              <div className="grid gap-4 border-t border-ui-border-base p-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="flex flex-col gap-y-2">
-                    <Label htmlFor="postal-test-from-name">
-                      {t("postal.sender_name")}
-                    </Label>
-                    <Input
-                      id="postal-test-from-name"
-                      placeholder={t("postal.placeholder.sender_name")}
-                      value={testForm.from_name}
-                      onChange={(e) =>
-                        setTestForm((prev) => ({
-                          ...prev,
-                          from_name: e.target.value,
-                        }))
-                      }
-                      disabled={disabled}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-y-2">
-                    <Label htmlFor="postal-test-reply-to">
-                      {t("postal.reply_to")}
-                    </Label>
-                    <Input
-                      id="postal-test-reply-to"
-                      type="email"
-                      placeholder={t("postal.placeholder.reply_to")}
-                      value={testForm.reply_to}
-                      onChange={(e) =>
-                        setTestForm((prev) => ({
-                          ...prev,
-                          reply_to: e.target.value,
-                        }))
-                      }
-                      disabled={disabled}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-y-2">
-                    <Label htmlFor="postal-test-cc">{t("postal.cc")}</Label>
-                    <Input
-                      id="postal-test-cc"
-                      placeholder={t("postal.placeholder.recipients_list")}
-                      value={testForm.cc}
-                      onChange={(e) =>
-                        setTestForm((prev) => ({ ...prev, cc: e.target.value }))
-                      }
-                      disabled={disabled}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-y-2">
-                    <Label htmlFor="postal-test-bcc">{t("postal.bcc")}</Label>
-                    <Input
-                      id="postal-test-bcc"
-                      placeholder={t("postal.placeholder.recipients_list")}
-                      value={testForm.bcc}
-                      onChange={(e) =>
-                        setTestForm((prev) => ({ ...prev, bcc: e.target.value }))
-                      }
-                      disabled={disabled}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-y-2">
-                  <Label htmlFor="postal-test-text">{t("postal.template_text")}</Label>
-                  <textarea
-                    id="postal-test-text"
-                    placeholder={t("postal.template_text")}
-                    value={testForm.text}
-                    onChange={(e) =>
-                      setTestForm((prev) => ({
-                        ...prev,
-                        text: e.target.value,
-                      }))
-                    }
-                    disabled={disabled}
-                    rows={4}
-                    className={toTextareaClassName}
-                  />
-                </div>
-
-                <div className="flex flex-col gap-y-2">
-                  <Label htmlFor="postal-test-html">{t("postal.template_html")}</Label>
-                  <textarea
-                    id="postal-test-html"
-                    placeholder={t("postal.template_html")}
-                    value={testForm.html}
-                    onChange={(e) =>
-                      setTestForm((prev) => ({
-                        ...prev,
-                        html: e.target.value,
-                      }))
-                    }
-                    disabled={disabled}
-                    rows={8}
-                    className={toTextareaClassName}
-                  />
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="flex flex-col gap-y-2">
-                    <Label htmlFor="postal-test-headers">
-                      {t("postal.headers")}
-                    </Label>
-                    <textarea
-                      id="postal-test-headers"
-                      placeholder={t("postal.headers_placeholder")}
-                      value={testForm.headers_json}
-                      onChange={(e) =>
-                        setTestForm((prev) => ({
-                          ...prev,
-                          headers_json: e.target.value,
-                        }))
-                      }
-                      disabled={disabled}
-                      rows={6}
-                      className={toTextareaClassName}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-y-2">
-                    <Label htmlFor="postal-test-custom-args">
-                      {t("postal.custom_args")}
-                    </Label>
-                    <textarea
-                      id="postal-test-custom-args"
-                      placeholder={t("postal.custom_args_placeholder")}
-                      value={testForm.custom_args_json}
-                      onChange={(e) =>
-                        setTestForm((prev) => ({
-                          ...prev,
-                          custom_args_json: e.target.value,
-                        }))
-                      }
-                      disabled={disabled}
-                      rows={6}
-                      className={toTextareaClassName}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-y-2">
-                  <Label htmlFor="postal-test-metadata">{t("postal.metadata")}</Label>
-                  <textarea
-                    id="postal-test-metadata"
-                    placeholder={t("postal.metadata_placeholder")}
-                    value={testForm.metadata_json}
-                    onChange={(e) =>
-                      setTestForm((prev) => ({
-                        ...prev,
-                        metadata_json: e.target.value,
-                      }))
-                    }
-                    disabled={disabled}
-                    rows={6}
-                    className={toTextareaClassName}
-                  />
-                </div>
+              <div className="flex flex-col gap-y-2">
+                <Label htmlFor="postal-test-reply-to">{t("postal.reply_to")}</Label>
+                <Input
+                  id="postal-test-reply-to"
+                  type="email"
+                  placeholder={t("postal.placeholder.reply_to")}
+                  value={testForm.reply_to}
+                  onChange={(e) =>
+                    setTestForm((prev) => ({
+                      ...prev,
+                      reply_to: e.target.value,
+                    }))
+                  }
+                  disabled={disabled}
+                />
               </div>
-            </details>
 
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                {selectedTemplate?.description}
-              </Text>
-              <Button
-                variant="secondary"
-                size="small"
-                onClick={sendTestEmail}
-                isLoading={testMutation.isPending}
-                disabled={disabled}
-                className="w-full md:w-auto"
-              >
-                <PaperPlane />
-                {t("postal.send_test_email")}
-              </Button>
+              <div className="flex flex-col gap-y-2">
+                <Label htmlFor="postal-test-cc">{t("postal.cc")}</Label>
+                <Input
+                  id="postal-test-cc"
+                  placeholder={t("postal.placeholder.recipients_list")}
+                  value={testForm.cc}
+                  onChange={(e) =>
+                    setTestForm((prev) => ({ ...prev, cc: e.target.value }))
+                  }
+                  disabled={disabled}
+                />
+              </div>
+
+              <div className="flex flex-col gap-y-2">
+                <Label htmlFor="postal-test-bcc">{t("postal.bcc")}</Label>
+                <Input
+                  id="postal-test-bcc"
+                  placeholder={t("postal.placeholder.recipients_list")}
+                  value={testForm.bcc}
+                  onChange={(e) =>
+                    setTestForm((prev) => ({ ...prev, bcc: e.target.value }))
+                  }
+                  disabled={disabled}
+                />
+              </div>
             </div>
-          </PluginSection>
+
+            <div className="flex flex-col gap-y-2">
+              <Label htmlFor="postal-test-text">{t("postal.template_text")}</Label>
+              <textarea
+                id="postal-test-text"
+                placeholder={t("postal.template_text")}
+                value={testForm.text}
+                onChange={(e) =>
+                  setTestForm((prev) => ({
+                    ...prev,
+                    text: e.target.value,
+                  }))
+                }
+                disabled={disabled}
+                rows={4}
+                className={toTextareaClassName}
+              />
+            </div>
+
+            <div className="flex flex-col gap-y-2">
+              <Label htmlFor="postal-test-html">{t("postal.template_html")}</Label>
+              <textarea
+                id="postal-test-html"
+                placeholder={t("postal.template_html")}
+                value={testForm.html}
+                onChange={(e) =>
+                  setTestForm((prev) => ({
+                    ...prev,
+                    html: e.target.value,
+                  }))
+                }
+                disabled={disabled}
+                rows={8}
+                className={toTextareaClassName}
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col gap-y-2">
+                <Label htmlFor="postal-test-headers">
+                  {t("postal.headers")}
+                </Label>
+                <textarea
+                  id="postal-test-headers"
+                  placeholder={t("postal.headers_placeholder")}
+                  value={testForm.headers_json}
+                  onChange={(e) =>
+                    setTestForm((prev) => ({
+                      ...prev,
+                      headers_json: e.target.value,
+                    }))
+                  }
+                  disabled={disabled}
+                  rows={6}
+                  className={toTextareaClassName}
+                />
+              </div>
+
+              <div className="flex flex-col gap-y-2">
+                <Label htmlFor="postal-test-custom-args">
+                  {t("postal.custom_args")}
+                </Label>
+                <textarea
+                  id="postal-test-custom-args"
+                  placeholder={t("postal.custom_args_placeholder")}
+                  value={testForm.custom_args_json}
+                  onChange={(e) =>
+                    setTestForm((prev) => ({
+                      ...prev,
+                      custom_args_json: e.target.value,
+                    }))
+                  }
+                  disabled={disabled}
+                  rows={6}
+                  className={toTextareaClassName}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-y-2">
+              <Label htmlFor="postal-test-metadata">{t("postal.metadata")}</Label>
+              <textarea
+                id="postal-test-metadata"
+                placeholder={t("postal.metadata_placeholder")}
+                value={testForm.metadata_json}
+                onChange={(e) =>
+                  setTestForm((prev) => ({
+                    ...prev,
+                    metadata_json: e.target.value,
+                  }))
+                }
+                disabled={disabled}
+                rows={6}
+                className={toTextareaClassName}
+              />
+            </div>
+          </div>
+        </details>
+
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <Text size="small" leading="compact" className="text-ui-fg-subtle">
+            {selectedTemplate?.description}
+          </Text>
+          <Button
+            variant="secondary"
+            size="small"
+            onClick={sendTestEmail}
+            isLoading={testMutation.isPending}
+            disabled={disabled}
+            className="w-full md:w-auto"
+          >
+            <PaperPlane />
+            {t("postal.send_test_email")}
+          </Button>
         </div>
-      </div>
+      </PluginSection>
     </PluginShell>
   );
 };

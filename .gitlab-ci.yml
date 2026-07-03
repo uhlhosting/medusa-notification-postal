@@ -121,6 +121,28 @@ publish:
         npm publish --ignore-scripts --provenance=false --registry "${NPM_REGISTRY}"
       fi
 
+tag:release:
+  stage: deploy
+  needs:
+    - publish
+    - release:verify
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  before_script: []
+  script:
+    - test -n "$GIT_TAG_PUSH_TOKEN"
+    - VERSION="$(node -p "require('./package.json').version")"
+    - TAG_NAME="v${VERSION}"
+    - |
+      if git rev-parse "refs/tags/${TAG_NAME}" >/dev/null 2>&1; then
+        echo "Tag ${TAG_NAME} already exists locally; skipping creation."
+      else
+        git tag -a "${TAG_NAME}" -m "${TAG_NAME}"
+      fi
+    - git remote remove origin-push 2>/dev/null || true
+    - git remote add origin-push "https://x-access-token:${GIT_TAG_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
+    - git push origin-push "refs/tags/${TAG_NAME}:refs/tags/${TAG_NAME}"
+
 mirror:github:
   stage: mirror
   needs:

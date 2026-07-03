@@ -1703,6 +1703,20 @@ const PostalSettingsPage = () => {
   const isConfigured = (data == null ? void 0 : data.configured) && Object.values(data.configured).includes(true);
   const hasSavedApiKey = Boolean((_b = data == null ? void 0 : data.configured) == null ? void 0 : _b.api_key) || Boolean((_c = data == null ? void 0 : data.secret_hints) == null ? void 0 : _c.api_key_masked);
   const disabled = saveMutation.isPending || testMutation.isPending;
+  const configuredSummary = [
+    {
+      label: "Mode",
+      value: "Postal SMTP API"
+    },
+    {
+      label: "Webhook",
+      value: webhookCallbackUrl
+    },
+    {
+      label: "Runtime state",
+      value: isConfigured ? "Ready" : "Needs attention"
+    }
+  ];
   const sendTestEmail = () => {
     try {
       const headers = parseJsonObject(
@@ -1760,6 +1774,22 @@ const PostalSettingsPage = () => {
         ]
       }
     ),
+    /* @__PURE__ */ jsxRuntime.jsx(ui.Container, { className: "p-0", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]", children: [
+      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-3", children: [
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-wrap items-center gap-2", children: [
+          /* @__PURE__ */ jsxRuntime.jsx(ui.Badge, { color: isConfigured ? "green" : "grey", size: "small", children: isConfigured ? t("postal.configured") : t("postal.not_configured") }),
+          /* @__PURE__ */ jsxRuntime.jsx(ui.Badge, { color: "grey", size: "small", children: "smtp-api" })
+        ] }),
+        /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-y-1", children: [
+          /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: "Configure Postal delivery and test routing from one place." }),
+          /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: "Keep credentials in the settings form, keep webhook URLs in the callback view, and use the test panel to validate delivery end to end." })
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxRuntime.jsx("div", { className: "grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3", children: configuredSummary.map((item) => /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3", children: [
+        /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: item.label }),
+        /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", className: "break-words", children: item.value })
+      ] }, item.label)) })
+    ] }) }),
     /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:items-start", children: [
       /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-4", children: [
         /* @__PURE__ */ jsxRuntime.jsxs(
@@ -1886,547 +1916,553 @@ const PostalSettingsPage = () => {
           ] }, row.key)) }) }) })
         ] }) })
       ] }),
-      /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-4 xl:sticky xl:top-4", children: [
-        /* @__PURE__ */ jsxRuntime.jsxs(
-          PluginSection,
-          {
-            title: t("postal.template_preview"),
-            description: templatePreview.description,
-            bodyClassName: "flex flex-col gap-4",
-            children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-y-1", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: templatePreview.label }),
-                  /* @__PURE__ */ jsxRuntime.jsx(
-                    ui.Text,
-                    {
-                      size: "small",
-                      leading: "compact",
-                      className: "max-w-2xl text-ui-fg-subtle",
-                      children: templatePreview.description
-                    }
-                  )
-                ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(
-                    ui.Button,
-                    {
-                      variant: "secondary",
-                      size: "small",
-                      onClick: copyTemplateExample,
-                      disabled,
-                      className: "w-full sm:w-auto",
-                      children: t("postal.copy_example_values")
-                    }
-                  ),
-                  /* @__PURE__ */ jsxRuntime.jsx(
-                    ui.Button,
-                    {
-                      variant: "secondary",
-                      size: "small",
-                      onClick: loadTemplateExample,
-                      disabled,
-                      className: "w-full sm:w-auto",
-                      children: t("postal.load_example_values")
-                    }
-                  )
-                ] })
-              ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
-                /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-template", children: t("postal.template") }),
-                /* @__PURE__ */ jsxRuntime.jsxs(
-                  ui.Select,
+      /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex min-w-0 flex-col gap-4 xl:sticky xl:top-4", children: /* @__PURE__ */ jsxRuntime.jsxs(
+        PluginSection,
+        {
+          title: t("postal.template_preview"),
+          description: templatePreview.description,
+          bodyClassName: "flex flex-col gap-4",
+          children: [
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between", children: [
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-y-1", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: templatePreview.label }),
+                /* @__PURE__ */ jsxRuntime.jsx(
+                  ui.Text,
                   {
-                    value: testForm.template,
-                    onValueChange: (v) => setTestForm((prev) => ({
-                      ...prev,
-                      template: v
-                    })),
-                    disabled,
-                    children: [
-                      /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Trigger, { id: "postal-test-template", children: /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Value, { placeholder: t("postal.template") }) }),
-                      /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Content, { children: templateOptions.map((option) => /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Item, { value: option.value, children: option.label }, option.value)) })
-                    ]
+                    size: "small",
+                    leading: "compact",
+                    className: "max-w-2xl text-ui-fg-subtle",
+                    children: templatePreview.description
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "grid grid-cols-3 rounded-full border border-ui-border-base bg-ui-bg-subtle p-1 sm:inline-flex sm:w-fit", children: ["rendered", "source", "example"].map((mode) => /* @__PURE__ */ jsxRuntime.jsx(
-                ui.Button,
-                {
-                  type: "button",
-                  size: "small",
-                  variant: previewMode === mode ? "primary" : "transparent",
-                  onClick: () => setPreviewMode(mode),
-                  className: "rounded-full",
-                  children: mode === "rendered" ? "Rendered" : mode === "source" ? "Source" : "Example"
-                },
-                mode
-              )) }),
-              previewMode === "rendered" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "overflow-hidden rounded-xl border border-ui-border-base bg-white shadow-sm", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-3 border-b border-ui-border-base bg-ui-bg-subtle px-4 py-3 sm:flex-row sm:items-center sm:justify-between", children: [
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-y-1", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_rendered_preview") }),
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      ui.Text,
-                      {
-                        size: "small",
-                        leading: "compact",
-                        className: "text-ui-fg-subtle",
-                        children: t("postal.template_rendered_preview_hint")
-                      }
-                    )
-                  ] }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Badge, { size: "small", color: "grey", className: "shrink-0", children: templatePreview.label })
-                ] }),
-                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "border-b border-ui-border-base bg-ui-bg-subtle px-4 py-3", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-3 md:grid-cols-3", children: [
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-ui-border-base bg-ui-bg-base p-3", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      ui.Text,
-                      {
-                        size: "small",
-                        leading: "compact",
-                        className: "text-ui-fg-subtle",
-                        children: t("postal.template_subject")
-                      }
-                    ),
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", className: "break-words", children: templatePreview.subject })
-                  ] }),
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-ui-border-base bg-ui-bg-base p-3", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      ui.Text,
-                      {
-                        size: "small",
-                        leading: "compact",
-                        className: "text-ui-fg-subtle",
-                        children: t("postal.template_text")
-                      }
-                    ),
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", className: "break-words", children: templatePreview.text || t("postal.template_empty") })
-                  ] }),
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-ui-border-base bg-ui-bg-base p-3", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      ui.Text,
-                      {
-                        size: "small",
-                        leading: "compact",
-                        className: "text-ui-fg-subtle",
-                        children: t("postal.default_test_recipient")
-                      }
-                    ),
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", className: "break-all", children: form.test_to || t("postal.recipient_fallback") })
-                  ] })
-                ] }) }),
-                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "bg-white", children: renderedTemplateHtml ? /* @__PURE__ */ jsxRuntime.jsx(
-                  "iframe",
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(
+                  ui.Button,
                   {
-                    title: t("postal.template_rendered_preview"),
-                    srcDoc: renderedTemplateHtml,
-                    className: "h-[min(72vh,860px)] w-full bg-white",
-                    sandbox: ""
+                    variant: "secondary",
+                    size: "small",
+                    onClick: copyTemplateExample,
+                    disabled,
+                    className: "w-full sm:w-auto",
+                    children: t("postal.copy_example_values")
                   }
-                ) : /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex h-[420px] items-center justify-center p-6 text-center", children: /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", className: "text-ui-fg-subtle", children: t("postal.template_empty") }) }) })
-              ] }),
-              previewMode === "source" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-4", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_subject") }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Code, { className: "mt-2 block whitespace-pre-wrap break-words", children: templatePreview.subject })
-                ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_text") }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Code, { className: "mt-2 block whitespace-pre-wrap break-words", children: templatePreview.text || t("postal.template_empty") })
-                ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_html") }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Code, { className: "mt-2 block max-h-[480px] overflow-auto whitespace-pre-wrap break-all", children: templatePreview.html || t("postal.template_empty") })
-                ] })
-              ] }),
-              previewMode === "example" && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "grid gap-4", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4", children: [
-                /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_example") }),
-                /* @__PURE__ */ jsxRuntime.jsx(ui.Code, { className: "mt-2 block max-h-[720px] overflow-auto whitespace-pre-wrap break-all", children: JSON.stringify(templateExampleForUi, null, 2) })
-              ] }) }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-1", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: "Template contract" }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: "Required fields, optional fields, and source for each built-in template." })
-                ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-3 flex flex-wrap gap-2", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Badge, { size: "small", color: "blue", className: "w-fit", children: "auth only" }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Badge, { size: "small", color: "green", className: "w-fit", children: "commerce only" }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Badge, { size: "small", color: "orange", className: "w-fit", children: "ops only" }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Badge, { size: "small", color: "grey", className: "w-fit", children: "shared fallback" })
-                ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-3 flex max-w-sm flex-col gap-y-2", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-template-audience-filter", children: "Filter by audience" }),
-                  /* @__PURE__ */ jsxRuntime.jsxs(
-                    ui.Select,
-                    {
-                      value: templateAudienceFilter,
-                      onValueChange: (value) => setTemplateAudienceFilter(value),
-                      children: [
-                        /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Trigger, { id: "postal-template-audience-filter", children: /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Value, { placeholder: "All templates" }) }),
-                        /* @__PURE__ */ jsxRuntime.jsxs(ui.Select.Content, { children: [
-                          /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Item, { value: "all", children: "All templates" }),
-                          /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Item, { value: "auth", children: "Auth" }),
-                          /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Item, { value: "commerce", children: "Commerce" }),
-                          /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Item, { value: "ops", children: "Ops" }),
-                          /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Item, { value: "shared", children: "Shared" })
-                        ] })
-                      ]
-                    }
-                  )
-                ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "mt-3 flex max-w-xl flex-col gap-y-2", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-template-search", children: "Search templates" }),
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      ui.Input,
-                      {
-                        id: "postal-template-search",
-                        value: templateSearch,
-                        onChange: (e) => setTemplateSearch(e.target.value),
-                        placeholder: "Search by template, event, or purpose"
-                      }
-                    ),
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      ui.Button,
-                      {
-                        type: "button",
-                        size: "small",
-                        variant: "secondary",
-                        onClick: () => setTemplateSearch(""),
-                        disabled: !templateSearch,
-                        className: "w-full sm:w-auto",
-                        children: "Clear"
-                      }
-                    ),
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      ui.Button,
-                      {
-                        type: "button",
-                        size: "small",
-                        variant: "transparent",
-                        onClick: () => {
-                          setTemplateAudienceFilter("all");
-                          setTemplateSearch("");
-                        },
-                        disabled: templateAudienceFilter === "all" && !templateSearch.trim(),
-                        className: "w-full sm:w-auto",
-                        children: "Reset filters"
-                      }
-                    )
-                  ] }),
-                  /* @__PURE__ */ jsxRuntime.jsxs(ui.Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: [
-                    filteredTemplateRows.length,
-                    " templates match the current filter."
-                  ] })
-                ] }),
-                /* @__PURE__ */ jsxRuntime.jsx("div", { className: "mt-3 overflow-x-auto rounded-lg border border-ui-border-base bg-white", children: /* @__PURE__ */ jsxRuntime.jsx(ui.Table, { className: "min-w-[920px]", children: /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Body, { children: filteredTemplateRows.length ? filteredTemplateRows.map((row) => /* @__PURE__ */ jsxRuntime.jsxs(ui.Table.Row, { children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-1", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: row.template }),
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      ui.Text,
-                      {
-                        size: "small",
-                        leading: "compact",
-                        className: "text-ui-fg-subtle",
-                        children: row.purpose
-                      }
-                    )
-                  ] }) }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-1", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: "Required" }),
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", children: row.required })
-                  ] }) }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-1", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: "Optional" }),
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", children: row.optional })
-                  ] }) }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-1", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: "Source" }),
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      ui.Text,
-                      {
-                        size: "small",
-                        leading: "compact",
-                        className: "text-ui-fg-subtle",
-                        children: row.source
-                      }
-                    )
-                  ] }) }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-1", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      ui.Badge,
-                      {
-                        size: "small",
-                        color: row.audience === "auth" ? "blue" : row.audience === "commerce" ? "green" : row.audience === "ops" ? "orange" : "grey",
-                        className: "w-fit",
-                        children: row.audience
-                      }
-                    ),
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Code, { className: "block whitespace-pre-wrap break-words", children: row.event })
-                  ] }) }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { children: /* @__PURE__ */ jsxRuntime.jsx(
+                ),
+                /* @__PURE__ */ jsxRuntime.jsx(
+                  ui.Button,
+                  {
+                    variant: "secondary",
+                    size: "small",
+                    onClick: loadTemplateExample,
+                    disabled,
+                    className: "w-full sm:w-auto",
+                    children: t("postal.load_example_values")
+                  }
+                )
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-template", children: t("postal.template") }),
+              /* @__PURE__ */ jsxRuntime.jsxs(
+                ui.Select,
+                {
+                  value: testForm.template,
+                  onValueChange: (v) => setTestForm((prev) => ({
+                    ...prev,
+                    template: v
+                  })),
+                  disabled,
+                  children: [
+                    /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Trigger, { id: "postal-test-template", children: /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Value, { placeholder: t("postal.template") }) }),
+                    /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Content, { children: templateOptions.map((option) => /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Item, { value: option.value, children: option.label }, option.value)) })
+                  ]
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntime.jsx("div", { className: "grid grid-cols-3 rounded-full border border-ui-border-base bg-ui-bg-subtle p-1 sm:inline-flex sm:w-fit", children: ["rendered", "source", "example"].map((mode) => /* @__PURE__ */ jsxRuntime.jsx(
+              ui.Button,
+              {
+                type: "button",
+                size: "small",
+                variant: previewMode === mode ? "primary" : "transparent",
+                onClick: () => setPreviewMode(mode),
+                className: "rounded-full",
+                children: mode === "rendered" ? "Rendered" : mode === "source" ? "Source" : "Example"
+              },
+              mode
+            )) }),
+            previewMode === "rendered" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "overflow-hidden rounded-xl border border-ui-border-base bg-white shadow-sm", children: [
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-3 border-b border-ui-border-base bg-ui-bg-subtle px-4 py-3 sm:flex-row sm:items-center sm:justify-between", children: [
+                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-y-1", children: [
+                  /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_rendered_preview") }),
+                  /* @__PURE__ */ jsxRuntime.jsx(
                     ui.Text,
                     {
                       size: "small",
                       leading: "compact",
                       className: "text-ui-fg-subtle",
-                      children: row.notes
+                      children: t("postal.template_rendered_preview_hint")
                     }
-                  ) }),
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { className: "text-right", children: /* @__PURE__ */ jsxRuntime.jsx(
-                    ui.Button,
-                    {
-                      type: "button",
-                      size: "small",
-                      variant: "secondary",
-                      onClick: () => {
-                        setTestForm((prev) => ({
-                          ...prev,
-                          template: row.template
-                        }));
-                        setPreviewMode("rendered");
-                      },
-                      className: "whitespace-nowrap",
-                      children: "Use template"
-                    }
-                  ) })
-                ] }, row.template)) : /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Row, { children: /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { ...{ colSpan: 7 }, children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "py-6 text-center", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: "No templates match the current filter." }),
+                  )
+                ] }),
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Badge, { size: "small", color: "grey", className: "shrink-0", children: templatePreview.label })
+              ] }),
+              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "border-b border-ui-border-base bg-ui-bg-subtle px-4 py-3", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-3 md:grid-cols-3", children: [
+                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-ui-border-base bg-ui-bg-base p-3", children: [
                   /* @__PURE__ */ jsxRuntime.jsx(
                     ui.Text,
                     {
                       size: "small",
                       leading: "compact",
-                      className: "mt-1 text-ui-fg-subtle",
-                      children: "Clear or reset the filters to see the full Postal template set."
+                      className: "text-ui-fg-subtle",
+                      children: t("postal.template_subject")
                     }
-                  )
-                ] }) }) }) }) }) })
+                  ),
+                  /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", className: "break-words", children: templatePreview.subject })
+                ] }),
+                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-ui-border-base bg-ui-bg-base p-3", children: [
+                  /* @__PURE__ */ jsxRuntime.jsx(
+                    ui.Text,
+                    {
+                      size: "small",
+                      leading: "compact",
+                      className: "text-ui-fg-subtle",
+                      children: t("postal.template_text")
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", className: "break-words", children: templatePreview.text || t("postal.template_empty") })
+                ] }),
+                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-lg border border-ui-border-base bg-ui-bg-base p-3", children: [
+                  /* @__PURE__ */ jsxRuntime.jsx(
+                    ui.Text,
+                    {
+                      size: "small",
+                      leading: "compact",
+                      className: "text-ui-fg-subtle",
+                      children: t("postal.default_test_recipient")
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", className: "break-all", children: form.test_to || t("postal.recipient_fallback") })
+                ] })
+              ] }) }),
+              /* @__PURE__ */ jsxRuntime.jsx("div", { className: "bg-white", children: renderedTemplateHtml ? /* @__PURE__ */ jsxRuntime.jsx(
+                "iframe",
+                {
+                  title: t("postal.template_rendered_preview"),
+                  srcDoc: renderedTemplateHtml,
+                  className: "h-[min(72vh,860px)] w-full bg-white",
+                  sandbox: ""
+                }
+              ) : /* @__PURE__ */ jsxRuntime.jsx("div", { className: "flex h-[420px] items-center justify-center p-6 text-center", children: /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", className: "text-ui-fg-subtle", children: t("postal.template_empty") }) }) })
+            ] }),
+            previewMode === "source" && /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-4", children: [
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_subject") }),
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Code, { className: "mt-2 block whitespace-pre-wrap break-words", children: templatePreview.subject })
+              ] }),
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_text") }),
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Code, { className: "mt-2 block whitespace-pre-wrap break-words", children: templatePreview.text || t("postal.template_empty") })
+              ] }),
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_html") }),
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Code, { className: "mt-2 block max-h-[480px] overflow-auto whitespace-pre-wrap break-all", children: templatePreview.html || t("postal.template_empty") })
               ] })
-            ]
-          }
-        ),
-        /* @__PURE__ */ jsxRuntime.jsxs(
-          PluginSection,
-          {
-            title: t("postal.test_connectivity"),
-            description: t("postal.test_connectivity_hint"),
-            bodyClassName: "flex flex-col gap-4",
-            children: [
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-4 md:grid-cols-2", children: [
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2 md:col-span-2", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-to", children: t("postal.recipient_address") }),
+            ] }),
+            previewMode === "example" && /* @__PURE__ */ jsxRuntime.jsx("div", { className: "grid gap-4", children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4", children: [
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_example") }),
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Code, { className: "mt-2 block max-h-[720px] overflow-auto whitespace-pre-wrap break-all", children: JSON.stringify(templateExampleForUi, null, 2) })
+            ] }) })
+          ]
+        }
+      ) })
+    ] }),
+    /* @__PURE__ */ jsxRuntime.jsxs(
+      PluginSection,
+      {
+        title: t("postal.template_contract"),
+        description: "Reference payloads for built-in Postal templates, project workflows, and fallback content.",
+        bodyClassName: "flex flex-col gap-4",
+        children: [
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-wrap gap-2", children: [
+            /* @__PURE__ */ jsxRuntime.jsx(ui.Badge, { size: "small", color: "blue", className: "w-fit", children: "auth only" }),
+            /* @__PURE__ */ jsxRuntime.jsx(ui.Badge, { size: "small", color: "green", className: "w-fit", children: "commerce only" }),
+            /* @__PURE__ */ jsxRuntime.jsx(ui.Badge, { size: "small", color: "orange", className: "w-fit", children: "ops only" }),
+            /* @__PURE__ */ jsxRuntime.jsx(ui.Badge, { size: "small", color: "grey", className: "w-fit", children: "shared fallback" })
+          ] }),
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-4 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)]", children: [
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-3", children: [
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex max-w-sm flex-col gap-y-2", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-template-audience-filter", children: "Filter by audience" }),
+                /* @__PURE__ */ jsxRuntime.jsxs(
+                  ui.Select,
+                  {
+                    value: templateAudienceFilter,
+                    onValueChange: (value) => setTemplateAudienceFilter(value),
+                    children: [
+                      /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Trigger, { id: "postal-template-audience-filter", children: /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Value, { placeholder: "All templates" }) }),
+                      /* @__PURE__ */ jsxRuntime.jsxs(ui.Select.Content, { children: [
+                        /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Item, { value: "all", children: "All templates" }),
+                        /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Item, { value: "auth", children: "Auth" }),
+                        /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Item, { value: "commerce", children: "Commerce" }),
+                        /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Item, { value: "ops", children: "Ops" }),
+                        /* @__PURE__ */ jsxRuntime.jsx(ui.Select.Item, { value: "shared", children: "Shared" })
+                      ] })
+                    ]
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex max-w-xl flex-col gap-y-2", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-template-search", children: "Search templates" }),
+                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center", children: [
                   /* @__PURE__ */ jsxRuntime.jsx(
                     ui.Input,
                     {
-                      id: "postal-test-to",
-                      type: "email",
-                      placeholder: t("postal.placeholder.customer_email"),
-                      value: testForm.to,
-                      onChange: (e) => setTestForm((prev) => ({ ...prev, to: e.target.value })),
-                      disabled
+                      id: "postal-template-search",
+                      value: templateSearch,
+                      onChange: (e) => setTemplateSearch(e.target.value),
+                      placeholder: "Search by template, event, or purpose"
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntime.jsx(
+                    ui.Button,
+                    {
+                      type: "button",
+                      size: "small",
+                      variant: "secondary",
+                      onClick: () => setTemplateSearch(""),
+                      disabled: !templateSearch,
+                      className: "w-full sm:w-auto",
+                      children: "Clear"
+                    }
+                  ),
+                  /* @__PURE__ */ jsxRuntime.jsx(
+                    ui.Button,
+                    {
+                      type: "button",
+                      size: "small",
+                      variant: "transparent",
+                      onClick: () => {
+                        setTemplateAudienceFilter("all");
+                        setTemplateSearch("");
+                      },
+                      disabled: templateAudienceFilter === "all" && !templateSearch.trim(),
+                      className: "w-full sm:w-auto",
+                      children: "Reset filters"
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2 md:col-span-2", children: [
-                  /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-subject", children: t("postal.template_subject") }),
+                /* @__PURE__ */ jsxRuntime.jsxs(ui.Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: [
+                  filteredTemplateRows.length,
+                  " templates match the current filter."
+                ] })
+              ] })
+            ] }),
+            /* @__PURE__ */ jsxRuntime.jsx("div", { className: "overflow-x-auto rounded-lg border border-ui-border-base bg-white", children: /* @__PURE__ */ jsxRuntime.jsx(ui.Table, { className: "min-w-[920px]", children: /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Body, { children: filteredTemplateRows.length ? filteredTemplateRows.map((row) => /* @__PURE__ */ jsxRuntime.jsxs(ui.Table.Row, { children: [
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-1", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: row.template }),
+                /* @__PURE__ */ jsxRuntime.jsx(
+                  ui.Text,
+                  {
+                    size: "small",
+                    leading: "compact",
+                    className: "text-ui-fg-subtle",
+                    children: row.purpose
+                  }
+                )
+              ] }) }),
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-1", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: "Required" }),
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", children: row.required })
+              ] }) }),
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-1", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: "Optional" }),
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", children: row.optional })
+              ] }) }),
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-1", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: "Source" }),
+                /* @__PURE__ */ jsxRuntime.jsx(
+                  ui.Text,
+                  {
+                    size: "small",
+                    leading: "compact",
+                    className: "text-ui-fg-subtle",
+                    children: row.source
+                  }
+                )
+              ] }) }),
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-1", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(
+                  ui.Badge,
+                  {
+                    size: "small",
+                    color: row.audience === "auth" ? "blue" : row.audience === "commerce" ? "green" : row.audience === "ops" ? "orange" : "grey",
+                    className: "w-fit",
+                    children: row.audience
+                  }
+                ),
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Code, { className: "block whitespace-pre-wrap break-words", children: row.event })
+              ] }) }),
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { children: /* @__PURE__ */ jsxRuntime.jsx(
+                ui.Text,
+                {
+                  size: "small",
+                  leading: "compact",
+                  className: "text-ui-fg-subtle",
+                  children: row.notes
+                }
+              ) }),
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { className: "text-right", children: /* @__PURE__ */ jsxRuntime.jsx(
+                ui.Button,
+                {
+                  type: "button",
+                  size: "small",
+                  variant: "secondary",
+                  onClick: () => {
+                    setTestForm((prev) => ({
+                      ...prev,
+                      template: row.template
+                    }));
+                    setPreviewMode("rendered");
+                  },
+                  className: "whitespace-nowrap",
+                  children: "Use template"
+                }
+              ) })
+            ] }, row.template)) : /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Row, { children: /* @__PURE__ */ jsxRuntime.jsx(ui.Table.Cell, { ...{ colSpan: 7 }, children: /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "py-6 text-center", children: [
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", weight: "plus", children: "No templates match the current filter." }),
+              /* @__PURE__ */ jsxRuntime.jsx(
+                ui.Text,
+                {
+                  size: "small",
+                  leading: "compact",
+                  className: "mt-1 text-ui-fg-subtle",
+                  children: "Clear or reset the filters to see the full Postal template set."
+                }
+              )
+            ] }) }) }) }) }) })
+          ] })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsxRuntime.jsxs(
+      PluginSection,
+      {
+        title: t("postal.test_connectivity"),
+        description: t("postal.test_connectivity_hint"),
+        bodyClassName: "flex flex-col gap-4",
+        children: [
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-4 md:grid-cols-2", children: [
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2 md:col-span-2", children: [
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-to", children: t("postal.recipient_address") }),
+              /* @__PURE__ */ jsxRuntime.jsx(
+                ui.Input,
+                {
+                  id: "postal-test-to",
+                  type: "email",
+                  placeholder: t("postal.placeholder.customer_email"),
+                  value: testForm.to,
+                  onChange: (e) => setTestForm((prev) => ({ ...prev, to: e.target.value })),
+                  disabled
+                }
+              )
+            ] }),
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2 md:col-span-2", children: [
+              /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-subject", children: t("postal.template_subject") }),
+              /* @__PURE__ */ jsxRuntime.jsx(
+                ui.Input,
+                {
+                  id: "postal-test-subject",
+                  placeholder: t("postal.template_subject"),
+                  value: testForm.subject,
+                  onChange: (e) => setTestForm((prev) => ({
+                    ...prev,
+                    subject: e.target.value
+                  })),
+                  disabled
+                }
+              )
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntime.jsxs("details", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle", children: [
+            /* @__PURE__ */ jsxRuntime.jsx("summary", { className: "cursor-pointer px-4 py-3 text-sm font-medium text-ui-fg-base", children: "Advanced payload" }),
+            /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-4 border-t border-ui-border-base p-4", children: [
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-4 md:grid-cols-2", children: [
+                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
+                  /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-from-name", children: t("postal.sender_name") }),
                   /* @__PURE__ */ jsxRuntime.jsx(
                     ui.Input,
                     {
-                      id: "postal-test-subject",
-                      placeholder: t("postal.template_subject"),
-                      value: testForm.subject,
+                      id: "postal-test-from-name",
+                      placeholder: t("postal.placeholder.sender_name"),
+                      value: testForm.from_name,
                       onChange: (e) => setTestForm((prev) => ({
                         ...prev,
-                        subject: e.target.value
+                        from_name: e.target.value
                       })),
                       disabled
                     }
                   )
+                ] }),
+                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
+                  /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-reply-to", children: t("postal.reply_to") }),
+                  /* @__PURE__ */ jsxRuntime.jsx(
+                    ui.Input,
+                    {
+                      id: "postal-test-reply-to",
+                      type: "email",
+                      placeholder: t("postal.placeholder.reply_to"),
+                      value: testForm.reply_to,
+                      onChange: (e) => setTestForm((prev) => ({
+                        ...prev,
+                        reply_to: e.target.value
+                      })),
+                      disabled
+                    }
+                  )
+                ] }),
+                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
+                  /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-cc", children: t("postal.cc") }),
+                  /* @__PURE__ */ jsxRuntime.jsx(
+                    ui.Input,
+                    {
+                      id: "postal-test-cc",
+                      placeholder: t("postal.placeholder.recipients_list"),
+                      value: testForm.cc,
+                      onChange: (e) => setTestForm((prev) => ({ ...prev, cc: e.target.value })),
+                      disabled
+                    }
+                  )
+                ] }),
+                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
+                  /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-bcc", children: t("postal.bcc") }),
+                  /* @__PURE__ */ jsxRuntime.jsx(
+                    ui.Input,
+                    {
+                      id: "postal-test-bcc",
+                      placeholder: t("postal.placeholder.recipients_list"),
+                      value: testForm.bcc,
+                      onChange: (e) => setTestForm((prev) => ({ ...prev, bcc: e.target.value })),
+                      disabled
+                    }
+                  )
                 ] })
               ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("details", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle", children: [
-                /* @__PURE__ */ jsxRuntime.jsx("summary", { className: "cursor-pointer px-4 py-3 text-sm font-medium text-ui-fg-base", children: "Advanced payload" }),
-                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-4 border-t border-ui-border-base p-4", children: [
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-4 md:grid-cols-2", children: [
-                    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
-                      /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-from-name", children: t("postal.sender_name") }),
-                      /* @__PURE__ */ jsxRuntime.jsx(
-                        ui.Input,
-                        {
-                          id: "postal-test-from-name",
-                          placeholder: t("postal.placeholder.sender_name"),
-                          value: testForm.from_name,
-                          onChange: (e) => setTestForm((prev) => ({
-                            ...prev,
-                            from_name: e.target.value
-                          })),
-                          disabled
-                        }
-                      )
-                    ] }),
-                    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
-                      /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-reply-to", children: t("postal.reply_to") }),
-                      /* @__PURE__ */ jsxRuntime.jsx(
-                        ui.Input,
-                        {
-                          id: "postal-test-reply-to",
-                          type: "email",
-                          placeholder: t("postal.placeholder.reply_to"),
-                          value: testForm.reply_to,
-                          onChange: (e) => setTestForm((prev) => ({
-                            ...prev,
-                            reply_to: e.target.value
-                          })),
-                          disabled
-                        }
-                      )
-                    ] }),
-                    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
-                      /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-cc", children: t("postal.cc") }),
-                      /* @__PURE__ */ jsxRuntime.jsx(
-                        ui.Input,
-                        {
-                          id: "postal-test-cc",
-                          placeholder: t("postal.placeholder.recipients_list"),
-                          value: testForm.cc,
-                          onChange: (e) => setTestForm((prev) => ({ ...prev, cc: e.target.value })),
-                          disabled
-                        }
-                      )
-                    ] }),
-                    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
-                      /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-bcc", children: t("postal.bcc") }),
-                      /* @__PURE__ */ jsxRuntime.jsx(
-                        ui.Input,
-                        {
-                          id: "postal-test-bcc",
-                          placeholder: t("postal.placeholder.recipients_list"),
-                          value: testForm.bcc,
-                          onChange: (e) => setTestForm((prev) => ({ ...prev, bcc: e.target.value })),
-                          disabled
-                        }
-                      )
-                    ] })
-                  ] }),
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-text", children: t("postal.template_text") }),
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      "textarea",
-                      {
-                        id: "postal-test-text",
-                        placeholder: t("postal.template_text"),
-                        value: testForm.text,
-                        onChange: (e) => setTestForm((prev) => ({
-                          ...prev,
-                          text: e.target.value
-                        })),
-                        disabled,
-                        rows: 4,
-                        className: toTextareaClassName
-                      }
-                    )
-                  ] }),
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-html", children: t("postal.template_html") }),
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      "textarea",
-                      {
-                        id: "postal-test-html",
-                        placeholder: t("postal.template_html"),
-                        value: testForm.html,
-                        onChange: (e) => setTestForm((prev) => ({
-                          ...prev,
-                          html: e.target.value
-                        })),
-                        disabled,
-                        rows: 8,
-                        className: toTextareaClassName
-                      }
-                    )
-                  ] }),
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-4 md:grid-cols-2", children: [
-                    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
-                      /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-headers", children: t("postal.headers") }),
-                      /* @__PURE__ */ jsxRuntime.jsx(
-                        "textarea",
-                        {
-                          id: "postal-test-headers",
-                          placeholder: t("postal.headers_placeholder"),
-                          value: testForm.headers_json,
-                          onChange: (e) => setTestForm((prev) => ({
-                            ...prev,
-                            headers_json: e.target.value
-                          })),
-                          disabled,
-                          rows: 6,
-                          className: toTextareaClassName
-                        }
-                      )
-                    ] }),
-                    /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
-                      /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-custom-args", children: t("postal.custom_args") }),
-                      /* @__PURE__ */ jsxRuntime.jsx(
-                        "textarea",
-                        {
-                          id: "postal-test-custom-args",
-                          placeholder: t("postal.custom_args_placeholder"),
-                          value: testForm.custom_args_json,
-                          onChange: (e) => setTestForm((prev) => ({
-                            ...prev,
-                            custom_args_json: e.target.value
-                          })),
-                          disabled,
-                          rows: 6,
-                          className: toTextareaClassName
-                        }
-                      )
-                    ] })
-                  ] }),
-                  /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
-                    /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-metadata", children: t("postal.metadata") }),
-                    /* @__PURE__ */ jsxRuntime.jsx(
-                      "textarea",
-                      {
-                        id: "postal-test-metadata",
-                        placeholder: t("postal.metadata_placeholder"),
-                        value: testForm.metadata_json,
-                        onChange: (e) => setTestForm((prev) => ({
-                          ...prev,
-                          metadata_json: e.target.value
-                        })),
-                        disabled,
-                        rows: 6,
-                        className: toTextareaClassName
-                      }
-                    )
-                  ] })
-                ] })
-              ] }),
-              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-3 md:flex-row md:items-center md:justify-between", children: [
-                /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: selectedTemplate == null ? void 0 : selectedTemplate.description }),
-                /* @__PURE__ */ jsxRuntime.jsxs(
-                  ui.Button,
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-text", children: t("postal.template_text") }),
+                /* @__PURE__ */ jsxRuntime.jsx(
+                  "textarea",
                   {
-                    variant: "secondary",
-                    size: "small",
-                    onClick: sendTestEmail,
-                    isLoading: testMutation.isPending,
+                    id: "postal-test-text",
+                    placeholder: t("postal.template_text"),
+                    value: testForm.text,
+                    onChange: (e) => setTestForm((prev) => ({
+                      ...prev,
+                      text: e.target.value
+                    })),
                     disabled,
-                    className: "w-full md:w-auto",
-                    children: [
-                      /* @__PURE__ */ jsxRuntime.jsx(icons.PaperPlane, {}),
-                      t("postal.send_test_email")
-                    ]
+                    rows: 4,
+                    className: toTextareaClassName
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-html", children: t("postal.template_html") }),
+                /* @__PURE__ */ jsxRuntime.jsx(
+                  "textarea",
+                  {
+                    id: "postal-test-html",
+                    placeholder: t("postal.template_html"),
+                    value: testForm.html,
+                    onChange: (e) => setTestForm((prev) => ({
+                      ...prev,
+                      html: e.target.value
+                    })),
+                    disabled,
+                    rows: 8,
+                    className: toTextareaClassName
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "grid gap-4 md:grid-cols-2", children: [
+                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
+                  /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-headers", children: t("postal.headers") }),
+                  /* @__PURE__ */ jsxRuntime.jsx(
+                    "textarea",
+                    {
+                      id: "postal-test-headers",
+                      placeholder: t("postal.headers_placeholder"),
+                      value: testForm.headers_json,
+                      onChange: (e) => setTestForm((prev) => ({
+                        ...prev,
+                        headers_json: e.target.value
+                      })),
+                      disabled,
+                      rows: 6,
+                      className: toTextareaClassName
+                    }
+                  )
+                ] }),
+                /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
+                  /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-custom-args", children: t("postal.custom_args") }),
+                  /* @__PURE__ */ jsxRuntime.jsx(
+                    "textarea",
+                    {
+                      id: "postal-test-custom-args",
+                      placeholder: t("postal.custom_args_placeholder"),
+                      value: testForm.custom_args_json,
+                      onChange: (e) => setTestForm((prev) => ({
+                        ...prev,
+                        custom_args_json: e.target.value
+                      })),
+                      disabled,
+                      rows: 6,
+                      className: toTextareaClassName
+                    }
+                  )
+                ] })
+              ] }),
+              /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-y-2", children: [
+                /* @__PURE__ */ jsxRuntime.jsx(ui.Label, { htmlFor: "postal-test-metadata", children: t("postal.metadata") }),
+                /* @__PURE__ */ jsxRuntime.jsx(
+                  "textarea",
+                  {
+                    id: "postal-test-metadata",
+                    placeholder: t("postal.metadata_placeholder"),
+                    value: testForm.metadata_json,
+                    onChange: (e) => setTestForm((prev) => ({
+                      ...prev,
+                      metadata_json: e.target.value
+                    })),
+                    disabled,
+                    rows: 6,
+                    className: toTextareaClassName
                   }
                 )
               ] })
-            ]
-          }
-        )
-      ] })
-    ] })
+            ] })
+          ] }),
+          /* @__PURE__ */ jsxRuntime.jsxs("div", { className: "flex flex-col gap-3 md:flex-row md:items-center md:justify-between", children: [
+            /* @__PURE__ */ jsxRuntime.jsx(ui.Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: selectedTemplate == null ? void 0 : selectedTemplate.description }),
+            /* @__PURE__ */ jsxRuntime.jsxs(
+              ui.Button,
+              {
+                variant: "secondary",
+                size: "small",
+                onClick: sendTestEmail,
+                isLoading: testMutation.isPending,
+                disabled,
+                className: "w-full md:w-auto",
+                children: [
+                  /* @__PURE__ */ jsxRuntime.jsx(icons.PaperPlane, {}),
+                  t("postal.send_test_email")
+                ]
+              }
+            )
+          ] })
+        ]
+      }
+    )
   ] });
 };
 const PostalPluginSettingsRedirect = () => /* @__PURE__ */ jsxRuntime.jsx(reactRouterDom.Navigate, { to: "/settings/postal", replace: true });

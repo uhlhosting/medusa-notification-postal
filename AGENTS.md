@@ -47,6 +47,7 @@
 5. Keep release validation in the repo and run it before publish-related changes are signed off
 6. Tag mirroring pipelines must push the tag ref specifically (using `refs/tags/...` format) to prevent conflicts with GitLab's background mirroring.
 7. GitHub npm publishing must verify protected refs, package-version tag alignment, and release-branch reachability before publishing.
+8. GitLab release tagging should derive the tag name from `package.json` version and use a protected `GIT_TAG_PUSH_TOKEN` variable when pushing tags back to the repository.
 
 ## Validation Checklist
 1. `pnpm release:check` passes
