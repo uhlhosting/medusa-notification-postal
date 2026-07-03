@@ -85,6 +85,7 @@ type PostalTemplateReferenceRow = {
   template: PostalTemplateName | "default";
   purpose: string;
   audience: "auth" | "commerce" | "ops" | "shared";
+  source: "Medusa native event" | "Postal plugin native" | "Project workflow";
   required: string;
   optional: string;
   event: string;
@@ -99,7 +100,7 @@ type SummaryCardProps = {
 };
 
 const SummaryCard = ({ label, value }: SummaryCardProps) => (
-  <div className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
+  <div className="min-w-0 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
     <Text size="small" leading="compact" className="text-ui-fg-subtle">
       {label}
     </Text>
@@ -141,7 +142,7 @@ const SettingsField = ({
       disabled={disabled}
     />
     {hint ? (
-      <Text size="small" leading="compact" className="text-ui-fg-subtle">
+      <Text size="small" leading="compact" className="break-words text-ui-fg-subtle">
         {hint}
       </Text>
     ) : null}
@@ -153,6 +154,7 @@ const postalTemplateReferenceRows: PostalTemplateReferenceRow[] = [
     template: "default",
     purpose: "Generic fallback preview",
     audience: "shared",
+    source: "Postal plugin native",
     required: "subject, html or text",
     optional: "template-specific content",
     event: "Any custom template",
@@ -162,6 +164,7 @@ const postalTemplateReferenceRows: PostalTemplateReferenceRow[] = [
     template: "postal-test",
     purpose: "Provider transport validation",
     audience: "ops",
+    source: "Postal plugin native",
     required: "subject, html/text, workflow_event, workflow_run_id",
     optional: "cc, bcc, headers, custom_args, metadata, from_name, reply_to",
     event: "postal.example.test",
@@ -171,6 +174,7 @@ const postalTemplateReferenceRows: PostalTemplateReferenceRow[] = [
     template: "postal-admin-test",
     purpose: "Admin settings validation",
     audience: "ops",
+    source: "Postal plugin native",
     required: "subject, html/text, workflow_event, workflow_run_id",
     optional: "cc, bcc, headers, custom_args, metadata, from_name, reply_to",
     event: "admin.postal.test",
@@ -180,6 +184,7 @@ const postalTemplateReferenceRows: PostalTemplateReferenceRow[] = [
     template: "order-placed",
     purpose: "Order confirmation",
     audience: "commerce",
+    source: "Medusa native event",
     required: "order id, customer, items, currency, storefront URL",
     optional: "billing/shipping address, support URL, metadata, custom_args",
     event: "order.placed",
@@ -189,6 +194,7 @@ const postalTemplateReferenceRows: PostalTemplateReferenceRow[] = [
     template: "password-reset",
     purpose: "Password reset",
     audience: "auth",
+    source: "Medusa native event",
     required: "reset token or reset link, subject, html/text",
     optional: "locale, metadata, custom_args, reply_to",
     event: "customer.password_reset",
@@ -198,6 +204,7 @@ const postalTemplateReferenceRows: PostalTemplateReferenceRow[] = [
     template: "email-verification",
     purpose: "Email verification",
     audience: "auth",
+    source: "Medusa native event",
     required: "verification token or verification link, subject, html/text",
     optional: "locale, metadata, custom_args, reply_to",
     event: "customer.email_verification",
@@ -207,6 +214,7 @@ const postalTemplateReferenceRows: PostalTemplateReferenceRow[] = [
     template: "welcome",
     purpose: "Customer onboarding",
     audience: "commerce",
+    source: "Medusa native event",
     required: "customer name or customer context, subject, html/text",
     optional: "locale, metadata, custom_args, reply_to",
     event: "customer.welcome",
@@ -216,6 +224,7 @@ const postalTemplateReferenceRows: PostalTemplateReferenceRow[] = [
     template: "abandoned-cart",
     purpose: "Cart recovery",
     audience: "commerce",
+    source: "Project workflow",
     required: "cart id, cart items, recovery link, subject, html/text",
     optional: "locale, customer name, total, currency, support URL, metadata, custom_args",
     event: "cart.abandoned",
@@ -225,6 +234,7 @@ const postalTemplateReferenceRows: PostalTemplateReferenceRow[] = [
     template: "restock-available",
     purpose: "Back-in-stock alert",
     audience: "commerce",
+    source: "Project workflow",
     required: "product title, product link, subject, html/text",
     optional: "customer name, product handle, locale, metadata, custom_args",
     event: "restock.available",
@@ -275,6 +285,7 @@ export const PostalSettingsPage = () => {
           row.template,
           row.purpose,
           row.audience,
+          row.source,
           row.required,
           row.optional,
           row.event,
@@ -302,7 +313,7 @@ export const PostalSettingsPage = () => {
     {
       key: "api_key",
       label: "API key",
-      value: form.api_key ? "Set" : "Missing",
+      value: data?.configured?.api_key ? "Set" : "Missing",
     },
   ];
 
@@ -447,6 +458,8 @@ export const PostalSettingsPage = () => {
 
   const isConfigured =
     data?.configured && Object.values(data.configured).includes(true);
+  const hasSavedApiKey =
+    Boolean(data?.configured?.api_key) || Boolean(data?.secret_hints?.api_key_masked);
   const disabled = saveMutation.isPending || testMutation.isPending;
 
   const sendTestEmail = () => {
@@ -509,14 +522,14 @@ export const PostalSettingsPage = () => {
         ]}
       />
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:items-start">
-        <div className="flex flex-col gap-4">
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:items-start">
+        <div className="flex min-w-0 flex-col gap-4">
           <PluginSection
             title={t("postal.configuration")}
             description="Postal API credentials, sender identity, and test recipient."
             bodyClassName="flex flex-col gap-4"
           >
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid min-w-0 gap-3 md:grid-cols-3">
               <SummaryCard label="Delivery mode" value="Postal API only" />
               <SummaryCard
                 label="Default test recipient"
@@ -557,6 +570,8 @@ export const PostalSettingsPage = () => {
                 hint={
                   data?.secret_hints?.api_key_masked
                     ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.saved_key_suffix")}`
+                    : hasSavedApiKey
+                      ? t("postal.api_key_saved_no_hint")
                     : t("postal.no_api_key_saved")
                 }
               />
@@ -572,7 +587,7 @@ export const PostalSettingsPage = () => {
               hint={t("postal.default_test_recipient_hint")}
             />
 
-            <div className="flex justify-end border-t pt-4">
+            <div className="flex justify-stretch border-t pt-4 sm:justify-end">
               <Button
                 variant="primary"
                 size="small"
@@ -581,6 +596,7 @@ export const PostalSettingsPage = () => {
                 }
                 isLoading={saveMutation.isPending}
                 disabled={disabled}
+                className="w-full sm:w-auto"
               >
                 {t("postal.save_changes")}
               </Button>
@@ -596,10 +612,10 @@ export const PostalSettingsPage = () => {
                 <Label htmlFor="postal-webhook-callback">
                   {t("postal.webhook_callback_url")}
                 </Label>
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
                   <Code
                     id="postal-webhook-callback"
-                    className="min-w-0 flex-1 truncate"
+                    className="block min-w-0 flex-1 whitespace-normal break-all"
                   >
                     {webhookCallbackUrl}
                   </Code>
@@ -612,6 +628,7 @@ export const PostalSettingsPage = () => {
                       toast.success(t("postal.webhook_callback_copied"));
                     }}
                     disabled={disabled}
+                    className="w-full sm:w-auto"
                   >
                     {t("postal.copy_callback_url")}
                   </Button>
@@ -629,6 +646,7 @@ export const PostalSettingsPage = () => {
                 <Text size="small" leading="compact" className="text-ui-fg-subtle">
                   The following values are saved and used by the provider at runtime.
                 </Text>
+                <div className="overflow-x-auto">
                 <Table>
                   <Table.Body>
                     {checklistRows.map((row) => (
@@ -644,7 +662,7 @@ export const PostalSettingsPage = () => {
                                 {data.configured.api_key ? t("postal.set") : t("postal.missing")}
                               </StatusBadge>
                             ) : (
-                              <Text size="small" leading="compact">
+                              <Text size="small" leading="compact" className="break-all">
                                 {row.value || t("postal.missing")}
                               </Text>
                             )}
@@ -653,18 +671,19 @@ export const PostalSettingsPage = () => {
                     ))}
                   </Table.Body>
                 </Table>
+                </div>
               </div>
             </PluginSidebarSection>
           )}
         </div>
 
-        <div className="flex flex-col gap-4 xl:sticky xl:top-4">
+        <div className="flex min-w-0 flex-col gap-4 xl:sticky xl:top-4">
           <PluginSection
             title={t("postal.template_preview")}
             description={templatePreview.description}
             bodyClassName="flex flex-col gap-4"
           >
-            <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
               <div className="flex min-w-0 flex-col gap-y-1">
                 <Text size="small" leading="compact" weight="plus">
                   {templatePreview.label}
@@ -677,12 +696,13 @@ export const PostalSettingsPage = () => {
                   {templatePreview.description}
                 </Text>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                 <Button
                   variant="secondary"
                   size="small"
                   onClick={copyTemplateExample}
                   disabled={disabled}
+                  className="w-full sm:w-auto"
                 >
                   {t("postal.copy_example_values")}
                 </Button>
@@ -691,6 +711,7 @@ export const PostalSettingsPage = () => {
                   size="small"
                   onClick={loadTemplateExample}
                   disabled={disabled}
+                  className="w-full sm:w-auto"
                 >
                   {t("postal.load_example_values")}
                 </Button>
@@ -722,7 +743,7 @@ export const PostalSettingsPage = () => {
               </Select>
             </div>
 
-            <div className="inline-flex w-fit rounded-full border border-ui-border-base bg-ui-bg-subtle p-1">
+            <div className="grid grid-cols-3 rounded-full border border-ui-border-base bg-ui-bg-subtle p-1 sm:inline-flex sm:w-fit">
               {(["rendered", "source", "example"] as PreviewMode[]).map((mode) => (
                 <Button
                   key={mode}
@@ -739,7 +760,7 @@ export const PostalSettingsPage = () => {
 
             {previewMode === "rendered" && (
               <div className="overflow-hidden rounded-xl border border-ui-border-base bg-white shadow-sm">
-                <div className="flex items-center justify-between gap-3 border-b border-ui-border-base bg-ui-bg-subtle px-4 py-3">
+                <div className="flex min-w-0 flex-col gap-3 border-b border-ui-border-base bg-ui-bg-subtle px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex min-w-0 flex-col gap-y-1">
                     <Text size="small" leading="compact" weight="plus">
                       {t("postal.template_rendered_preview")}
@@ -766,7 +787,7 @@ export const PostalSettingsPage = () => {
                       >
                         {t("postal.template_subject")}
                       </Text>
-                      <Text size="small" leading="compact" weight="plus">
+                      <Text size="small" leading="compact" weight="plus" className="break-words">
                         {templatePreview.subject}
                       </Text>
                     </div>
@@ -778,7 +799,7 @@ export const PostalSettingsPage = () => {
                       >
                         {t("postal.template_text")}
                       </Text>
-                      <Text size="small" leading="compact">
+                      <Text size="small" leading="compact" className="break-words">
                         {templatePreview.text || t("postal.template_empty")}
                       </Text>
                     </div>
@@ -790,7 +811,7 @@ export const PostalSettingsPage = () => {
                       >
                         {t("postal.default_test_recipient")}
                       </Text>
-                      <Text size="small" leading="compact" weight="plus">
+                      <Text size="small" leading="compact" weight="plus" className="break-all">
                         {form.test_to || t("postal.recipient_fallback")}
                       </Text>
                     </div>
@@ -837,7 +858,7 @@ export const PostalSettingsPage = () => {
                   <Text size="small" leading="compact" weight="plus">
                     {t("postal.template_html")}
                   </Text>
-                  <Code className="mt-2 block max-h-[480px] overflow-auto whitespace-pre-wrap break-words">
+                  <Code className="mt-2 block max-h-[480px] overflow-auto whitespace-pre-wrap break-all">
                     {templatePreview.html || t("postal.template_empty")}
                   </Code>
                 </div>
@@ -850,7 +871,7 @@ export const PostalSettingsPage = () => {
                   <Text size="small" leading="compact" weight="plus">
                     {t("postal.template_example")}
                   </Text>
-                  <Code className="mt-2 block max-h-[720px] overflow-auto whitespace-pre-wrap break-words">
+                  <Code className="mt-2 block max-h-[720px] overflow-auto whitespace-pre-wrap break-all">
                     {JSON.stringify(templateExampleForUi, null, 2)}
                   </Code>
                 </div>
@@ -863,7 +884,7 @@ export const PostalSettingsPage = () => {
                   Template contract
                 </Text>
                 <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                  Required fields, optional fields, and audience grouping for each built-in template.
+                  Required fields, optional fields, and source for each built-in template.
                 </Text>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -904,7 +925,7 @@ export const PostalSettingsPage = () => {
               </div>
               <div className="mt-3 flex max-w-xl flex-col gap-y-2">
                 <Label htmlFor="postal-template-search">Search templates</Label>
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
                   <Input
                     id="postal-template-search"
                     value={templateSearch}
@@ -917,6 +938,7 @@ export const PostalSettingsPage = () => {
                     variant="secondary"
                     onClick={() => setTemplateSearch("")}
                     disabled={!templateSearch}
+                    className="w-full sm:w-auto"
                   >
                     Clear
                   </Button>
@@ -931,6 +953,7 @@ export const PostalSettingsPage = () => {
                     disabled={
                       templateAudienceFilter === "all" && !templateSearch.trim()
                     }
+                    className="w-full sm:w-auto"
                   >
                     Reset filters
                   </Button>
@@ -939,8 +962,8 @@ export const PostalSettingsPage = () => {
                   {filteredTemplateRows.length} templates match the current filter.
                 </Text>
               </div>
-              <div className="mt-3 overflow-hidden rounded-lg border border-ui-border-base bg-white">
-                <Table>
+              <div className="mt-3 overflow-x-auto rounded-lg border border-ui-border-base bg-white">
+                <Table className="min-w-[920px]">
                   <Table.Body>
                     {filteredTemplateRows.length ? (
                       filteredTemplateRows.map((row) => (
@@ -976,6 +999,20 @@ export const PostalSettingsPage = () => {
                               </Text>
                               <Text size="small" leading="compact">
                                 {row.optional}
+                              </Text>
+                            </div>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <div className="flex flex-col gap-y-1">
+                              <Text size="small" leading="compact" weight="plus">
+                                Source
+                              </Text>
+                              <Text
+                                size="small"
+                                leading="compact"
+                                className="text-ui-fg-subtle"
+                              >
+                                {row.source}
                               </Text>
                             </div>
                           </Table.Cell>
@@ -1022,6 +1059,7 @@ export const PostalSettingsPage = () => {
                                 }));
                                 setPreviewMode("rendered");
                               }}
+                              className="whitespace-nowrap"
                             >
                               Use template
                             </Button>
@@ -1030,7 +1068,7 @@ export const PostalSettingsPage = () => {
                       ))
                     ) : (
                       <Table.Row>
-                        <Table.Cell {...({ colSpan: 6 } as { colSpan?: number })}>
+                        <Table.Cell {...({ colSpan: 7 } as { colSpan?: number })}>
                           <div className="py-6 text-center">
                             <Text size="small" leading="compact" weight="plus">
                               No templates match the current filter.
@@ -1269,6 +1307,7 @@ export const PostalSettingsPage = () => {
                 onClick={sendTestEmail}
                 isLoading={testMutation.isPending}
                 disabled={disabled}
+                className="w-full md:w-auto"
               >
                 <PaperPlane />
                 {t("postal.send_test_email")}

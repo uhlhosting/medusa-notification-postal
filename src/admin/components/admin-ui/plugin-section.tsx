@@ -20,11 +20,15 @@ export const PluginSection = ({
 }: PluginSectionProps) => {
   return (
     <Container className={clx("divide-y p-0", className)}>
-      <div className="flex flex-col gap-3 px-6 py-4 md:flex-row md:items-start md:justify-between">
+      <div className="flex min-w-0 flex-col gap-3 px-4 py-4 sm:px-6 md:flex-row md:items-start md:justify-between">
         <div className="flex min-w-0 flex-col gap-y-1">
           <Heading level="h2">{title}</Heading>
           {description && (
-            <Text size="small" leading="compact" className="text-ui-fg-subtle">
+            <Text
+              size="small"
+              leading="compact"
+              className="break-words text-ui-fg-subtle"
+            >
               {description}
             </Text>
           )}
@@ -34,7 +38,9 @@ export const PluginSection = ({
         )}
       </div>
       {children && (
-        <div className={clx("px-6 py-4", bodyClassName)}>{children}</div>
+        <div className={clx("min-w-0 px-4 py-4 sm:px-6", bodyClassName)}>
+          {children}
+        </div>
       )}
     </Container>
   );
@@ -55,13 +61,13 @@ export const PluginSidebarSection = ({
 }: PluginSidebarSectionProps) => {
   return (
     <Container className={clx("divide-y p-0", className)}>
-      <div className="flex items-center gap-x-2 px-6 py-4 text-ui-fg-subtle">
+      <div className="flex min-w-0 items-center gap-x-2 px-4 py-4 text-ui-fg-subtle sm:px-6">
         {icon}
         <Text size="small" leading="compact" weight="plus">
           {title}
         </Text>
       </div>
-      <div className="px-6 py-4">{children}</div>
+      <div className="min-w-0 px-4 py-4 sm:px-6">{children}</div>
     </Container>
   );
 };

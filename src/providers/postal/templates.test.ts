@@ -110,13 +110,13 @@ test("resolvePostalSender formats sender identity", () => {
   const resolved = resolvePostalSender(
     {
       from_name: "Postal Admin",
-      reply_to: "reply@uhlhosting.ch",
+      reply_to: "reply@example.com",
     },
-    "no-reply@uhlhosting.ch"
+    "no-reply@example.com"
   )
 
-  assert.equal(resolved.from, "Postal Admin <no-reply@uhlhosting.ch>")
-  assert.equal(resolved.reply_to, "reply@uhlhosting.ch")
+  assert.equal(resolved.from, "Postal Admin <no-reply@example.com>")
+  assert.equal(resolved.reply_to, "reply@example.com")
 })
 
 test("resolvePostalSender uses fallback from and omits empty reply-to", () => {

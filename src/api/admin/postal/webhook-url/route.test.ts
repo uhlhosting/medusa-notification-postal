@@ -22,7 +22,7 @@ test("admin webhook url route returns tokenized callback details", async () => {
 
   const req = {
     headers: {
-      host: "api.uhlhosting.ch",
+      host: "api.example.com",
       "x-forwarded-proto": "https",
     },
     scope: {
@@ -56,7 +56,7 @@ test("admin webhook url route returns tokenized callback details", async () => {
   )
   assert.equal(
     responseBody.payload.callback_url,
-    "https://api.uhlhosting.ch/postal/webhooks/token_123"
+    "https://api.example.com/postal/webhooks/token_123"
   )
 })
 
@@ -75,7 +75,7 @@ test("admin webhook url route prefers the origin header when present", async () 
 
   const req = {
     headers: {
-      origin: "https://origin.uhlhosting.ch/app",
+      origin: "https://origin.example.com/app",
     },
     scope: {
       resolve: () => pgConnection,
@@ -97,12 +97,12 @@ test("admin webhook url route prefers the origin header when present", async () 
 
   await GET(req, res)
 
-  assert.equal(responseBody.payload.callback_url, "https://origin.uhlhosting.ch/postal/webhooks/token_origin")
+  assert.equal(responseBody.payload.callback_url, "https://origin.example.com/postal/webhooks/token_origin")
 })
 
 test("admin webhook url route falls back to backend env origin", async () => {
   const previousBackendUrl = process.env.MEDUSA_BACKEND_URL
-  process.env.MEDUSA_BACKEND_URL = "https://env.uhlhosting.ch"
+  process.env.MEDUSA_BACKEND_URL = "https://env.example.com"
 
   try {
     const pgConnection = {
@@ -149,7 +149,7 @@ test("admin webhook url route falls back to backend env origin", async () => {
     assert.equal(responseBody.status, 200)
     assert.equal(
       responseBody.payload.callback_url,
-      "https://env.uhlhosting.ch/postal/webhooks/token_456"
+      "https://env.example.com/postal/webhooks/token_456"
     )
   } finally {
     if (previousBackendUrl === undefined) {
@@ -278,7 +278,7 @@ test("admin webhook url route falls back to VITE backend origin when MEDUSA back
   const previousBackendUrl = process.env.MEDUSA_BACKEND_URL
   const previousViteBackendUrl = process.env.VITE_BACKEND_URL
   process.env.MEDUSA_BACKEND_URL = "not-a-valid-url"
-  process.env.VITE_BACKEND_URL = "https://vite.uhlhosting.ch"
+  process.env.VITE_BACKEND_URL = "https://vite.example.com"
 
   try {
     const pgConnection = {
@@ -319,7 +319,7 @@ test("admin webhook url route falls back to VITE backend origin when MEDUSA back
 
     assert.equal(
       responseBody.payload.callback_url,
-      "https://vite.uhlhosting.ch/postal/webhooks/token_vite"
+      "https://vite.example.com/postal/webhooks/token_vite"
     )
   } finally {
     if (previousBackendUrl === undefined) {
@@ -340,7 +340,7 @@ test("admin webhook url route falls back to VITE backend origin when forwarded h
   const previousBackendUrl = process.env.MEDUSA_BACKEND_URL
   const previousViteBackendUrl = process.env.VITE_BACKEND_URL
   process.env.MEDUSA_BACKEND_URL = "not-a-valid-url"
-  process.env.VITE_BACKEND_URL = "https://vite-forwarded.uhlhosting.ch"
+  process.env.VITE_BACKEND_URL = "https://vite-forwarded.example.com"
 
   try {
     const pgConnection = {
@@ -381,7 +381,7 @@ test("admin webhook url route falls back to VITE backend origin when forwarded h
 
     assert.equal(
       responseBody.payload.callback_url,
-      "https://vite-forwarded.uhlhosting.ch/postal/webhooks/token_vite_forwarded"
+      "https://vite-forwarded.example.com/postal/webhooks/token_vite_forwarded"
     )
   } finally {
     if (previousBackendUrl === undefined) {

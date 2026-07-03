@@ -14,9 +14,9 @@ test("postal webhook route accepts a MessageSent payload and returns 202", async
         id: 28638,
         token: "message-token-test",
         direction: "outgoing",
-        message_id: "20260630171223.124694.63496@uhlhosting.ch",
-        to: "cosmin@uhlhost.net",
-        from: "sentry@uhlhosting.ch",
+        message_id: "20260630171223.124694.63496@example.com",
+        to: "cosmin@example.com",
+        from: "sentry@example.com",
         subject:
           "[Sentry] PHP-CP-ALL-34 - ErrorException: Warning: Constant SAVEQUERIES already defined",
         timestamp: 1782839544.2800682,
@@ -25,7 +25,7 @@ test("postal webhook route accepts a MessageSent payload and returns 202", async
       },
       status: "Sent",
       details:
-        "Message for cosmin@uhlhost.net accepted by 91.98.211.155:25 (mail.uhlhost.net)",
+        "Message for cosmin@example.com accepted by 91.98.211.155:25 (mail.example.com)",
       output: "250 2.0.0 Ok: queued as AEE3E12055E",
       sent_with_ssl: true,
       timestamp: 1782839545.7319343,
@@ -81,7 +81,7 @@ test("postal webhook route acknowledges the webhook when persistence fails", asy
         status: "Sent",
         message: {
           message_id: "msg_123",
-          to: "customer@uhlhost.net",
+          to: "customer@example.com",
           tag: `${WEBHOOK_TAG_PREFIX}order-placed`,
         },
       },
@@ -134,7 +134,7 @@ test("postal webhook route ignores non-plugin webhook payloads", async () => {
         status: "Sent",
         message: {
           message_id: "msg_external",
-          to: "customer@uhlhost.net",
+          to: "customer@example.com",
           tag: "external-app:order-placed",
         },
       },
@@ -187,7 +187,7 @@ test("postal webhook route ignores untagged sent messages", async () => {
         status: "Sent",
         message: {
           message_id: "msg_untagged",
-          to: "customer@uhlhost.net",
+          to: "customer@example.com",
         },
       },
       scope: {

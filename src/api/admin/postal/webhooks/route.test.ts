@@ -14,7 +14,7 @@ test("admin webhook route returns webhook events from pgConnection", async () =>
             event_type: "message.sent",
             status: "sent",
             message_id: "msg_1",
-            recipient: "recipient@uhlhosting.ch",
+            recipient: "recipient@example.com",
             occurred_at: "2026-06-28T12:00:00.000Z",
             created_at: "2026-06-28T12:01:00.000Z",
             payload: {},

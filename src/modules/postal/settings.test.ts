@@ -18,20 +18,20 @@ test("normalizeSettings fills configuration and masks secrets", () => {
 
   const settings = normalizeSettings({
     POSTAL_AUTH_TYPE: "smtp-api",
-    POSTAL_FROM: "  Postal <no-reply@uhlhosting.ch>  ",
+    POSTAL_FROM: "  Postal <no-reply@example.com>  ",
     POSTAL_BASE_URL: "https://postal.example.test",
     POSTAL_API_KEY: `  ${apiKeyValue}  `,
-    POSTAL_TEST_TO: "ops@uhlhosting.ch",
-    POSTAL_WEBHOOK_TOKEN: "webhook-token-1234",
+    POSTAL_TEST_TO: "ops@example.com",
+    POSTAL_WEBHOOK_TOKEN: webhookTokenValue,
   })
 
   assert.equal(settings.provider_id, "postal")
   assert.equal(settings.auth_type, "smtp-api")
-  assert.equal(settings.from, "  Postal <no-reply@uhlhosting.ch>  ")
+  assert.equal(settings.from, "  Postal <no-reply@example.com>  ")
   assert.equal(settings.base_url, "https://postal.example.test")
   assert.equal(settings.api_key, `  ${apiKeyValue}  `)
-  assert.equal(settings.test_to, "ops@uhlhosting.ch")
-  assert.equal(settings.webhook_token, "webhook-token-1234")
+  assert.equal(settings.test_to, "ops@example.com")
+  assert.equal(settings.webhook_token, webhookTokenValue)
   assert.equal(settings.configured.from, true)
   assert.equal(settings.configured.api_key, true)
   assert.equal(settings.configured.base_url, true)
@@ -42,7 +42,7 @@ test("normalizeSettings fills configuration and masks secrets", () => {
   )
   assert.match(
     settings.secret_hints.webhook_token_masked ?? "",
-    /^\*+1234$/
+    new RegExp(`^\\*+${webhookTokenValue.slice(-4)}$`)
   )
 })
 
@@ -53,7 +53,7 @@ test("toPublicPostalSettings strips secrets from the snapshot", () => {
   const publicSettings = toPublicPostalSettings({
     provider_id: "postal",
     auth_type: "smtp-api",
-    from: "Postal <no-reply@uhlhosting.ch>",
+    from: "Postal <no-reply@example.com>",
     base_url: "https://postal.example.test",
     api_key: apiKeyValue,
     test_to: null,
@@ -72,7 +72,7 @@ test("toPublicPostalSettings strips secrets from the snapshot", () => {
 
   assert.equal(publicSettings.api_key, "")
   assert.equal(publicSettings.webhook_token, "")
-  assert.equal(publicSettings.from, "Postal <no-reply@uhlhosting.ch>")
+  assert.equal(publicSettings.from, "Postal <no-reply@example.com>")
 })
 
 test("validateModeRequirements enforces API mode configuration", () => {
@@ -103,7 +103,7 @@ test("validateModeRequirements enforces API mode configuration", () => {
     validateModeRequirements({
       provider_id: "postal",
       auth_type: "smtp-api",
-      from: "Postal <no-reply@uhlhosting.ch>",
+      from: "Postal <no-reply@example.com>",
       base_url: null,
       api_key: "",
       test_to: null,
@@ -126,7 +126,7 @@ test("validateModeRequirements enforces API mode configuration", () => {
     validateModeRequirements({
       provider_id: "postal",
       auth_type: "smtp-api",
-      from: "Postal <no-reply@uhlhosting.ch>",
+      from: "Postal <no-reply@example.com>",
       base_url: "https://postal.example.test",
       api_key: "",
       test_to: null,
@@ -154,7 +154,7 @@ test("validateModeRequirements allows complete API settings", () => {
     validateModeRequirements({
       provider_id: "postal",
       auth_type: "smtp-api",
-      from: "Postal <no-reply@uhlhosting.ch>",
+      from: "Postal <no-reply@example.com>",
       base_url: "https://postal.example.test",
       api_key: apiKeyValue,
       test_to: null,
@@ -175,15 +175,18 @@ test("validateModeRequirements allows complete API settings", () => {
 })
 
 test("validateModeRequirements ignores unsupported auth modes", () => {
+  const apiKeyValue = randomUUID().replace(/-/g, "").slice(0, 12)
+  const webhookTokenValue = randomUUID().replace(/-/g, "").slice(0, 12)
+
   assert.equal(
     validateModeRequirements({
       provider_id: "postal",
       auth_type: "webhook" as any,
-      from: "Postal <no-reply@uhlhosting.ch>",
+      from: "Postal <no-reply@example.com>",
       base_url: "https://postal.example.test",
-      api_key: "api-key-1234",
+      api_key: apiKeyValue,
       test_to: null,
-      webhook_token: "webhook-token-1234",
+      webhook_token: webhookTokenValue,
       configured: {
         from: true,
         api_key: true,
@@ -223,10 +226,10 @@ test("getPostalSettings and persistPostalSettings merge env and db state", async
     path.join(backendDir, ".env"),
     [
       'POSTAL_AUTH_TYPE="smtp-api"',
-      'POSTAL_FROM=Env Postal <env@uhlhosting.ch>',
+      'POSTAL_FROM=Env Postal <env@example.com>',
       "POSTAL_BASE_URL=https://postal.env.example.test",
       "POSTAL_API_KEY=env-key",
-      "POSTAL_TEST_TO=env-test@uhlhosting.ch",
+      "POSTAL_TEST_TO=env-test@example.com",
       "POSTAL_WEBHOOK_TOKEN=env-token",
       "",
     ].join("\n"),
@@ -258,21 +261,21 @@ test("getPostalSettings and persistPostalSettings merge env and db state", async
     }
 
     const initial = await settings.getPostalSettings(pgConnection)
-    assert.equal(initial.from, "Env Postal <env@uhlhosting.ch>")
+    assert.equal(initial.from, "Env Postal <env@example.com>")
     assert.equal(initial.base_url, "https://postal.env.example.test")
     assert.equal(initial.api_key, "env-key")
     assert.equal(initial.webhook_token, "env-token")
 
     await settings.persistPostalSettings(pgConnection, {
-      from: "Saved Postal <saved@uhlhosting.ch>",
+      from: "Saved Postal <saved@example.com>",
       base_url: "https://postal.saved.example.test",
       api_key: savedApiKeyValue,
-      test_to: "saved-test@uhlhosting.ch",
+      test_to: "saved-test@example.com",
       webhook_token: savedWebhookTokenValue,
     })
 
     const updated = await settings.getPostalSettings(pgConnection)
-    assert.equal(updated.from, "Saved Postal <saved@uhlhosting.ch>")
+    assert.equal(updated.from, "Saved Postal <saved@example.com>")
     assert.equal(updated.base_url, "https://postal.saved.example.test")
     assert.equal(updated.api_key, savedApiKeyValue)
     assert.equal(updated.webhook_token, savedWebhookTokenValue)

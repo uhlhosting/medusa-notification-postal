@@ -14,7 +14,7 @@ test("normalizePostalWebhookPayload maps Postal message delivery events", () => 
     status: "message_sent",
     message: {
       id: "msg_123",
-      recipient: "customer@uhlhost.net",
+      recipient: "customer@example.com",
       created_at: "2026-06-28T10:00:00Z",
     },
   })
@@ -22,7 +22,7 @@ test("normalizePostalWebhookPayload maps Postal message delivery events", () => 
   assert.equal(event.event_type, "MessageDelivered")
   assert.equal(event.status, "sent")
   assert.equal(event.message_id, "msg_123")
-  assert.equal(event.recipient, "customer@uhlhost.net")
+  assert.equal(event.recipient, "customer@example.com")
   assert.equal(event.occurred_at, "2026-06-28T10:00:00.000Z")
 })
 
@@ -90,7 +90,7 @@ test("normalizePostalWebhookPayload falls back to nested message data", () => {
         event: "MessageHeld",
         status: "held",
         id: "msg_held",
-        to: "audit@highacid.com",
+        to: "audit@example.com",
         occurred_at: "2026-06-28 11:30:00Z",
       },
     },
@@ -99,7 +99,7 @@ test("normalizePostalWebhookPayload falls back to nested message data", () => {
   assert.equal(event.event_type, "message.held")
   assert.equal(event.status, "held")
   assert.equal(event.message_id, "msg_held")
-  assert.equal(event.recipient, "audit@highacid.com")
+  assert.equal(event.recipient, "audit@example.com")
   assert.equal(event.occurred_at, "2026-06-28T11:30:00.000Z")
 })
 
@@ -108,17 +108,17 @@ test("normalizePostalWebhookPayload maps bounce and click style events", () => {
     event: "MessageBounced",
     bounce: {
       message_id: "msg_bounced",
-      recipient: "bounce@uhlhosting.ch",
+      recipient: "bounce@example.com",
       timestamp: "2026-06-28T12:15:00Z",
     },
   })
 
   const clicked = normalizePostalWebhookPayload({
     event_type: "MessageLinkClicked",
-    url: "https://uhlhosting.ch",
+    url: "https://example.com",
     message: {
       id: "msg_clicked",
-      to: "click@uhlhost.net",
+      to: "click@example.com",
       created_at: "2026-06-28T12:20:00Z",
     },
   })
@@ -126,13 +126,13 @@ test("normalizePostalWebhookPayload maps bounce and click style events", () => {
   assert.equal(bounced.event_type, "message.bounced")
   assert.equal(bounced.status, "bounced")
   assert.equal(bounced.message_id, "msg_bounced")
-  assert.equal(bounced.recipient, "bounce@uhlhosting.ch")
+  assert.equal(bounced.recipient, "bounce@example.com")
   assert.equal(bounced.occurred_at, "2026-06-28T12:15:00.000Z")
 
   assert.equal(clicked.event_type, "message.link_clicked")
   assert.equal(clicked.status, "clicked")
   assert.equal(clicked.message_id, "msg_clicked")
-  assert.equal(clicked.recipient, "click@uhlhost.net")
+  assert.equal(clicked.recipient, "click@example.com")
 })
 
 test("normalizePostalWebhookPayload handles missing values safely", () => {
@@ -150,14 +150,14 @@ test("normalizePostalWebhookPayload handles explicit loaded and dns error event 
     event_type: "Message Loaded",
     message: {
       id: "msg_loaded_explicit",
-      recipient: "loaded@uhlhosting.ch",
+      recipient: "loaded@example.com",
     },
     occurred_at: "not-a-date",
   })
 
   const dnsError = normalizePostalWebhookPayload({
     status: "domain_dns_error",
-    domain: "uhlhosting.ch",
+    domain: "example.com",
     dns_checked_at: "2026-06-28T12:00:00Z",
   })
 
@@ -178,10 +178,10 @@ test("normalizePostalWebhookPayload covers explicit event aliases", () => {
 
   const clicked = normalizePostalWebhookPayload({
     event_type: "message.link.clicked",
-    url: "https://uhlhosting.ch",
+    url: "https://example.com",
     original_message: {
       id: "msg_clicked_alias",
-      recipient: "alias@uhlhosting.ch",
+      recipient: "alias@example.com",
     },
   })
 
@@ -254,7 +254,7 @@ test("normalizePostalWebhookPayload covers remaining delivery failed and domain 
   })
 
   const dnsError = normalizePostalWebhookPayload({
-    domain: "uhlhosting.ch",
+    domain: "example.com",
     spf_status: "fail",
   })
 
@@ -277,14 +277,14 @@ test("normalizePostalWebhookPayload maps explicit delivery statuses", () => {
     message_status: "loaded",
     message: {
       id: "msg_loaded",
-      recipient: "loaded@uhlhosting.ch",
+      recipient: "loaded@example.com",
       user_agent: "Mozilla",
       created_at: "2026-06-28T12:30:00Z",
     },
   })
   const dnsError = normalizePostalWebhookPayload({
     delivery_status: "domain_dns_error",
-    domain: "uhlhosting.ch",
+    domain: "example.com",
   })
 
   assert.equal(delayed.status, "delayed")
@@ -302,7 +302,7 @@ test("normalizePostalWebhookPayload covers status aliases without explicit event
     status: "clicked",
     message: {
       id: "msg_clicked_status",
-      to: "click-status@uhlhosting.ch",
+      to: "click-status@example.com",
     },
   })
 
@@ -310,13 +310,13 @@ test("normalizePostalWebhookPayload covers status aliases without explicit event
     status: "loaded",
     message: {
       id: "msg_loaded_status",
-      recipient: "load-status@uhlhosting.ch",
+      recipient: "load-status@example.com",
     },
   })
 
   const dnsError = normalizePostalWebhookPayload({
     status: "dns_error",
-    domain: "uhlhosting.ch",
+    domain: "example.com",
   })
 
   const unknown = normalizePostalWebhookPayload({
@@ -371,7 +371,7 @@ test("normalizePostalWebhookPayload covers remaining explicit event aliases", ()
     event_type: "message.bounced",
     message: {
       id: "msg_bounced_exact",
-      recipient: "bounce-exact@uhlhosting.ch",
+      recipient: "bounce-exact@example.com",
     },
   })
 
@@ -383,7 +383,7 @@ test("normalizePostalWebhookPayload covers remaining explicit event aliases", ()
     event_type: "message.link.clicked",
     message: {
       id: "msg_clicked_exact",
-      recipient: "clicked-exact@uhlhosting.ch",
+      recipient: "clicked-exact@example.com",
     },
   })
 
@@ -391,21 +391,21 @@ test("normalizePostalWebhookPayload covers remaining explicit event aliases", ()
     event_type: "MessageLoaded",
     message: {
       id: "msg_loaded_alias",
-      recipient: "loaded-alias@uhlhosting.ch",
+      recipient: "loaded-alias@example.com",
       created_at: "2026-06-28T13:00:00Z",
     },
   })
 
   const dnsError = normalizePostalWebhookPayload({
     event_type: "DomainDnsError",
-    domain: "uhlhosting.ch",
+    domain: "example.com",
   })
 
   const held = normalizePostalWebhookPayload({
     event_type: "MessageHeld",
     message: {
       id: "msg_held_alias",
-      recipient: "held-alias@uhlhosting.ch",
+      recipient: "held-alias@example.com",
     },
   })
 
@@ -417,7 +417,7 @@ test("normalizePostalWebhookPayload covers remaining explicit event aliases", ()
   assert.equal(clickedExact.status, "clicked")
   assert.equal(loaded.event_type, "message.loaded")
   assert.equal(loaded.status, "loaded")
-  assert.equal(loaded.recipient, "loaded-alias@uhlhosting.ch")
+  assert.equal(loaded.recipient, "loaded-alias@example.com")
   assert.equal(dnsError.event_type, "domain.dns_error")
   assert.equal(dnsError.status, "unknown")
   assert.equal(held.event_type, "message.held")
@@ -428,15 +428,15 @@ test("normalizePostalWebhookPayload infers status from nested bounce and click p
   const bounced = normalizePostalWebhookPayload({
     bounce: {
       message_id: "msg_nested_bounced",
-      recipient: "bounce@uhlhosting.ch",
+      recipient: "bounce@example.com",
     },
   })
 
   const clicked = normalizePostalWebhookPayload({
-    url: "https://uhlhosting.ch",
+    url: "https://example.com",
     original_message: {
       message_id: "msg_nested_clicked",
-      recipient: "click@uhlhosting.ch",
+      recipient: "click@example.com",
     },
   })
 
@@ -448,7 +448,7 @@ test("normalizePostalWebhookPayload infers status from nested bounce and click p
 
 test("normalizePostalWebhookPayload falls back to the generic webhook label for partial payloads", () => {
   const urlOnly = normalizePostalWebhookPayload({
-    url: "https://uhlhosting.ch",
+    url: "https://example.com",
   })
 
   const loaded = normalizePostalWebhookPayload({
@@ -456,7 +456,7 @@ test("normalizePostalWebhookPayload falls back to the generic webhook label for 
     user_agent: "Mozilla/5.0",
     message: {
       id: "msg_loaded_inferred",
-      recipient: "loaded-inferred@uhlhosting.ch",
+      recipient: "loaded-inferred@example.com",
     },
   })
 
@@ -480,7 +480,7 @@ test("recordPostalWebhookEvent persists a normalized event", async () => {
     status: "sent",
     message: {
       id: "msg_recorded",
-      recipient: "recipient@uhlhosting.ch",
+      recipient: "recipient@example.com",
       created_at: "2026-06-28T12:00:00Z",
       tag: "uhlhosting.medusa-notification-postal:postal-test",
     },
@@ -492,7 +492,7 @@ test("recordPostalWebhookEvent persists a normalized event", async () => {
   const recorded = event as NonNullable<typeof event>
   assert.equal(recorded.status, "sent")
   assert.equal(recorded.message_id, "msg_recorded")
-  assert.equal(recorded.recipient, "recipient@uhlhosting.ch")
+  assert.equal(recorded.recipient, "recipient@example.com")
 })
 
 test("recordPostalWebhookEvent ignores non-plugin messages", async () => {
@@ -509,7 +509,7 @@ test("recordPostalWebhookEvent ignores non-plugin messages", async () => {
     status: "sent",
     message: {
       id: "msg_other",
-      recipient: "recipient@uhlhosting.ch",
+      recipient: "recipient@example.com",
       tag: "external-app:order-placed",
     },
   })
@@ -532,7 +532,7 @@ test("recordPostalWebhookEvent ignores plugin-tagged non-sent messages", async (
     status: "bounced",
     message: {
       id: "msg_bounced",
-      recipient: "recipient@uhlhosting.ch",
+      recipient: "recipient@example.com",
       tag: "uhlhosting.medusa-notification-postal:postal-test",
     },
   })
@@ -546,7 +546,7 @@ test("recordPostalWebhookEvent returns event when pg connection is unavailable",
     message: {
       tag: "uhlhosting.medusa-notification-postal:postal-test",
       id: "msg_no_pg",
-      recipient: "recipient@uhlhosting.ch",
+      recipient: "recipient@example.com",
     },
     status: "sent",
   })
@@ -569,7 +569,7 @@ test("recordPostalWebhookEvent returns event when persistence fails", async () =
     status: "Sent",
     message: {
       message_id: "msg_failed_write",
-      recipient: "recipient@uhlhosting.ch",
+      recipient: "recipient@example.com",
       tag: "uhlhosting.medusa-notification-postal:postal-test",
     },
   })
@@ -579,7 +579,7 @@ test("recordPostalWebhookEvent returns event when persistence fails", async () =
   assert.equal(recorded.event_type, "message.sent")
   assert.equal(recorded.status, "sent")
   assert.equal(recorded.message_id, "msg_failed_write")
-  assert.equal(recorded.recipient, "recipient@uhlhosting.ch")
+  assert.equal(recorded.recipient, "recipient@example.com")
 })
 
 test("listPostalWebhookEvents returns normalized rows with limit bounds", async () => {
@@ -594,7 +594,7 @@ test("listPostalWebhookEvents returns normalized rows with limit bounds", async 
             event_type: "message.sent",
             status: "sent",
             message_id: "msg_1",
-            recipient: "recipient@uhlhosting.ch",
+            recipient: "recipient@example.com",
             occurred_at: "2026-06-28T12:00:00.000Z",
             created_at: "2026-06-28T12:01:00.000Z",
             payload: {},

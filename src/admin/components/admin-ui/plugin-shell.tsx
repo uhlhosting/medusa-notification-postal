@@ -17,7 +17,9 @@ export const SingleColumnLayout = ({
   className,
 }: SingleColumnLayoutProps) => {
   return (
-    <div className={clx("flex flex-col gap-y-3", className)}>{children}</div>
+    <div className={clx("flex min-w-0 flex-col gap-y-3", className)}>
+      {children}
+    </div>
   );
 };
 
@@ -33,8 +35,8 @@ export const TwoColumnLayout = ({
         className,
       )}
     >
-      <div className="flex w-full flex-col gap-y-3">{firstCol}</div>
-      <div className="flex w-full max-w-full flex-col gap-y-3 xl:max-w-[440px]">
+      <div className="flex min-w-0 w-full flex-col gap-y-3">{firstCol}</div>
+      <div className="flex min-w-0 w-full max-w-full flex-col gap-y-3 xl:max-w-[440px]">
         {secondCol}
       </div>
     </div>

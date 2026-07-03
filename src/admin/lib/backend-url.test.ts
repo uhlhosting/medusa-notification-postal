@@ -22,7 +22,7 @@ test("resolveBackendBaseUrl uses the default fallback when no absolute origin ex
 
 test("resolveBackendBaseUrl prefers an absolute candidate over fallback", () => {
   assert.equal(
-    resolveBackendBaseUrl("https://api.uhlhosting.ch/app", "https://fallback.example.test"),
-    "https://api.uhlhosting.ch"
+    resolveBackendBaseUrl("https://api.example.com/app", "https://fallback.example.test"),
+    "https://api.example.com"
   );
 });

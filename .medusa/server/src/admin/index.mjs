@@ -14,7 +14,7 @@ const SingleColumnLayout = ({
   children,
   className
 }) => {
-  return /* @__PURE__ */ jsx("div", { className: clx("flex flex-col gap-y-3", className), children });
+  return /* @__PURE__ */ jsx("div", { className: clx("flex min-w-0 flex-col gap-y-3", className), children });
 };
 const PluginShell = SingleColumnLayout;
 const PluginHeader = ({
@@ -28,7 +28,7 @@ const PluginHeader = ({
   className
 }) => {
   return /* @__PURE__ */ jsxs(Container, { className: clx("divide-y p-0", className), children: [
-    /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-4 px-6 py-4 md:flex-row md:items-start md:justify-between", children: [
+    /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 flex-col gap-4 px-4 py-4 sm:px-6 md:flex-row md:items-start md:justify-between", children: [
       /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 flex-col gap-y-2", children: [
         /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-center gap-2", children: [
           /* @__PURE__ */ jsx(Heading, { level: "h1", children: title }),
@@ -39,7 +39,7 @@ const PluginHeader = ({
           {
             size: "small",
             leading: "compact",
-            className: "max-w-3xl text-ui-fg-subtle",
+            className: "max-w-3xl break-words text-ui-fg-subtle",
             children: description
           }
         ),
@@ -47,7 +47,7 @@ const PluginHeader = ({
       ] }),
       actions && /* @__PURE__ */ jsx("div", { className: "flex flex-wrap items-center gap-2", children: actions })
     ] }),
-    helpLinks.length > 0 && /* @__PURE__ */ jsx("div", { className: "flex flex-wrap items-center gap-2 px-6 py-3", children: helpLinks.map((link) => /* @__PURE__ */ jsx(Button, { asChild: true, size: "small", variant: "transparent", children: /* @__PURE__ */ jsx("a", { href: link.href, target: "_blank", rel: "noreferrer", children: link.label }) }, link.href)) })
+    helpLinks.length > 0 && /* @__PURE__ */ jsx("div", { className: "flex min-w-0 flex-wrap items-center gap-2 px-4 py-3 sm:px-6", children: helpLinks.map((link) => /* @__PURE__ */ jsx(Button, { asChild: true, size: "small", variant: "transparent", children: /* @__PURE__ */ jsx("a", { href: link.href, target: "_blank", rel: "noreferrer", children: link.label }) }, link.href)) })
   ] });
 };
 const statusColorClass = (color) => {
@@ -96,14 +96,22 @@ const PluginSection = ({
   bodyClassName
 }) => {
   return /* @__PURE__ */ jsxs(Container, { className: clx("divide-y p-0", className), children: [
-    /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-3 px-6 py-4 md:flex-row md:items-start md:justify-between", children: [
+    /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 flex-col gap-3 px-4 py-4 sm:px-6 md:flex-row md:items-start md:justify-between", children: [
       /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 flex-col gap-y-1", children: [
         /* @__PURE__ */ jsx(Heading, { level: "h2", children: title }),
-        description && /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: description })
+        description && /* @__PURE__ */ jsx(
+          Text,
+          {
+            size: "small",
+            leading: "compact",
+            className: "break-words text-ui-fg-subtle",
+            children: description
+          }
+        )
       ] }),
       actions && /* @__PURE__ */ jsx("div", { className: "flex flex-wrap items-center gap-2", children: actions })
     ] }),
-    children && /* @__PURE__ */ jsx("div", { className: clx("px-6 py-4", bodyClassName), children })
+    children && /* @__PURE__ */ jsx("div", { className: clx("min-w-0 px-4 py-4 sm:px-6", bodyClassName), children })
   ] });
 };
 const PluginSidebarSection = ({
@@ -113,11 +121,11 @@ const PluginSidebarSection = ({
   className
 }) => {
   return /* @__PURE__ */ jsxs(Container, { className: clx("divide-y p-0", className), children: [
-    /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-x-2 px-6 py-4 text-ui-fg-subtle", children: [
+    /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 items-center gap-x-2 px-4 py-4 text-ui-fg-subtle sm:px-6", children: [
       icon,
       /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: title })
     ] }),
-    /* @__PURE__ */ jsx("div", { className: "px-6 py-4", children })
+    /* @__PURE__ */ jsx("div", { className: "min-w-0 px-4 py-4 sm:px-6", children })
   ] });
 };
 const DEFAULT_BACKEND_ORIGIN = "/";
@@ -215,19 +223,20 @@ const en = {
   "postal.saved_password_prefix": "Saved password:",
   "postal.saved_password_suffix": "Enter a new password only to replace it.",
   "postal.no_api_key_saved": "No API key saved yet.",
+  "postal.api_key_saved_no_hint": "API key is saved. Enter a new key only to replace it.",
   "postal.masked_long": "••••••••••••••••",
   "postal.masked_short": "••••••••",
   "postal.toast.saved": "Postal settings saved",
   "postal.toast.save_failed": "Failed to save postal settings",
   "postal.toast.test_queued_prefix": "Postal test queued to",
   "postal.toast.test_failed": "Failed to send test email",
-  "postal.placeholder.from_email": "noreply@uhlhosting.ch",
-  "postal.placeholder.base_url": "https://post.uhlhosting.ch",
+  "postal.placeholder.from_email": "noreply@example.com",
+  "postal.placeholder.base_url": "https://postal.example.com",
   "postal.placeholder.api_key": "postal-api-key",
-  "postal.placeholder.test_recipient": "cosmin@uhlhost.net",
+  "postal.placeholder.test_recipient": "recipient@example.com",
   "postal.placeholder.sender_name": "Optional sender name",
   "postal.placeholder.reply_to": "Optional reply-to address",
-  "postal.placeholder.customer_email": "customer@highacid.com",
+  "postal.placeholder.customer_email": "customer@example.com",
   "postal.placeholder.recipients_list": "Optional comma-separated recipients",
   "postal.webhook_callback": "Webhook Callback",
   "postal.webhook_callback_path": "Callback Path",
@@ -349,19 +358,20 @@ const de = {
   "postal.saved_password_prefix": "Gespeichertes Passwort:",
   "postal.saved_password_suffix": "Neues Passwort nur eingeben, um es zu ersetzen.",
   "postal.no_api_key_saved": "Noch kein API-Schlüssel gespeichert.",
+  "postal.api_key_saved_no_hint": "API-Schlüssel ist gespeichert. Neuen Schlüssel nur eingeben, um ihn zu ersetzen.",
   "postal.masked_long": "••••••••••••••••",
   "postal.masked_short": "••••••••",
   "postal.toast.saved": "Postal-Einstellungen gespeichert",
   "postal.toast.save_failed": "Postal-Einstellungen konnten nicht gespeichert werden",
   "postal.toast.test_queued_prefix": "Postal-Test eingereiht an",
   "postal.toast.test_failed": "Test-E-Mail konnte nicht gesendet werden",
-  "postal.placeholder.from_email": "noreply@uhlhosting.ch",
-  "postal.placeholder.base_url": "https://post.uhlhosting.ch",
+  "postal.placeholder.from_email": "noreply@example.com",
+  "postal.placeholder.base_url": "https://postal.example.com",
   "postal.placeholder.api_key": "postal-api-key",
-  "postal.placeholder.test_recipient": "cosmin@uhlhost.net",
+  "postal.placeholder.test_recipient": "recipient@example.com",
   "postal.placeholder.sender_name": "Optionaler Absendername",
   "postal.placeholder.reply_to": "Optionale Reply-To-Adresse",
-  "postal.placeholder.customer_email": "kunde@highacid.com",
+  "postal.placeholder.customer_email": "kunde@example.com",
   "postal.placeholder.recipients_list": "Optionale Empfaenger, durch Kommas getrennt",
   "postal.webhook_callback": "Webhook-Callback",
   "postal.webhook_callback_path": "Callback-Pfad",
@@ -1397,7 +1407,7 @@ const emptyTestForm = {
   metadata_json: "{}"
 };
 const toTextareaClassName = "min-h-[160px] rounded-md border border-ui-border-base bg-ui-bg-base px-3 py-2 font-mono text-sm text-ui-fg-base outline-none transition-colors placeholder:text-ui-fg-muted focus:border-ui-border-interactive";
-const SummaryCard = ({ label, value }) => /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3", children: [
+const SummaryCard = ({ label, value }) => /* @__PURE__ */ jsxs("div", { className: "min-w-0 rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3", children: [
   /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: label }),
   /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", className: "break-words", children: value })
 ] });
@@ -1423,13 +1433,14 @@ const SettingsField = ({
       disabled
     }
   ),
-  hint ? /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: hint }) : null
+  hint ? /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", className: "break-words text-ui-fg-subtle", children: hint }) : null
 ] });
 const postalTemplateReferenceRows = [
   {
     template: "default",
     purpose: "Generic fallback preview",
     audience: "shared",
+    source: "Postal plugin native",
     required: "subject, html or text",
     optional: "template-specific content",
     event: "Any custom template",
@@ -1439,6 +1450,7 @@ const postalTemplateReferenceRows = [
     template: "postal-test",
     purpose: "Provider transport validation",
     audience: "ops",
+    source: "Postal plugin native",
     required: "subject, html/text, workflow_event, workflow_run_id",
     optional: "cc, bcc, headers, custom_args, metadata, from_name, reply_to",
     event: "postal.example.test",
@@ -1448,6 +1460,7 @@ const postalTemplateReferenceRows = [
     template: "postal-admin-test",
     purpose: "Admin settings validation",
     audience: "ops",
+    source: "Postal plugin native",
     required: "subject, html/text, workflow_event, workflow_run_id",
     optional: "cc, bcc, headers, custom_args, metadata, from_name, reply_to",
     event: "admin.postal.test",
@@ -1457,6 +1470,7 @@ const postalTemplateReferenceRows = [
     template: "order-placed",
     purpose: "Order confirmation",
     audience: "commerce",
+    source: "Medusa native event",
     required: "order id, customer, items, currency, storefront URL",
     optional: "billing/shipping address, support URL, metadata, custom_args",
     event: "order.placed",
@@ -1466,6 +1480,7 @@ const postalTemplateReferenceRows = [
     template: "password-reset",
     purpose: "Password reset",
     audience: "auth",
+    source: "Medusa native event",
     required: "reset token or reset link, subject, html/text",
     optional: "locale, metadata, custom_args, reply_to",
     event: "customer.password_reset",
@@ -1475,6 +1490,7 @@ const postalTemplateReferenceRows = [
     template: "email-verification",
     purpose: "Email verification",
     audience: "auth",
+    source: "Medusa native event",
     required: "verification token or verification link, subject, html/text",
     optional: "locale, metadata, custom_args, reply_to",
     event: "customer.email_verification",
@@ -1484,6 +1500,7 @@ const postalTemplateReferenceRows = [
     template: "welcome",
     purpose: "Customer onboarding",
     audience: "commerce",
+    source: "Medusa native event",
     required: "customer name or customer context, subject, html/text",
     optional: "locale, metadata, custom_args, reply_to",
     event: "customer.welcome",
@@ -1493,6 +1510,7 @@ const postalTemplateReferenceRows = [
     template: "abandoned-cart",
     purpose: "Cart recovery",
     audience: "commerce",
+    source: "Project workflow",
     required: "cart id, cart items, recovery link, subject, html/text",
     optional: "locale, customer name, total, currency, support URL, metadata, custom_args",
     event: "cart.abandoned",
@@ -1502,6 +1520,7 @@ const postalTemplateReferenceRows = [
     template: "restock-available",
     purpose: "Back-in-stock alert",
     audience: "commerce",
+    source: "Project workflow",
     required: "product title, product link, subject, html/text",
     optional: "customer name, product handle, locale, metadata, custom_args",
     event: "restock.available",
@@ -1509,7 +1528,7 @@ const postalTemplateReferenceRows = [
   }
 ];
 const PostalSettingsPage = () => {
-  var _a2, _b;
+  var _a2, _b, _c, _d, _e;
   ensurePostalAdminTranslations();
   const { t } = useTranslation();
   const [form, setForm] = useState(emptyForm);
@@ -1548,6 +1567,7 @@ const PostalSettingsPage = () => {
       row.template,
       row.purpose,
       row.audience,
+      row.source,
       row.required,
       row.optional,
       row.event,
@@ -1569,7 +1589,7 @@ const PostalSettingsPage = () => {
     {
       key: "api_key",
       label: "API key",
-      value: form.api_key ? "Set" : "Missing"
+      value: ((_a2 = data == null ? void 0 : data.configured) == null ? void 0 : _a2.api_key) ? "Set" : "Missing"
     }
   ];
   const parseJsonObject = (value, fieldLabel) => {
@@ -1677,6 +1697,7 @@ const PostalSettingsPage = () => {
     }
   });
   const isConfigured = (data == null ? void 0 : data.configured) && Object.values(data.configured).includes(true);
+  const hasSavedApiKey = Boolean((_b = data == null ? void 0 : data.configured) == null ? void 0 : _b.api_key) || Boolean((_c = data == null ? void 0 : data.secret_hints) == null ? void 0 : _c.api_key_masked);
   const disabled = saveMutation.isPending || testMutation.isPending;
   const sendTestEmail = () => {
     try {
@@ -1735,8 +1756,8 @@ const PostalSettingsPage = () => {
         ]
       }
     ),
-    /* @__PURE__ */ jsxs("div", { className: "grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:items-start", children: [
-      /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-4", children: [
+    /* @__PURE__ */ jsxs("div", { className: "grid min-w-0 gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:items-start", children: [
+      /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 flex-col gap-4", children: [
         /* @__PURE__ */ jsxs(
           PluginSection,
           {
@@ -1744,7 +1765,7 @@ const PostalSettingsPage = () => {
             description: "Postal API credentials, sender identity, and test recipient.",
             bodyClassName: "flex flex-col gap-4",
             children: [
-              /* @__PURE__ */ jsxs("div", { className: "grid gap-3 md:grid-cols-3", children: [
+              /* @__PURE__ */ jsxs("div", { className: "grid min-w-0 gap-3 md:grid-cols-3", children: [
                 /* @__PURE__ */ jsx(SummaryCard, { label: "Delivery mode", value: "Postal API only" }),
                 /* @__PURE__ */ jsx(
                   SummaryCard,
@@ -1785,11 +1806,11 @@ const PostalSettingsPage = () => {
                     id: "postal-api-key",
                     label: t("postal.api_key"),
                     type: "password",
-                    placeholder: ((_a2 = data == null ? void 0 : data.secret_hints) == null ? void 0 : _a2.api_key_masked) || t("postal.masked_long"),
+                    placeholder: ((_d = data == null ? void 0 : data.secret_hints) == null ? void 0 : _d.api_key_masked) || t("postal.masked_long"),
                     value: form.api_key,
                     onChange: (value) => setForm((prev) => ({ ...prev, api_key: value })),
                     disabled,
-                    hint: ((_b = data == null ? void 0 : data.secret_hints) == null ? void 0 : _b.api_key_masked) ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.saved_key_suffix")}` : t("postal.no_api_key_saved")
+                    hint: ((_e = data == null ? void 0 : data.secret_hints) == null ? void 0 : _e.api_key_masked) ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.saved_key_suffix")}` : hasSavedApiKey ? t("postal.api_key_saved_no_hint") : t("postal.no_api_key_saved")
                   }
                 )
               ] }),
@@ -1806,7 +1827,7 @@ const PostalSettingsPage = () => {
                   hint: t("postal.default_test_recipient_hint")
                 }
               ),
-              /* @__PURE__ */ jsx("div", { className: "flex justify-end border-t pt-4", children: /* @__PURE__ */ jsx(
+              /* @__PURE__ */ jsx("div", { className: "flex justify-stretch border-t pt-4 sm:justify-end", children: /* @__PURE__ */ jsx(
                 Button,
                 {
                   variant: "primary",
@@ -1814,6 +1835,7 @@ const PostalSettingsPage = () => {
                   onClick: () => saveMutation.mutate({ action: "save", settings: form }),
                   isLoading: saveMutation.isPending,
                   disabled,
+                  className: "w-full sm:w-auto",
                   children: t("postal.save_changes")
                 }
               ) })
@@ -1824,12 +1846,12 @@ const PostalSettingsPage = () => {
           /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: "Postal should POST delivery and tracking events to this exact URL." }),
           /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-y-2", children: [
             /* @__PURE__ */ jsx(Label, { htmlFor: "postal-webhook-callback", children: t("postal.webhook_callback_url") }),
-            /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+            /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center", children: [
               /* @__PURE__ */ jsx(
                 Code,
                 {
                   id: "postal-webhook-callback",
-                  className: "min-w-0 flex-1 truncate",
+                  className: "block min-w-0 flex-1 whitespace-normal break-all",
                   children: webhookCallbackUrl
                 }
               ),
@@ -1844,6 +1866,7 @@ const PostalSettingsPage = () => {
                     toast.success(t("postal.webhook_callback_copied"));
                   },
                   disabled,
+                  className: "w-full sm:w-auto",
                   children: t("postal.copy_callback_url")
                 }
               )
@@ -1853,13 +1876,13 @@ const PostalSettingsPage = () => {
         ] }) }),
         (data == null ? void 0 : data.configured) && /* @__PURE__ */ jsx(PluginSidebarSection, { title: t("postal.active_config_checklist"), children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-y-3", children: [
           /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: "The following values are saved and used by the provider at runtime." }),
-          /* @__PURE__ */ jsx(Table, { children: /* @__PURE__ */ jsx(Table.Body, { children: checklistRows.map((row) => /* @__PURE__ */ jsxs(Table.Row, { children: [
+          /* @__PURE__ */ jsx("div", { className: "overflow-x-auto", children: /* @__PURE__ */ jsx(Table, { children: /* @__PURE__ */ jsx(Table.Body, { children: checklistRows.map((row) => /* @__PURE__ */ jsxs(Table.Row, { children: [
             /* @__PURE__ */ jsx(Table.Cell, { children: /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: row.label }) }),
-            /* @__PURE__ */ jsx(Table.Cell, { className: "text-right", children: row.key === "api_key" ? /* @__PURE__ */ jsx(StatusBadge, { color: data.configured.api_key ? "green" : "red", children: data.configured.api_key ? t("postal.set") : t("postal.missing") }) : /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", children: row.value || t("postal.missing") }) })
-          ] }, row.key)) }) })
+            /* @__PURE__ */ jsx(Table.Cell, { className: "text-right", children: row.key === "api_key" ? /* @__PURE__ */ jsx(StatusBadge, { color: data.configured.api_key ? "green" : "red", children: data.configured.api_key ? t("postal.set") : t("postal.missing") }) : /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", className: "break-all", children: row.value || t("postal.missing") }) })
+          ] }, row.key)) }) }) })
         ] }) })
       ] }),
-      /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-4 xl:sticky xl:top-4", children: [
+      /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 flex-col gap-4 xl:sticky xl:top-4", children: [
         /* @__PURE__ */ jsxs(
           PluginSection,
           {
@@ -1867,7 +1890,7 @@ const PostalSettingsPage = () => {
             description: templatePreview.description,
             bodyClassName: "flex flex-col gap-4",
             children: [
-              /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-start justify-between gap-3", children: [
+              /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between", children: [
                 /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 flex-col gap-y-1", children: [
                   /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: templatePreview.label }),
                   /* @__PURE__ */ jsx(
@@ -1880,7 +1903,7 @@ const PostalSettingsPage = () => {
                     }
                   )
                 ] }),
-                /* @__PURE__ */ jsxs("div", { className: "flex flex-wrap items-center gap-2", children: [
+                /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center", children: [
                   /* @__PURE__ */ jsx(
                     Button,
                     {
@@ -1888,6 +1911,7 @@ const PostalSettingsPage = () => {
                       size: "small",
                       onClick: copyTemplateExample,
                       disabled,
+                      className: "w-full sm:w-auto",
                       children: t("postal.copy_example_values")
                     }
                   ),
@@ -1898,6 +1922,7 @@ const PostalSettingsPage = () => {
                       size: "small",
                       onClick: loadTemplateExample,
                       disabled,
+                      className: "w-full sm:w-auto",
                       children: t("postal.load_example_values")
                     }
                   )
@@ -1921,7 +1946,7 @@ const PostalSettingsPage = () => {
                   }
                 )
               ] }),
-              /* @__PURE__ */ jsx("div", { className: "inline-flex w-fit rounded-full border border-ui-border-base bg-ui-bg-subtle p-1", children: ["rendered", "source", "example"].map((mode) => /* @__PURE__ */ jsx(
+              /* @__PURE__ */ jsx("div", { className: "grid grid-cols-3 rounded-full border border-ui-border-base bg-ui-bg-subtle p-1 sm:inline-flex sm:w-fit", children: ["rendered", "source", "example"].map((mode) => /* @__PURE__ */ jsx(
                 Button,
                 {
                   type: "button",
@@ -1934,7 +1959,7 @@ const PostalSettingsPage = () => {
                 mode
               )) }),
               previewMode === "rendered" && /* @__PURE__ */ jsxs("div", { className: "overflow-hidden rounded-xl border border-ui-border-base bg-white shadow-sm", children: [
-                /* @__PURE__ */ jsxs("div", { className: "flex items-center justify-between gap-3 border-b border-ui-border-base bg-ui-bg-subtle px-4 py-3", children: [
+                /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 flex-col gap-3 border-b border-ui-border-base bg-ui-bg-subtle px-4 py-3 sm:flex-row sm:items-center sm:justify-between", children: [
                   /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 flex-col gap-y-1", children: [
                     /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_rendered_preview") }),
                     /* @__PURE__ */ jsx(
@@ -1960,7 +1985,7 @@ const PostalSettingsPage = () => {
                         children: t("postal.template_subject")
                       }
                     ),
-                    /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: templatePreview.subject })
+                    /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", className: "break-words", children: templatePreview.subject })
                   ] }),
                   /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-ui-border-base bg-ui-bg-base p-3", children: [
                     /* @__PURE__ */ jsx(
@@ -1972,7 +1997,7 @@ const PostalSettingsPage = () => {
                         children: t("postal.template_text")
                       }
                     ),
-                    /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", children: templatePreview.text || t("postal.template_empty") })
+                    /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", className: "break-words", children: templatePreview.text || t("postal.template_empty") })
                   ] }),
                   /* @__PURE__ */ jsxs("div", { className: "rounded-lg border border-ui-border-base bg-ui-bg-base p-3", children: [
                     /* @__PURE__ */ jsx(
@@ -1984,7 +2009,7 @@ const PostalSettingsPage = () => {
                         children: t("postal.default_test_recipient")
                       }
                     ),
-                    /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: form.test_to || t("postal.recipient_fallback") })
+                    /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", className: "break-all", children: form.test_to || t("postal.recipient_fallback") })
                   ] })
                 ] }) }),
                 /* @__PURE__ */ jsx("div", { className: "bg-white", children: renderedTemplateHtml ? /* @__PURE__ */ jsx(
@@ -2008,17 +2033,17 @@ const PostalSettingsPage = () => {
                 ] }),
                 /* @__PURE__ */ jsxs("div", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4", children: [
                   /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_html") }),
-                  /* @__PURE__ */ jsx(Code, { className: "mt-2 block max-h-[480px] overflow-auto whitespace-pre-wrap break-words", children: templatePreview.html || t("postal.template_empty") })
+                  /* @__PURE__ */ jsx(Code, { className: "mt-2 block max-h-[480px] overflow-auto whitespace-pre-wrap break-all", children: templatePreview.html || t("postal.template_empty") })
                 ] })
               ] }),
               previewMode === "example" && /* @__PURE__ */ jsx("div", { className: "grid gap-4", children: /* @__PURE__ */ jsxs("div", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4", children: [
                 /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: t("postal.template_example") }),
-                /* @__PURE__ */ jsx(Code, { className: "mt-2 block max-h-[720px] overflow-auto whitespace-pre-wrap break-words", children: JSON.stringify(templateExampleForUi, null, 2) })
+                /* @__PURE__ */ jsx(Code, { className: "mt-2 block max-h-[720px] overflow-auto whitespace-pre-wrap break-all", children: JSON.stringify(templateExampleForUi, null, 2) })
               ] }) }),
               /* @__PURE__ */ jsxs("div", { className: "rounded-xl border border-ui-border-base bg-ui-bg-subtle p-4", children: [
                 /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-y-1", children: [
                   /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: "Template contract" }),
-                  /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: "Required fields, optional fields, and audience grouping for each built-in template." })
+                  /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", className: "text-ui-fg-subtle", children: "Required fields, optional fields, and source for each built-in template." })
                 ] }),
                 /* @__PURE__ */ jsxs("div", { className: "mt-3 flex flex-wrap gap-2", children: [
                   /* @__PURE__ */ jsx(Badge, { size: "small", color: "blue", className: "w-fit", children: "auth only" }),
@@ -2048,7 +2073,7 @@ const PostalSettingsPage = () => {
                 ] }),
                 /* @__PURE__ */ jsxs("div", { className: "mt-3 flex max-w-xl flex-col gap-y-2", children: [
                   /* @__PURE__ */ jsx(Label, { htmlFor: "postal-template-search", children: "Search templates" }),
-                  /* @__PURE__ */ jsxs("div", { className: "flex items-center gap-2", children: [
+                  /* @__PURE__ */ jsxs("div", { className: "flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center", children: [
                     /* @__PURE__ */ jsx(
                       Input,
                       {
@@ -2066,6 +2091,7 @@ const PostalSettingsPage = () => {
                         variant: "secondary",
                         onClick: () => setTemplateSearch(""),
                         disabled: !templateSearch,
+                        className: "w-full sm:w-auto",
                         children: "Clear"
                       }
                     ),
@@ -2080,6 +2106,7 @@ const PostalSettingsPage = () => {
                           setTemplateSearch("");
                         },
                         disabled: templateAudienceFilter === "all" && !templateSearch.trim(),
+                        className: "w-full sm:w-auto",
                         children: "Reset filters"
                       }
                     )
@@ -2089,7 +2116,7 @@ const PostalSettingsPage = () => {
                     " templates match the current filter."
                   ] })
                 ] }),
-                /* @__PURE__ */ jsx("div", { className: "mt-3 overflow-hidden rounded-lg border border-ui-border-base bg-white", children: /* @__PURE__ */ jsx(Table, { children: /* @__PURE__ */ jsx(Table.Body, { children: filteredTemplateRows.length ? filteredTemplateRows.map((row) => /* @__PURE__ */ jsxs(Table.Row, { children: [
+                /* @__PURE__ */ jsx("div", { className: "mt-3 overflow-x-auto rounded-lg border border-ui-border-base bg-white", children: /* @__PURE__ */ jsx(Table, { className: "min-w-[920px]", children: /* @__PURE__ */ jsx(Table.Body, { children: filteredTemplateRows.length ? filteredTemplateRows.map((row) => /* @__PURE__ */ jsxs(Table.Row, { children: [
                   /* @__PURE__ */ jsx(Table.Cell, { children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-y-1", children: [
                     /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: row.template }),
                     /* @__PURE__ */ jsx(
@@ -2109,6 +2136,18 @@ const PostalSettingsPage = () => {
                   /* @__PURE__ */ jsx(Table.Cell, { children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-y-1", children: [
                     /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: "Optional" }),
                     /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", children: row.optional })
+                  ] }) }),
+                  /* @__PURE__ */ jsx(Table.Cell, { children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-y-1", children: [
+                    /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: "Source" }),
+                    /* @__PURE__ */ jsx(
+                      Text,
+                      {
+                        size: "small",
+                        leading: "compact",
+                        className: "text-ui-fg-subtle",
+                        children: row.source
+                      }
+                    )
                   ] }) }),
                   /* @__PURE__ */ jsx(Table.Cell, { children: /* @__PURE__ */ jsxs("div", { className: "flex flex-col gap-y-1", children: [
                     /* @__PURE__ */ jsx(
@@ -2144,10 +2183,11 @@ const PostalSettingsPage = () => {
                         }));
                         setPreviewMode("rendered");
                       },
+                      className: "whitespace-nowrap",
                       children: "Use template"
                     }
                   ) })
-                ] }, row.template)) : /* @__PURE__ */ jsx(Table.Row, { children: /* @__PURE__ */ jsx(Table.Cell, { ...{ colSpan: 6 }, children: /* @__PURE__ */ jsxs("div", { className: "py-6 text-center", children: [
+                ] }, row.template)) : /* @__PURE__ */ jsx(Table.Row, { children: /* @__PURE__ */ jsx(Table.Cell, { ...{ colSpan: 7 }, children: /* @__PURE__ */ jsxs("div", { className: "py-6 text-center", children: [
                   /* @__PURE__ */ jsx(Text, { size: "small", leading: "compact", weight: "plus", children: "No templates match the current filter." }),
                   /* @__PURE__ */ jsx(
                     Text,
@@ -2370,6 +2410,7 @@ const PostalSettingsPage = () => {
                     onClick: sendTestEmail,
                     isLoading: testMutation.isPending,
                     disabled,
+                    className: "w-full md:w-auto",
                     children: [
                       /* @__PURE__ */ jsx(PaperPlane, {}),
                       t("postal.send_test_email")

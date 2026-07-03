@@ -17,7 +17,7 @@ A production-ready Postal notification provider for Medusa. Designed for reliabl
 
 ### Postal API settings
 
-- `base_url` - Postal base URL, for example `https://post.uhlhosting.ch`
+- `base_url` - Postal base URL, for example `https://postal.example.com`
 - `api_key` - Postal server API key used in `X-Server-API-Key`
 
 ## Usage
@@ -52,7 +52,7 @@ Use Medusa notification workflows and pass workflow metadata in `provider_data`:
 ```ts
 await notificationModuleService.createNotifications({
   channel: "email",
-  to: "cosmin@uhlhost.net",
+  to: "cosmin@example.com",
   template: "order-placed",
   provider_id: "postal",
   content: {
@@ -144,9 +144,9 @@ You can also set sender identity fields when you need branded mail or a separate
 
 ```ts
 provider_data: {
-  from: "no-reply@uhlhosting.ch",
+  from: "no-reply@example.com",
   from_name: "Postal Admin",
-  reply_to: "support@uhlhosting.ch",
+  reply_to: "support@example.com",
   cc: "cosmin@uhl-services.ch",
   bcc: ["siravecavec@gmail.com"],
   headers: {
@@ -166,8 +166,8 @@ import { sendPostalEmailWorkflow } from "@uhlhosting/medusa-notification-postal"
 
 const { result } = await sendPostalEmailWorkflow(req.scope).run({
   input: {
-    to: "cosmin@uhlhost.net",
-    from: "custom-sender@uhlhosting.ch", // Optional, defaults to POSTAL_FROM
+    to: "cosmin@example.com",
+    from: "custom-sender@example.com", // Optional, defaults to POSTAL_FROM
     template: "custom-template-id",    // Optional
     provider_data: {
       subject: "Test Programmatic Email",

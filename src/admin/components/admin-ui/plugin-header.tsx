@@ -36,7 +36,7 @@ export const PluginHeader = ({
 }: PluginHeaderProps) => {
   return (
     <Container className={clx("divide-y p-0", className)}>
-      <div className="flex flex-col gap-4 px-6 py-4 md:flex-row md:items-start md:justify-between">
+      <div className="flex min-w-0 flex-col gap-4 px-4 py-4 sm:px-6 md:flex-row md:items-start md:justify-between">
         <div className="flex min-w-0 flex-col gap-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <Heading level="h1">{title}</Heading>
@@ -48,7 +48,7 @@ export const PluginHeader = ({
             <Text
               size="small"
               leading="compact"
-              className="max-w-3xl text-ui-fg-subtle"
+              className="max-w-3xl break-words text-ui-fg-subtle"
             >
               {description}
             </Text>
@@ -64,7 +64,7 @@ export const PluginHeader = ({
         )}
       </div>
       {helpLinks.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 px-6 py-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
           {helpLinks.map((link) => (
             <Button key={link.href} asChild size="small" variant="transparent">
               <a href={link.href} target="_blank" rel="noreferrer">

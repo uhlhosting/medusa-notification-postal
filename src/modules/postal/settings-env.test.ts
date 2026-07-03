@@ -23,10 +23,10 @@ test("postal settings reads and writes the backend env file", async () => {
     [
       "# postal settings",
       'POSTAL_AUTH_TYPE="smtp-api"',
-      "POSTAL_FROM=Postal <no-reply@uhlhosting.ch>",
+      "POSTAL_FROM=Postal <no-reply@example.com>",
       'POSTAL_BASE_URL="https://postal.example.test"',
       `POSTAL_API_KEY=${apiKeyValue}`,
-      "POSTAL_TEST_TO=ops@uhlhosting.ch",
+      "POSTAL_TEST_TO=ops@example.com",
       `POSTAL_WEBHOOK_TOKEN=${webhookTokenValue}`,
       "INVALID_LINE",
       "",
@@ -42,7 +42,7 @@ test("postal settings reads and writes the backend env file", async () => {
 
     const pgCalls: Array<{ sql: string; params?: unknown[] }> = []
     let storedDbValue: Record<string, unknown> | null = {
-      POSTAL_FROM: "Db Postal <db@uhlhosting.ch>",
+      POSTAL_FROM: "Db Postal <db@example.com>",
     }
     const pgConnection = {
       raw: async (sql: string, params?: unknown[]) => {
@@ -68,26 +68,26 @@ test("postal settings reads and writes the backend env file", async () => {
     }
 
     const snapshot = await settings.getPostalSettings(pgConnection)
-    assert.equal(snapshot.from, "Db Postal <db@uhlhosting.ch>")
+    assert.equal(snapshot.from, "Db Postal <db@example.com>")
     assert.equal(snapshot.base_url, "https://postal.example.test")
     assert.equal(snapshot.api_key, apiKeyValue)
     assert.equal(snapshot.webhook_token, webhookTokenValue)
 
     const persisted = await settings.persistPostalSettings(pgConnection, {
-      from: "Postal <admin@uhlhosting.ch>",
+      from: "Postal <admin@example.com>",
       base_url: "https://postal.example.test",
       api_key: newApiKeyValue,
-      test_to: "test@uhlhosting.ch",
+      test_to: "test@example.com",
       webhook_token: newWebhookTokenValue,
     })
 
-    assert.equal(persisted.from, "Postal <admin@uhlhosting.ch>")
+    assert.equal(persisted.from, "Postal <admin@example.com>")
     assert.equal(persisted.api_key, newApiKeyValue)
     assert.equal(persisted.webhook_token, newWebhookTokenValue)
     assert.ok(pgCalls.some((call) => call.sql.includes("INSERT INTO admin_plugin_settings")))
 
     const writtenEnv = readFileSync(envPath, "utf8")
-    assert.match(writtenEnv, /POSTAL_FROM="Postal <admin@uhlhosting\.ch>"/)
+    assert.match(writtenEnv, /POSTAL_FROM="Postal <admin@example\.com>"/)
     assert.match(writtenEnv, new RegExp(`POSTAL_API_KEY=${newApiKeyValue}`))
     assert.match(writtenEnv, new RegExp(`POSTAL_WEBHOOK_TOKEN=${newWebhookTokenValue}`))
   } finally {
@@ -97,6 +97,8 @@ test("postal settings reads and writes the backend env file", async () => {
 })
 
 test("postal settings preserves unrelated env entries when persisting updates", async () => {
+  const apiKeyValue = randomUUID().replace(/-/g, "").slice(0, 12)
+  const webhookTokenValue = randomUUID().replace(/-/g, "").slice(0, 12)
   const originalCwd = cwd()
   const tempRoot = mkdtempSync(path.join(tmpdir(), "postal-settings-preserve-"))
   const backendDir = path.join(tempRoot, "apps", "backend")
@@ -107,7 +109,7 @@ test("postal settings preserves unrelated env entries when persisting updates", 
     envPath,
     [
       "POSTAL_AUTH_TYPE=smtp-api",
-      "POSTAL_FROM=Postal <ops@uhlhosting.ch>",
+      "POSTAL_FROM=Postal <ops@example.com>",
       "POSTAL_BASE_URL=https://postal.example.test",
       "POSTAL_API_KEY=existing-key",
       "POSTAL_WEBHOOK_TOKEN=existing-token",
@@ -133,18 +135,18 @@ test("postal settings preserves unrelated env entries when persisting updates", 
         },
       },
       {
-        from: "Postal <ops@uhlhosting.ch>",
+        from: "Postal <ops@example.com>",
         base_url: "https://postal.example.test",
-        api_key: "updated-key",
-        test_to: "test@uhlhosting.ch",
-        webhook_token: "updated-token",
+        api_key: apiKeyValue,
+        test_to: "test@example.com",
+        webhook_token: webhookTokenValue,
       }
     )
 
     const writtenEnv = readFileSync(envPath, "utf8")
     assert.match(writtenEnv, /OTHER_SETTING=keep-me/)
-    assert.match(writtenEnv, /POSTAL_API_KEY=updated-key/)
-    assert.match(writtenEnv, /POSTAL_WEBHOOK_TOKEN=updated-token/)
+    assert.match(writtenEnv, new RegExp(`POSTAL_API_KEY=${apiKeyValue}`))
+    assert.match(writtenEnv, new RegExp(`POSTAL_WEBHOOK_TOKEN=${webhookTokenValue}`))
   } finally {
     chdir(originalCwd)
     rmSync(tempRoot, { recursive: true, force: true })
@@ -195,7 +197,7 @@ test("postal settings ignores malformed env assignments with missing keys", asyn
     [
       " =orphaned-value",
       "POSTAL_AUTH_TYPE=smtp-api",
-      "POSTAL_FROM=Malformed Postal <malformed@uhlhosting.ch>",
+      "POSTAL_FROM=Malformed Postal <malformed@example.com>",
       "POSTAL_BASE_URL=https://postal.malformed.example.test",
       "POSTAL_API_KEY=malformed-key",
       "POSTAL_WEBHOOK_TOKEN=malformed-token",
@@ -212,7 +214,7 @@ test("postal settings ignores malformed env assignments with missing keys", asyn
 
     const snapshot = await settings.getPostalSettings(undefined)
 
-    assert.equal(snapshot.from, "Malformed Postal <malformed@uhlhosting.ch>")
+    assert.equal(snapshot.from, "Malformed Postal <malformed@example.com>")
     assert.equal(snapshot.api_key, "malformed-key")
     assert.equal(snapshot.webhook_token, "malformed-token")
   } finally {
@@ -231,7 +233,7 @@ test("postal settings resolves the env file when already inside apps/backend", a
     path.join(backendDir, ".env"),
     [
       "POSTAL_AUTH_TYPE=smtp-api",
-      "POSTAL_FROM=Backend Postal <backend@uhlhosting.ch>",
+      "POSTAL_FROM=Backend Postal <backend@example.com>",
       "POSTAL_BASE_URL=https://postal.backend.example.test",
       "POSTAL_API_KEY=backend-key",
       "POSTAL_WEBHOOK_TOKEN=backend-token",
@@ -248,7 +250,7 @@ test("postal settings resolves the env file when already inside apps/backend", a
 
     const snapshot = await settings.getPostalSettings(undefined)
 
-    assert.equal(snapshot.from, "Backend Postal <backend@uhlhosting.ch>")
+    assert.equal(snapshot.from, "Backend Postal <backend@example.com>")
     assert.equal(snapshot.base_url, "https://postal.backend.example.test")
     assert.equal(snapshot.api_key, "backend-key")
     assert.equal(snapshot.webhook_token, "backend-token")
@@ -268,7 +270,7 @@ test("postal settings generates a webhook token when one is missing", async () =
     path.join(backendDir, ".env"),
     [
       "POSTAL_AUTH_TYPE=smtp-api",
-      "POSTAL_FROM=Postal <ops@uhlhosting.ch>",
+      "POSTAL_FROM=Postal <ops@example.com>",
       "POSTAL_BASE_URL=https://postal.example.test",
       "POSTAL_API_KEY=existing-key",
       "",
@@ -293,14 +295,14 @@ test("postal settings generates a webhook token when one is missing", async () =
         },
       },
       {
-        from: "Postal <ops@uhlhosting.ch>",
+        from: "Postal <ops@example.com>",
         base_url: "https://postal.example.test",
         api_key: "",
         test_to: "ops@example.com",
       }
     )
 
-    assert.equal(persisted.from, "Postal <ops@uhlhosting.ch>")
+    assert.equal(persisted.from, "Postal <ops@example.com>")
     assert.equal(persisted.api_key, "existing-key")
     assert.match(persisted.webhook_token, /^[a-f0-9]{64}$/)
   } finally {
@@ -315,6 +317,8 @@ test("postal settings generates a webhook token when one is missing", async () =
 })
 
 test("postal settings falls back to process.env when no env file values exist", async () => {
+  const apiKeyValue = randomUUID().replace(/-/g, "").slice(0, 12)
+  const webhookTokenValue = randomUUID().replace(/-/g, "").slice(0, 12)
   const previousCwd = cwd()
   const previousEnv = {
     POSTAL_AUTH_TYPE: process.env.POSTAL_AUTH_TYPE,
@@ -327,10 +331,10 @@ test("postal settings falls back to process.env when no env file values exist", 
   mkdirSync(path.join(tempRoot, "apps", "backend"), { recursive: true })
 
   process.env.POSTAL_AUTH_TYPE = "smtp-api"
-  process.env.POSTAL_FROM = "Process Env <env@uhlhosting.ch>"
+  process.env.POSTAL_FROM = "Process Env <env@example.com>"
   process.env.POSTAL_BASE_URL = "https://postal.process.example.test"
-  process.env.POSTAL_API_KEY = "process-key"
-  process.env.POSTAL_WEBHOOK_TOKEN = "process-token"
+  process.env.POSTAL_API_KEY = apiKeyValue
+  process.env.POSTAL_WEBHOOK_TOKEN = webhookTokenValue
 
   chdir(tempRoot)
 
@@ -340,10 +344,10 @@ test("postal settings falls back to process.env when no env file values exist", 
 
     const snapshot = await settings.getPostalSettings(undefined)
 
-    assert.equal(snapshot.from, "Process Env <env@uhlhosting.ch>")
+    assert.equal(snapshot.from, "Process Env <env@example.com>")
     assert.equal(snapshot.base_url, "https://postal.process.example.test")
-    assert.equal(snapshot.api_key, "process-key")
-    assert.equal(snapshot.webhook_token, "process-token")
+    assert.equal(snapshot.api_key, apiKeyValue)
+    assert.equal(snapshot.webhook_token, webhookTokenValue)
   } finally {
     chdir(previousCwd)
     rmSync(tempRoot, { recursive: true, force: true })
@@ -368,7 +372,7 @@ test("postal settings cleans up when writing the env file fails", async () => {
     path.join(backendDir, ".env"),
     [
       "POSTAL_AUTH_TYPE=smtp-api",
-      "POSTAL_FROM=Postal <ops@uhlhosting.ch>",
+      "POSTAL_FROM=Postal <ops@example.com>",
       "POSTAL_BASE_URL=https://postal.example.test",
       "POSTAL_API_KEY=existing-key",
       "",
@@ -394,7 +398,7 @@ test("postal settings cleans up when writing the env file fails", async () => {
             },
           },
           {
-            from: "Postal <ops@uhlhosting.ch>",
+            from: "Postal <ops@example.com>",
             base_url: "https://postal.example.test",
             api_key: "new-key",
             test_to: "ops@example.com",
@@ -418,7 +422,7 @@ test("postal settings can persist without a database connection", async () => {
     path.join(backendDir, ".env"),
     [
       "POSTAL_AUTH_TYPE=smtp-api",
-      "POSTAL_FROM=Postal <ops@uhlhosting.ch>",
+      "POSTAL_FROM=Postal <ops@example.com>",
       "POSTAL_BASE_URL=https://postal.example.test",
       "POSTAL_API_KEY=existing-key",
       "POSTAL_WEBHOOK_TOKEN=existing-token",
@@ -434,14 +438,14 @@ test("postal settings can persist without a database connection", async () => {
     const settings = await import(`${moduleUrl.href}?case=no-db`)
 
     const persisted = await settings.persistPostalSettings(undefined, {
-      from: "Postal <new@uhlhosting.ch>",
+      from: "Postal <new@example.com>",
       base_url: "https://postal.example.test",
       api_key: "new-key",
       test_to: "ops@example.com",
       webhook_token: "new-token",
     })
 
-    assert.equal(persisted.from, "Postal <new@uhlhosting.ch>")
+    assert.equal(persisted.from, "Postal <new@example.com>")
     assert.equal(persisted.api_key, "new-key")
     assert.equal(persisted.webhook_token, "new-token")
   } finally {
@@ -459,7 +463,7 @@ test("postal settings falls back cleanly when the database read fails", async ()
     path.join(backendDir, ".env"),
     [
       "POSTAL_AUTH_TYPE=smtp-api",
-      "POSTAL_FROM=Fallback Postal <fallback@uhlhosting.ch>",
+      "POSTAL_FROM=Fallback Postal <fallback@example.com>",
       "POSTAL_BASE_URL=https://postal.fallback.example.test",
       "POSTAL_API_KEY=fallback-key",
       "POSTAL_WEBHOOK_TOKEN=fallback-token",
@@ -480,7 +484,7 @@ test("postal settings falls back cleanly when the database read fails", async ()
       },
     })
 
-    assert.equal(snapshot.from, "Fallback Postal <fallback@uhlhosting.ch>")
+    assert.equal(snapshot.from, "Fallback Postal <fallback@example.com>")
     assert.equal(snapshot.api_key, "fallback-key")
     assert.equal(snapshot.webhook_token, "fallback-token")
   } finally {
@@ -490,6 +494,8 @@ test("postal settings falls back cleanly when the database read fails", async ()
 })
 
 test("postal settings can persist when the env file does not exist yet", async () => {
+  const apiKeyValue = randomUUID().replace(/-/g, "").slice(0, 12)
+  const webhookTokenValue = randomUUID().replace(/-/g, "").slice(0, 12)
   const originalCwd = cwd()
   const tempRoot = mkdtempSync(path.join(tmpdir(), "postal-settings-create-env-"))
   const backendDir = path.join(tempRoot, "apps", "backend")
@@ -511,16 +517,16 @@ test("postal settings can persist when the env file does not exist yet", async (
         },
       },
       {
-        from: "Postal <ops@uhlhosting.ch>",
+        from: "Postal <ops@example.com>",
         base_url: "https://postal.example.test",
-        api_key: "created-key",
+        api_key: apiKeyValue,
         test_to: "ops@example.com",
-        webhook_token: "created-token",
+        webhook_token: webhookTokenValue,
       }
     )
 
-    assert.equal(persisted.api_key, "created-key")
-    assert.equal(persisted.webhook_token, "created-token")
+    assert.equal(persisted.api_key, apiKeyValue)
+    assert.equal(persisted.webhook_token, webhookTokenValue)
     assert.ok(readFileSync(path.join(backendDir, ".env"), "utf8").includes("POSTAL_FROM"))
   } finally {
     chdir(originalCwd)

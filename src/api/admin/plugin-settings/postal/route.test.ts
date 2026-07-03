@@ -13,10 +13,10 @@ test("postal settings GET returns public settings without secrets", async () => 
   }
 
   process.env.POSTAL_AUTH_TYPE = "smtp-api"
-  process.env.POSTAL_FROM = "noreply@uhlhosting.ch"
-  process.env.POSTAL_BASE_URL = "https://post.uhlhosting.ch"
+  process.env.POSTAL_FROM = "noreply@example.com"
+  process.env.POSTAL_BASE_URL = "https://postal.example.com"
   process.env.POSTAL_API_KEY = "postal-secret-api-key"
-  process.env.POSTAL_TEST_TO = "customer@highacid.com"
+  process.env.POSTAL_TEST_TO = "customer@example.com"
   process.env.POSTAL_WEBHOOK_TOKEN = "postal-secret-webhook-token"
 
   try {
@@ -37,9 +37,9 @@ test("postal settings GET returns public settings without secrets", async () => 
 
     assert.equal(responseBody.payload.provider_id, "postal")
     assert.equal(responseBody.payload.auth_type, "smtp-api")
-    assert.equal(responseBody.payload.from, "noreply@uhlhosting.ch")
-    assert.equal(responseBody.payload.base_url, "https://post.uhlhosting.ch")
-    assert.equal(responseBody.payload.test_to, "customer@highacid.com")
+    assert.equal(responseBody.payload.from, "noreply@example.com")
+    assert.equal(responseBody.payload.base_url, "https://postal.example.com")
+    assert.equal(responseBody.payload.test_to, "customer@example.com")
     assert.equal(responseBody.payload.api_key, "")
     assert.equal(responseBody.payload.webhook_token, "")
     assert.equal(responseBody.payload.configured.api_key, true)

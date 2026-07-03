@@ -4,7 +4,7 @@ import { buildPostalNotificationInput } from "./steps/send-postal-email"
 
 test("buildPostalNotificationInput routes admin test sends through the postal provider", () => {
   const providerData = {
-    from: "no-reply@uhl.site",
+    from: "no-reply@example.com",
     from_name: undefined,
     reply_to: undefined,
     subject: "Postal test",
@@ -21,8 +21,8 @@ test("buildPostalNotificationInput routes admin test sends through the postal pr
 
   const notification = buildPostalNotificationInput(
     {
-      to: "kosmos@highacid.com",
-      from: "no-reply@uhl.site",
+      to: "recipient@example.com",
+      from: "no-reply@example.com",
       template: "postal-test",
       provider_data: {
         subject: providerData.subject,
@@ -32,7 +32,7 @@ test("buildPostalNotificationInput routes admin test sends through the postal pr
         workflow_run_id: providerData.workflow_run_id,
       },
     },
-    "kosmos@highacid.com",
+    "recipient@example.com",
     "postal-test",
     providerData
   )
