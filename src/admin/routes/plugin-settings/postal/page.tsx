@@ -300,24 +300,6 @@ export const PostalSettingsPage = () => {
     return audienceMatches && searchMatches;
   });
 
-  const checklistRows = [
-    {
-      key: "from",
-      label: "Sender email",
-      value: form.from || "",
-    },
-    {
-      key: "base_url",
-      label: "Postal base URL",
-      value: form.base_url || "",
-    },
-    {
-      key: "api_key",
-      label: "API key",
-      value: data?.configured?.api_key ? "Set" : "Missing",
-    },
-  ];
-
   const parseJsonObject = (value: string, fieldLabel: string) => {
     const trimmed = value.trim();
     if (!trimmed) {
@@ -374,6 +356,24 @@ export const PostalSettingsPage = () => {
     queryKey: ["plugin-settings-postal"],
     queryFn: () => sdk.client.fetch("/admin/plugin-settings/postal"),
   });
+
+  const checklistRows = [
+    {
+      key: "from",
+      label: "Sender email",
+      value: form.from || "",
+    },
+    {
+      key: "base_url",
+      label: "Postal base URL",
+      value: form.base_url || "",
+    },
+    {
+      key: "api_key",
+      label: "API key",
+      value: data?.configured?.api_key ? "Set" : "Missing",
+    },
+  ];
 
   const { data: webhookUrlData } = useQuery<any>({
     queryKey: ["plugin-settings-postal-webhook-url"],
@@ -459,8 +459,6 @@ export const PostalSettingsPage = () => {
 
   const isConfigured =
     data?.configured && Object.values(data.configured).includes(true);
-  const hasSavedApiKey =
-    Boolean(data?.configured?.api_key) || Boolean(data?.secret_hints?.api_key_masked);
   const disabled = saveMutation.isPending || testMutation.isPending;
   const configuredSummary = [
     {
@@ -614,15 +612,13 @@ export const PostalSettingsPage = () => {
                 placeholder={
                   data?.secret_hints?.api_key_masked || t("postal.masked_long")
                 }
-                value={form.api_key}
-                onChange={(value) => setForm((prev) => ({ ...prev, api_key: value }))}
-                disabled={disabled}
+                value=""
+                onChange={() => undefined}
+                disabled={true}
                 hint={
                   data?.secret_hints?.api_key_masked
-                    ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.saved_key_suffix")}`
-                    : hasSavedApiKey
-                      ? t("postal.api_key_saved_no_hint")
-                    : t("postal.no_api_key_saved")
+                    ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.api_key_env_managed")}`
+                    : t("postal.api_key_env_managed")
                 }
               />
             </div>

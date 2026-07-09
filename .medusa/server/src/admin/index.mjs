@@ -180,6 +180,7 @@ const en = {
   "postal.from_email": "From Email",
   "postal.base_url": "Postal Base URL",
   "postal.api_key": "API Key",
+  "postal.api_key_env_managed": "Managed via the POSTAL_API_KEY environment variable and cannot be edited here.",
   "postal.default_test_recipient": "Default Test Recipient",
   "postal.default_test_recipient_hint": "Used as fallback for testing delivery if no recipient is provided.",
   "postal.test_connectivity": "Test Connectivity",
@@ -315,6 +316,7 @@ const de = {
   "postal.from_email": "Absender-E-Mail",
   "postal.base_url": "Postal Base URL",
   "postal.api_key": "API-Schlüssel",
+  "postal.api_key_env_managed": "Wird über die Umgebungsvariable POSTAL_API_KEY verwaltet und kann hier nicht bearbeitet werden.",
   "postal.default_test_recipient": "Standard-Testempfänger",
   "postal.default_test_recipient_hint": "Wird als Fallback für Testzustellungen verwendet, wenn kein Empfänger angegeben ist.",
   "postal.test_connectivity": "Verbindung testen",
@@ -1528,7 +1530,7 @@ const postalTemplateReferenceRows = [
   }
 ];
 const PostalSettingsPage = () => {
-  var _a2, _b, _c, _d, _e;
+  var _a2, _b, _c;
   ensurePostalAdminTranslations();
   const { t } = useTranslation();
   const [form, setForm] = useState(emptyForm);
@@ -1575,23 +1577,6 @@ const PostalSettingsPage = () => {
     ].join(" ").toLowerCase().includes(normalizedTemplateSearch) : true;
     return audienceMatches && searchMatches;
   });
-  const checklistRows = [
-    {
-      key: "from",
-      label: "Sender email",
-      value: form.from || ""
-    },
-    {
-      key: "base_url",
-      label: "Postal base URL",
-      value: form.base_url || ""
-    },
-    {
-      key: "api_key",
-      label: "API key",
-      value: ((_a2 = data == null ? void 0 : data.configured) == null ? void 0 : _a2.api_key) ? "Set" : "Missing"
-    }
-  ];
   const parseJsonObject = (value, fieldLabel) => {
     const trimmed = value.trim();
     if (!trimmed) {
@@ -1637,6 +1622,23 @@ const PostalSettingsPage = () => {
     queryKey: ["plugin-settings-postal"],
     queryFn: () => sdk.client.fetch("/admin/plugin-settings/postal")
   });
+  const checklistRows = [
+    {
+      key: "from",
+      label: "Sender email",
+      value: form.from || ""
+    },
+    {
+      key: "base_url",
+      label: "Postal base URL",
+      value: form.base_url || ""
+    },
+    {
+      key: "api_key",
+      label: "API key",
+      value: ((_a2 = data == null ? void 0 : data.configured) == null ? void 0 : _a2.api_key) ? "Set" : "Missing"
+    }
+  ];
   const { data: webhookUrlData } = useQuery({
     queryKey: ["plugin-settings-postal-webhook-url"],
     queryFn: () => sdk.client.fetch("/admin/postal/webhook-url"),
@@ -1697,7 +1699,6 @@ const PostalSettingsPage = () => {
     }
   });
   const isConfigured = (data == null ? void 0 : data.configured) && Object.values(data.configured).includes(true);
-  const hasSavedApiKey = Boolean((_b = data == null ? void 0 : data.configured) == null ? void 0 : _b.api_key) || Boolean((_c = data == null ? void 0 : data.secret_hints) == null ? void 0 : _c.api_key_masked);
   const disabled = saveMutation.isPending || testMutation.isPending;
   const configuredSummary = [
     {
@@ -1836,11 +1837,11 @@ const PostalSettingsPage = () => {
                     id: "postal-api-key",
                     label: t("postal.api_key"),
                     type: "password",
-                    placeholder: ((_d = data == null ? void 0 : data.secret_hints) == null ? void 0 : _d.api_key_masked) || t("postal.masked_long"),
-                    value: form.api_key,
-                    onChange: (value) => setForm((prev) => ({ ...prev, api_key: value })),
-                    disabled,
-                    hint: ((_e = data == null ? void 0 : data.secret_hints) == null ? void 0 : _e.api_key_masked) ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.saved_key_suffix")}` : hasSavedApiKey ? t("postal.api_key_saved_no_hint") : t("postal.no_api_key_saved")
+                    placeholder: ((_b = data == null ? void 0 : data.secret_hints) == null ? void 0 : _b.api_key_masked) || t("postal.masked_long"),
+                    value: "",
+                    onChange: () => void 0,
+                    disabled: true,
+                    hint: ((_c = data == null ? void 0 : data.secret_hints) == null ? void 0 : _c.api_key_masked) ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.api_key_env_managed")}` : t("postal.api_key_env_managed")
                   }
                 )
               ] }),

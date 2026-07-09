@@ -185,6 +185,56 @@ test("validates options and builds a send payload", async () => {
   assert.deepEqual(result, { id: "msg_1" })
 })
 
+test("send rejects CR/LF header injection in subject and recipients", async () => {
+  const service = createService()
+
+  const fetchMock = (async () => ({
+    ok: true,
+    json: async () => ({ status: "ok", data: { message_id: "msg_x", messages: {} } }),
+  })) as unknown as typeof fetch
+  globalThis.fetch = fetchMock
+
+  await assert.rejects(
+    () =>
+      service.send({
+        to: ["user@example.com"],
+        from: "orders@example.com",
+        provider_data: { subject: "Hello\r\nBcc: victim@example.com" },
+        content: { subject: "Hello\r\nBcc: victim@example.com", html: "<p>x</p>" },
+        template: "order-placed",
+      } as never),
+    MedusaError
+  )
+
+  await assert.rejects(
+    () =>
+      service.send({
+        to: ["user@example.com\r\nBcc: victim@example.com"],
+        from: "orders@example.com",
+        provider_data: { subject: "Hello" },
+        content: { subject: "Hello", html: "<p>x</p>" },
+        template: "order-placed",
+      } as never),
+    MedusaError
+  )
+})
+
+test("constructor rejects a non-http(s) base_url", () => {
+  assert.throws(
+    () =>
+      new PostalNotificationService(
+        { logger },
+        {
+          from: "ops@example.com",
+          base_url: "ftp://postal.example.com",
+          api_key: "secret",
+          auth_type: "smtp-api",
+        } as any
+      ),
+    MedusaError
+  )
+})
+
 test("wraps Postal API failures as Medusa errors", async () => {
   const service = createService()
 
@@ -534,7 +584,7 @@ test("helper methods normalize addresses, attachments, and health snapshots", ()
   assert.equal(normalizePostalLookupId("42"), 42)
   assert.throws(() => normalizePostalLookupId(" 42x "), MedusaError)
   assert.deepEqual(service.getHealthSnapshot(), {
-    auth_type: "api",
+    auth_type: "smtp-api",
     mode: "api",
   })
 })

@@ -1,24 +1,23 @@
 # Changelog
 
+## 0.1.17 - 2026-07-09
+
+- Replace runtime `.env` writing with a `postal_setting` DML model persisted through the plugin module service. Non-secret settings (`from`, `base_url`, `test_to`) are stored in the database; secrets (`POSTAL_API_KEY`, `POSTAL_WEBHOOK_TOKEN`) are sourced from the environment only and are now read-only in the admin UI. A boot loader reconciles persisted settings into the process environment. **This removes the previous behavior of writing the backend `.env` file, which failed on read-only/containerized filesystems and non-monorepo layouts.**
+- Fix a crash on the Postal admin settings page caused by referencing the settings query result before its declaration.
+- Add `@medusajs/js-sdk` as an explicit dependency (previously imported by the admin client but undeclared).
+- Typecheck the admin extension in CI and emit TypeScript declarations during the build so the advertised `types`/`exports` entry points now resolve for consumers; `verify-release` asserts the declarations ship.
+- Reject CR/LF characters in the sender address, subject, and recipients, and validate the provider `base_url` protocol.
+- Validate and size-cap (512 KB) the public Postal webhook payload.
+- Delegate the admin message-inspection route to the notification provider instead of a duplicated Postal HTTP client.
+- Report the configured `auth_type` (`smtp-api`) from the health snapshot.
+- Loosen the `zod` peer dependency to `^4.4.3`, document all `POSTAL_*` environment variables, and correct the single-auth-mode guidance.
+
 ## 0.1.12 - 2026-07-02
 
 - Remove prefilled CC, BCC, reply-to, sender, and advanced payload sample values from the Postal admin test-send UI.
 - Keep admin test sends on the native `send-postal-email` workflow path with workflow trace metadata.
 - Tag Postal API sends from this plugin and only record tagged `message.sent` webhook callbacks.
 - Add settings-route and webhook-filter regression coverage.
-
-## 0.2.1 - 2026-06-29
-
-- Restored the Postal admin test payload helper so the admin route typechecks and the GitLab validate job can complete.
-- Kept the Postal admin settings UI aligned with the current template reference workflow.
-
-## 0.2.0 - 2026-06-29
-
-- Update `nodemailer` to `^9.0.1` and `@types/nodemailer` to `^8.0.1`, while keeping the existing attachment-only delivery path that does not rely on v9's remote-content or raw-message behavior changes.
-- Normalize repository metadata to a browser-safe GitLab web URL for npm and package-manager link resolution.
-- Expanded the postal template registry and admin client handling for the current plugin runtime.
-- Reworked the postal settings and provider surfaces to keep callback and template behavior aligned with the standalone plugin package.
-- Kept the GitLab mirror flow unchanged while aligning release metadata with the package registry publishing model.
 
 ## 0.1.7
 
