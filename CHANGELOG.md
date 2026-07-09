@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.17 - 2026-07-09
+## 0.1.18 - 2026-07-10
 
 - Replace runtime `.env` writing with a `postal_setting` DML model persisted through the plugin module service. Non-secret settings (`from`, `base_url`, `test_to`) are stored in the database; secrets (`POSTAL_API_KEY`, `POSTAL_WEBHOOK_TOKEN`) are sourced from the environment only and are now read-only in the admin UI. A boot loader reconciles persisted settings into the process environment. **This removes the previous behavior of writing the backend `.env` file, which failed on read-only/containerized filesystems and non-monorepo layouts.**
 - Fix a crash on the Postal admin settings page caused by referencing the settings query result before its declaration.
