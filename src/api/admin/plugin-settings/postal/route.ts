@@ -2,12 +2,13 @@ import { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/
 import { MedusaError } from "@medusajs/framework/utils"
 import { sendPostalEmailWorkflow } from "../../../../workflows/send-postal-email"
 import { savePostalSettingsWorkflow } from "../../../../workflows/save-postal-settings"
-import { resolveOptionalPgConnection } from "../../../../modules/postal/db"
+import { POSTAL_PLUGIN_MODULE } from "../../../../modules/postal/constants"
 import {
   getPostalSettings,
   toPublicPostalSettings,
   validateModeRequirements,
   type PostalSettingsInput,
+  type PostalSettingService,
 } from "../../../../modules/postal/settings"
 import {
   buildPostalAdminTestProviderData,
@@ -22,12 +23,22 @@ type PostalPostBody = PostalAdminTestBody & {
 const trimString = (value: unknown) =>
   typeof value === "string" ? value.trim() : ""
 
+const resolvePostalSettingService = (scope: {
+  resolve: (key: string) => unknown
+}): PostalSettingService | null => {
+  try {
+    return scope.resolve(POSTAL_PLUGIN_MODULE) as PostalSettingService
+  } catch {
+    return null
+  }
+}
+
 export async function GET(
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) {
-  const pgConnection = resolveOptionalPgConnection(req.scope)
-  const settings = await getPostalSettings(pgConnection)
+  const service = resolvePostalSettingService(req.scope)
+  const settings = await getPostalSettings(service)
 
   res.json({
     ...toPublicPostalSettings(settings),
@@ -41,7 +52,7 @@ export async function POST(
   req: AuthenticatedMedusaRequest<PostalPostBody>,
   res: MedusaResponse
 ) {
-  const pgConnection = resolveOptionalPgConnection(req.scope)
+  const service = resolvePostalSettingService(req.scope)
   const body = req.validatedBody || req.body || {}
   const action = body.action
 
@@ -89,7 +100,7 @@ export async function POST(
     }
   }
 
-  const currentSettings = await getPostalSettings(pgConnection)
+  const currentSettings = await getPostalSettings(service)
   const validationError = validateModeRequirements(currentSettings)
   if (validationError) {
     return res.status(400).json({

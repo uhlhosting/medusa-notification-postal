@@ -82,71 +82,49 @@ release:verify:
   script:
     - pnpm run release:check
 
-publish:
+# Semantic versioning and releases are fully automated with semantic-release
+# (https://docs.gitlab.com/ci/examples/semantic-release/). It analyzes the
+# Conventional Commits since the last tag, computes the next version, publishes
+# the package to the GitLab npm registry, creates a GitLab Release with notes,
+# and commits the bumped package.json + tag back to the default branch.
+#
+# Required project CI/CD variables (Settings > CI/CD > Variables):
+#   - GITLAB_TOKEN: project/group access token, masked, scopes api +
+#     write_repository, with permission to push to the protected default branch
+#     and create protected `v*` tags. Used by @semantic-release/gitlab and
+#     @semantic-release/git.
+# The npm registry publish authenticates with the ephemeral CI_JOB_TOKEN.
+release:semantic:
   stage: deploy
   needs:
     - build
     - release:verify
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-  script:
-    - export NPM_REGISTRY="${CI_SERVER_URL}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/"
-    - export NPM_CONFIG_USERCONFIG="$CI_PROJECT_DIR/.npmrc.publish"
-    - |
-      if [[ -f .npmrc ]]; then
-        mv .npmrc .npmrc.ci
-        trap 'mv .npmrc.ci .npmrc' EXIT
-      fi
-    - |
-      cat > "$NPM_CONFIG_USERCONFIG" <<EOF
-      engine-strict=true
-      registry=${NPM_REGISTRY}
-      @${CI_PROJECT_ROOT_NAMESPACE}:registry=${NPM_REGISTRY}
-      //${CI_SERVER_HOST}/api/v4/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=${CI_JOB_TOKEN}
-      always-auth=true
-      EOF
-    - NPM_PACKAGE_NAME=$(node -p "require('./package.json').name")
-    - NPM_PACKAGE_VERSION=$(node -p "require('./package.json').version")
-    - |
-      if [[ ! $NPM_PACKAGE_NAME =~ ^@$CI_PROJECT_ROOT_NAMESPACE/ ]]; then
-        echo "Invalid package scope! Packages must be scoped in the root namespace of the project, e.g. \"@${CI_PROJECT_ROOT_NAMESPACE}/${CI_PROJECT_NAME}\""
-        exit 1
-      fi
-    - |
-      existing_versions="$(npm view "${NPM_PACKAGE_NAME}" --registry "${NPM_REGISTRY}" versions --json 2>/dev/null || true)"
-      if ! node -e 'const raw = process.argv[1] || "[]"; const current = process.argv[2]; let parsed; try { parsed = JSON.parse(raw); } catch { process.exit(2); } const versions = Array.isArray(parsed) ? parsed : [parsed]; process.exit(versions.includes(current) ? 0 : 1);' "$existing_versions" "$NPM_PACKAGE_VERSION"; then
-        publish_dir="$(mktemp -d)"
-        tar --exclude='.git' --exclude='.npmrc' --exclude='.npmrc.publish' --exclude='node_modules' -cf - . | tar -xf - -C "$publish_dir"
-        cd "$publish_dir"
-        npm publish --ignore-scripts --provenance=false --registry "${NPM_REGISTRY}"
-      fi
-
-tag:release:
-  stage: deploy
-  needs:
-    - publish
-    - release:verify
-  rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-  before_script: []
-  script:
-    - test -n "$GIT_TAG_PUSH_TOKEN"
-    - VERSION="$(node -p "require('./package.json').version")"
-    - TAG_NAME="v${VERSION}"
+  variables:
+    # semantic-release needs the full history and all tags to determine the
+    # last release; disable shallow clone.
+    GIT_DEPTH: "0"
+    NPM_TOKEN: "${CI_JOB_TOKEN}"
+    # The GitLab package registry does not support npm provenance; the GitHub
+    # OIDC publish handles provenance for the public npmjs registry.
+    NPM_CONFIG_PROVENANCE: "false"
+  before_script:
+    - npm install -g "pnpm@${PNPM_VERSION}"
+    - pnpm config set store-dir "$PNPM_STORE_DIR"
+    - pnpm install --frozen-lockfile --prefer-offline
     - |
-      if git rev-parse "refs/tags/${TAG_NAME}" >/dev/null 2>&1; then
-        echo "Tag ${TAG_NAME} already exists locally; skipping creation."
-      else
-        git tag -a "${TAG_NAME}" -m "${TAG_NAME}"
-      fi
-    - git remote remove origin-push 2>/dev/null || true
-    - git remote add origin-push "https://x-access-token:${GIT_TAG_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git"
-    - git push origin-push "refs/tags/${TAG_NAME}:refs/tags/${TAG_NAME}"
+      {
+        echo "@${CI_PROJECT_ROOT_NAMESPACE}:registry=${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/"
+        echo "${CI_API_V4_URL#https*:}/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=\${CI_JOB_TOKEN}"
+      } | tee -a .npmrc
+  script:
+    - pnpm exec semantic-release
 
 mirror:github:
   stage: mirror
   needs:
-    - job: publish
+    - job: release:semantic
       optional: true
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'

@@ -1,7 +1,6 @@
-import fs from "node:fs"
-import { randomBytes } from "node:crypto"
-import { rename, unlink, writeFile } from "node:fs/promises"
-import path from "node:path"
+import { POSTAL_SETTINGS_ID } from "./constants"
+
+export { POSTAL_PLUGIN_MODULE, POSTAL_SETTINGS_ID } from "./constants"
 
 export type PostalAuthType = "smtp-api"
 
@@ -16,13 +15,25 @@ export type PostalSettingsInput = {
   webhook_token?: string
 }
 
-// Secret fields (POSTAL_API_KEY, POSTAL_WEBHOOK_TOKEN) are intentionally
-// excluded from the DB record — they are persisted to the .env file only.
-export type PostalSettingsRecord = {
-  POSTAL_AUTH_TYPE?: string
-  POSTAL_FROM?: string
-  POSTAL_BASE_URL?: string
-  POSTAL_TEST_TO?: string
+// The persisted (non-secret) settings row. Secrets (POSTAL_API_KEY,
+// POSTAL_WEBHOOK_TOKEN) are never stored here — they come from the environment.
+export type PostalSettingRecord = {
+  id: string
+  auth_type: string
+  from_address: string
+  base_url: string
+  test_to: string
+  pending_restart: boolean
+}
+
+// Minimal shape of the generated module service methods this file relies on.
+export type PostalSettingService = {
+  listPostalSettings: (
+    filter: Record<string, unknown>,
+    config?: Record<string, unknown>
+  ) => Promise<PostalSettingRecord[]>
+  createPostalSettings: (data: Record<string, unknown>) => Promise<unknown>
+  updatePostalSettings: (data: Record<string, unknown>) => Promise<unknown>
 }
 
 export type PostalSettings = PostalSettingsSnapshot
@@ -50,8 +61,6 @@ export type PostalSettingsSnapshot = {
 const sanitizeValue = (value: unknown) =>
   typeof value === "string" ? value.trim() : ""
 
-const createWebhookToken = () => randomBytes(32).toString("hex")
-
 const maskSecret = (value?: string | null) => {
   const secret = sanitizeValue(value)
   if (!secret) {
@@ -62,138 +71,34 @@ const maskSecret = (value?: string | null) => {
   return `${"*".repeat(Math.max(8, secret.length - 4))}${visibleTail}`
 }
 
-const toEnvValue = (value: string) =>
-  /[\s#"'`]/.test(value) ? JSON.stringify(value) : value
-
-const resolveBackendRoot = () => {
-  const cwd = process.cwd()
-  return cwd.endsWith(path.join("apps", "backend"))
-    ? cwd
-    : path.join(cwd, "apps", "backend")
+type EffectivePostalValues = {
+  auth_type: PostalAuthType
+  from: string
+  base_url: string
+  test_to: string
+  api_key: string
+  webhook_token: string
 }
 
-const getEnvFilePath = () => path.join(resolveBackendRoot(), ".env")
-
-const ENV_KEYS = [
-  "POSTAL_AUTH_TYPE",
-  "POSTAL_FROM",
-  "POSTAL_BASE_URL",
-  "POSTAL_API_KEY",
-  "POSTAL_TEST_TO",
-  "POSTAL_WEBHOOK_TOKEN",
-] as const
-
-const DB_SETTINGS_KEY = "postal"
-const SETTINGS_TABLE = "admin_plugin_settings"
-
-const readEnvMap = () => {
-  const envMap = new Map<string, string>()
-  const envFilePath = getEnvFilePath()
-
-  if (!fs.existsSync(envFilePath)) {
-    return envMap
-  }
-
-  const content = fs.readFileSync(envFilePath, "utf8")
-  const lines = content.split(/\r?\n/)
-
-  for (const line of lines) {
-    if (!line || line.trim().startsWith("#")) {
-      continue
-    }
-
-    const idx = line.indexOf("=")
-    if (idx < 1) {
-      continue
-    }
-
-    const key = line.slice(0, idx).trim()
-    const rawValue = line.slice(idx + 1).trim()
-    if (!key) {
-      continue
-    }
-
-    if (rawValue.startsWith("\"") && rawValue.endsWith("\"")) {
-      try {
-        envMap.set(key, JSON.parse(rawValue))
-        continue
-      } catch {
-        // Fall back to the raw env value when a quoted value is not JSON-escaped.
-      }
-    }
-
-    envMap.set(key, rawValue)
-  }
-
-  return envMap
-}
-
-const writeEnvValues = async (
-  updates: Partial<Record<(typeof ENV_KEYS)[number], string>>
-) => {
-  const envFilePath = getEnvFilePath()
-  const existing = fs.existsSync(envFilePath)
-    ? fs.readFileSync(envFilePath, "utf8")
-    : ""
-  const lines = existing ? existing.split(/\r?\n/) : []
-  const seen = new Set<string>()
-
-  const nextLines = lines.map((line) => {
-    const idx = line.indexOf("=")
-    if (idx < 1 || line.trim().startsWith("#")) {
-      return line
-    }
-
-    const key = line.slice(0, idx).trim()
-    if (!(key in updates)) {
-      return line
-    }
-
-    seen.add(key)
-    const nextValue = updates[key as keyof typeof updates] ?? ""
-    return `${key}=${toEnvValue(nextValue)}`
-  })
-
-  for (const [key, value] of Object.entries(updates)) {
-    if (!seen.has(key)) {
-      nextLines.push(`${key}=${toEnvValue(value ?? "")}`)
-    }
-  }
-
-  const normalized = nextLines.filter((line, i, arr) => !(i === arr.length - 1 && line === ""))
-  const content = `${normalized.join("\n")}\n`
-  const tmpPath = `${envFilePath}.tmp`
-
-  try {
-    await writeFile(tmpPath, content, "utf8")
-    await rename(tmpPath, envFilePath)
-  } catch (error) {
-    if (fs.existsSync(tmpPath)) {
-      await unlink(tmpPath).catch(() => {})
-    }
-    throw error
-  }
-}
-
-export const normalizeSettings = (
-  source?: Partial<Record<string, string>>
+const buildSnapshot = (
+  values: EffectivePostalValues
 ): PostalSettingsSnapshot => ({
   provider_id: "postal",
-  auth_type: (source?.POSTAL_AUTH_TYPE || "smtp-api") as PostalAuthType,
-  from: source?.POSTAL_FROM || null,
-  base_url: source?.POSTAL_BASE_URL || null,
-  api_key: source?.POSTAL_API_KEY || "",
-  test_to: source?.POSTAL_TEST_TO || null,
-  webhook_token: source?.POSTAL_WEBHOOK_TOKEN || "",
+  auth_type: values.auth_type,
+  from: values.from || null,
+  base_url: values.base_url || null,
+  api_key: values.api_key || "",
+  test_to: values.test_to || null,
+  webhook_token: values.webhook_token || "",
   configured: {
-    from: Boolean(source?.POSTAL_FROM),
-    api_key: Boolean(source?.POSTAL_API_KEY),
-    base_url: Boolean(source?.POSTAL_BASE_URL),
-    webhook_token: Boolean(source?.POSTAL_WEBHOOK_TOKEN),
+    from: Boolean(values.from),
+    api_key: Boolean(values.api_key),
+    base_url: Boolean(values.base_url),
+    webhook_token: Boolean(values.webhook_token),
   },
   secret_hints: {
-    api_key_masked: maskSecret(source?.POSTAL_API_KEY),
-    webhook_token_masked: maskSecret(source?.POSTAL_WEBHOOK_TOKEN),
+    api_key_masked: maskSecret(values.api_key),
+    webhook_token_masked: maskSecret(values.webhook_token),
   },
 })
 
@@ -203,109 +108,71 @@ export const toPublicPostalSettings = (settings: PostalSettingsSnapshot) => ({
   webhook_token: "",
 })
 
-const readPostalSettingsFromDb = async (
-  pgConnection: any
-): Promise<PostalSettingsRecord> => {
-  if (!pgConnection) {
-    return {}
+const readSettingRecord = async (
+  service: PostalSettingService | null | undefined
+): Promise<PostalSettingRecord | undefined> => {
+  if (!service?.listPostalSettings) {
+    return undefined
   }
 
   try {
-    const result = await pgConnection.raw(
-      `SELECT value FROM ${SETTINGS_TABLE} WHERE key = ? LIMIT 1`,
-      [DB_SETTINGS_KEY]
+    const rows = await service.listPostalSettings(
+      { id: POSTAL_SETTINGS_ID },
+      { take: 1 }
     )
-
-    const value = result.rows[0]?.value
-    if (!value || typeof value !== "object") {
-      return {}
-    }
-
-    return value as PostalSettingsRecord
+    return rows?.[0]
   } catch {
-    return {}
+    // Fall back to environment-only configuration.
+    return undefined
   }
 }
 
-const writePostalSettingsToDb = async (
-  pgConnection: any,
-  values: PostalSettingsRecord
-) => {
-  if (!pgConnection) {
-    return
-  }
+// Secrets come from the environment only; non-secret values come from the
+// persisted row when present, otherwise from the environment.
+export const getPostalSettings = async (
+  service: PostalSettingService | null | undefined
+): Promise<PostalSettingsSnapshot> => {
+  const record = await readSettingRecord(service)
 
-  await pgConnection.raw(
-    `INSERT INTO ${SETTINGS_TABLE} (key, value, updated_at)
-     VALUES (?, ?::jsonb, now())
-     ON CONFLICT (key)
-     DO UPDATE SET value = EXCLUDED.value, updated_at = now()`,
-    [DB_SETTINGS_KEY, JSON.stringify(values)]
-  )
+  return buildSnapshot({
+    auth_type: "smtp-api",
+    from: record?.from_address || process.env.POSTAL_FROM || "",
+    base_url: record?.base_url || process.env.POSTAL_BASE_URL || "",
+    test_to: record?.test_to || process.env.POSTAL_TEST_TO || "",
+    api_key: process.env.POSTAL_API_KEY || "",
+    webhook_token: process.env.POSTAL_WEBHOOK_TOKEN || "",
+  })
 }
 
-export const getPostalSettings = async (pgConnection: any) => {
-  const envFileValues = readEnvMap()
-  const dbValues = await readPostalSettingsFromDb(pgConnection)
-  const merged: Record<string, string> = {}
+// Persists non-secret settings via the module service. Secret fields in the
+// payload are ignored — secrets are managed through the environment only.
+export const persistPostalSettings = async (
+  service: PostalSettingService | null | undefined,
+  payload: PostalSettingsInput
+): Promise<PostalSettingsSnapshot> => {
+  const current = await getPostalSettings(service)
 
-  for (const key of ENV_KEYS) {
-    const value =
-      dbValues[key as keyof PostalSettingsRecord] ||
-      envFileValues.get(key) ||
-      process.env[key] ||
-      ""
-    if (value) {
-      merged[key] = value
+  const next = {
+    auth_type: "smtp-api" as const,
+    from_address: sanitizeValue(payload.from) || current.from || "",
+    base_url: sanitizeValue(payload.base_url) || current.base_url || "",
+    test_to: sanitizeValue(payload.test_to) || current.test_to || "",
+    pending_restart: true,
+  }
+
+  if (service?.listPostalSettings) {
+    const existing = await readSettingRecord(service)
+    if (existing) {
+      await service.updatePostalSettings({ id: POSTAL_SETTINGS_ID, ...next })
+    } else {
+      await service.createPostalSettings({ id: POSTAL_SETTINGS_ID, ...next })
     }
   }
 
-  return normalizeSettings(merged)
+  return getPostalSettings(service)
 }
 
-export const persistPostalSettings = async (
-  pgConnection: any,
-  payload: PostalSettingsInput
-) => {
-  const current = await getPostalSettings(pgConnection)
-
-  const nextApiKey = sanitizeValue(payload.api_key) || (current.api_key || "")
-  const nextWebhookToken =
-    sanitizeValue(payload.webhook_token) ||
-    current.webhook_token ||
-    createWebhookToken()
-
-  const updates: Partial<Record<(typeof ENV_KEYS)[number], string>> = {
-    POSTAL_AUTH_TYPE: "smtp-api",
-    POSTAL_FROM: sanitizeValue(payload.from) || (current.from || ""),
-    POSTAL_BASE_URL: sanitizeValue(payload.base_url) || (current.base_url || ""),
-    POSTAL_API_KEY: nextApiKey,
-    POSTAL_TEST_TO: sanitizeValue(payload.test_to) || (current.test_to || ""),
-    POSTAL_WEBHOOK_TOKEN: nextWebhookToken,
-  }
-
-  // Store only non-secret fields in the database.
-  // POSTAL_API_KEY and POSTAL_WEBHOOK_TOKEN are written to .env only.
-  const dbValues: PostalSettingsRecord = {
-    POSTAL_AUTH_TYPE: updates.POSTAL_AUTH_TYPE,
-    POSTAL_FROM: updates.POSTAL_FROM,
-    POSTAL_BASE_URL: updates.POSTAL_BASE_URL,
-    POSTAL_TEST_TO: updates.POSTAL_TEST_TO,
-  }
-
-  await writePostalSettingsToDb(pgConnection, dbValues)
-  await writeEnvValues(updates)
-
-  for (const [key, value] of Object.entries(updates)) {
-    process.env[key] = value || ""
-  }
-
-  return getPostalSettings(pgConnection)
-}
-
-export const validateModeRequirements = (
-  settings: PostalSettingsSnapshot
-) => {
+export const validateModeRequirements = (settings: PostalSettingsSnapshot) => {
   if (!settings.from) {
     return "POSTAL_FROM is required"
   }
@@ -313,7 +180,8 @@ export const validateModeRequirements = (
   switch (settings.auth_type) {
     case "smtp-api":
       if (!settings.base_url) return "POSTAL_BASE_URL is required for API mode"
-      if (!settings.configured.api_key) return "POSTAL_API_KEY is required for API mode"
+      if (!settings.configured.api_key)
+        return "POSTAL_API_KEY is required for API mode"
       break
   }
 

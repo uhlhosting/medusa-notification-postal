@@ -84,6 +84,40 @@ if (packFiles.some((file) => file === "src" || file.startsWith("src/"))) {
   fail("npm pack output must not include the source src/ tree")
 }
 
+// Every advertised TypeScript types target must actually ship in the tarball,
+// otherwise consumers importing the package get resolution errors under
+// node16/bundler module resolution.
+const advertisedTypeTargets = new Set()
+const collectTypeTargets = (value) => {
+  if (typeof value === "string") {
+    if (value.endsWith(".d.ts")) {
+      advertisedTypeTargets.add(value.replace(/^\.\//, ""))
+    }
+    return
+  }
+  if (value && typeof value === "object") {
+    if (typeof value.types === "string") {
+      advertisedTypeTargets.add(value.types.replace(/^\.\//, ""))
+    }
+    for (const nested of Object.values(value)) {
+      collectTypeTargets(nested)
+    }
+  }
+}
+if (typeof pkg.types === "string") {
+  advertisedTypeTargets.add(pkg.types.replace(/^\.\//, ""))
+}
+collectTypeTargets(pkg.exports)
+
+const missingTypeTargets = [...advertisedTypeTargets].filter(
+  (target) => !packFiles.includes(target),
+)
+if (missingTypeTargets.length > 0) {
+  fail(
+    `package.json advertises TypeScript types that are not shipped in the tarball: ${missingTypeTargets.join(", ")}`,
+  )
+}
+
 const testFiles = packFiles.filter((file) =>
   /(^|\/)[^/]+\.test\.(js|mjs|cjs|ts|tsx|d\.ts)(\.map)?$/.test(file)
 )

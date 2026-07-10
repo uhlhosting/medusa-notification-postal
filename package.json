@@ -64,17 +64,17 @@
     "email"
   ],
   "scripts": {
-    "build": "medusa plugin:build",
+    "build": "medusa plugin:build && tsc --emitDeclarationOnly --declaration --declarationMap false --outDir .medusa/server",
     "dev": "medusa plugin:develop",
     "lint": "medusa lint",
-    "prepublishOnly": "medusa plugin:build",
+    "prepublishOnly": "pnpm run build",
     "release:check": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && node scripts/verify-release.mjs",
+    "semantic-release": "semantic-release",
     "test": "tsx --test $(find src -name '*.test.ts' | sort)",
     "test:unit": "jest --runInBand --passWithNoTests",
     "test:coverage": "c8 --reporter=text --reporter=cobertura --report-dir coverage node --test --import tsx $(find src -name '*.test.ts' | sort)",
-    "typecheck": "tsc --noEmit"
-  },
-  "dependencies": {
+    "typecheck": "tsc --noEmit && pnpm run typecheck:admin",
+    "typecheck:admin": "tsc -p src/admin/tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@medusajs/admin-sdk": "2.17.1",
@@ -83,9 +83,13 @@
     "@medusajs/eslint-plugin": "2.17.1",
     "@medusajs/framework": "2.17.1",
     "@medusajs/icons": "2.17.1",
+    "@medusajs/js-sdk": "2.17.1",
     "@medusajs/medusa": "2.17.1",
     "@medusajs/test-utils": "^2.17.1",
     "@medusajs/ui": "4.1.18",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/gitlab": "^13.3.3",
+    "@semantic-release/npm": "^13.1.5",
     "@swc/core": "^1.15.43",
     "@swc/jest": "^0.2.39",
     "@tanstack/react-query": "^5.101.0",
@@ -95,8 +99,8 @@
     "@types/react-dom": "18.3.7",
     "@typescript-eslint/eslint-plugin": "^8.61.1",
     "@typescript-eslint/parser": "^8.61.1",
-    "eslint": "^9.39.4",
     "c8": "^11.0.0",
+    "eslint": "^9.39.4",
     "i18next": "26.3.1",
     "jest": "^30.4.2",
     "jest-junit": "^17.0.0",
@@ -104,8 +108,9 @@
     "react-dom": "18.3.1",
     "react-i18next": "13.5.0",
     "react-router-dom": "6.30.4",
-    "tsx": "^4.22.4",
+    "semantic-release": "^25.0.5",
     "ts-node": "^10.9.2",
+    "tsx": "^4.22.4",
     "typescript": "5.6.2",
     "zod": "4.4.3"
   },
@@ -113,13 +118,14 @@
     "@medusajs/admin-sdk": "2.17.1",
     "@medusajs/framework": "2.17.1",
     "@medusajs/icons": "2.17.1",
+    "@medusajs/js-sdk": "2.17.1",
     "@medusajs/medusa": "2.17.1",
     "@medusajs/ui": "4.1.18",
     "@tanstack/react-query": "^5.101.0",
     "i18next": "^26.3.1",
     "react-i18next": "^13.5.0",
     "react-router-dom": "^6.30.4",
-    "zod": "4.4.3"
+    "zod": "^4.4.3"
   },
   "engines": {
     "node": ">=20"
