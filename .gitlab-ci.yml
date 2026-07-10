@@ -10,6 +10,36 @@ secret_detection:
   before_script: []
   cache: []
 
+# The security findings widget on merge requests is a GitLab Premium/Ultimate
+# feature; this instance is Community Edition (Free). This job surfaces the SAST
+# and Secret Detection results in the pipeline log and exposes the raw reports as
+# a downloadable "Security scan reports" merge-request artifact (native,
+# tokenless, Free-tier). Set SECURITY_FAIL_ON_FINDINGS=true to gate on findings.
+security:report:
+  stage: build
+  needs:
+    - job: semgrep-sast
+      artifacts: true
+      optional: true
+    - job: secret_detection
+      artifacts: true
+      optional: true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  before_script: []
+  cache: []
+  script:
+    - node scripts/security-summary.mjs
+  artifacts:
+    when: always
+    expose_as: "Security scan reports"
+    name: "security-reports-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - gl-sast-report.json
+      - gl-secret-detection-report.json
+    expire_in: 30 days
+
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'

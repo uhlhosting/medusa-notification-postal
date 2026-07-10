@@ -54,6 +54,7 @@
 6. Onboarding/reconciliation: semantic-release derives the last release from git tags, so every published version must have a matching `v<version>` tag reachable from the default branch (e.g. the `v0.1.17` baseline tag added when adopting semantic-release).
 7. GitHub npm publishing (public npmjs) uses OIDC Trusted Publishing and must verify protected refs and tag/version alignment before publishing.
 8. The GitLab mirror job (`mirror:github`) mirrors to GitHub, uses a masked/protected token, and pushes tag refs specifically (`refs/tags/...`) to avoid conflicts with GitLab's background mirroring.
+9. Security scanning uses the native `Jobs/SAST.gitlab-ci.yml` and `Jobs/Secret-Detection.gitlab-ci.yml` templates and runs on merge-request and default-branch pipelines (`AST_ENABLE_MR_PIPELINES: "true"`). The security findings **merge-request widget is Premium/Ultimate-only** and this instance is Community Edition (Free), so the `security:report` job surfaces findings in the job log and exposes the raw reports as a downloadable MR artifact (`artifacts:expose_as`) — tokenless and Free-tier-safe. `SECURITY_FAIL_ON_FINDINGS=true` turns it into a gate.
 
 ## Validation Checklist
 1. `pnpm release:check` passes (includes admin typecheck via `typecheck:admin`)
