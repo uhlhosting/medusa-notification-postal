@@ -11,6 +11,7 @@
   "postal.from_email": "Absender-E-Mail",
   "postal.base_url": "Postal Base URL",
   "postal.api_key": "API-Schlüssel",
+  "postal.api_key_env_managed": "Wird über die Umgebungsvariable POSTAL_API_KEY verwaltet und kann hier nicht bearbeitet werden.",
   "postal.default_test_recipient": "Standard-Testempfänger",
   "postal.default_test_recipient_hint": "Wird als Fallback für Testzustellungen verwendet, wenn kein Empfänger angegeben ist.",
   "postal.test_connectivity": "Verbindung testen",

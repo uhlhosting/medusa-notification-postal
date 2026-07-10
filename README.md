@@ -20,6 +20,34 @@ A production-ready Postal notification provider for Medusa. Designed for reliabl
 - `base_url` - Postal base URL, for example `https://postal.example.com`
 - `api_key` - Postal server API key used in `X-Server-API-Key`
 
+`auth_type` only accepts `smtp-api` (the Postal HTTP API); any other value is rejected at startup.
+
+### Environment variables
+
+The provider options above are typically wired from environment variables. The plugin also reads the following at runtime:
+
+| Variable | Secret | Purpose |
+| --- | --- | --- |
+| `POSTAL_AUTH_TYPE` | no | Auth mode; only `smtp-api` is supported (default `smtp-api`). |
+| `POSTAL_FROM` | no | Default sender address (`from` option). |
+| `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. |
+| `POSTAL_API_KEY` | **yes** | Postal server API key (`api_key` option). |
+| `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path; generated if unset. |
+| `POSTAL_REQUEST_TIMEOUT_MS` | no | Outbound Postal HTTP timeout in ms (default `10000`). |
+| `POSTAL_TEST_TO` | no | Default recipient for admin test sends. |
+| `POSTAL_TEMPLATE_REGISTRY` | no | JSON overriding the built-in template registry. |
+| `POSTAL_TEMPLATE_ORDER` | no | Comma-separated template display order. |
+| `POSTAL_WEBHOOK_TAG_PREFIX` | no | Overrides the tag prefix used to correlate webhook callbacks. |
+| `POSTAL_WEBHOOK_EVENTS_TABLE` | no | Overrides the webhook events table name. |
+| `POSTAL_PROVIDER_ID` | no | Overrides the notification provider id. |
+| `POSTAL_PLUGIN_MODULE` | no | Overrides the plugin module registration name. |
+
+Keep the secret variables out of logs and client-visible surfaces; the admin settings endpoint never returns them.
+
+### Settings persistence
+
+Non-secret settings edited in the admin (`from`, `base_url`, `test_to`) persist in the `postal_setting` table via the plugin module — run `medusa db:migrate` after installing. Secrets (`POSTAL_API_KEY`, `POSTAL_WEBHOOK_TOKEN`) are sourced from the environment/provider options only, are read-only in the admin UI, and are never written to disk. Changes that affect the constructed provider take effect after a backend restart.
+
 ## Usage
 
 Add to `apps/backend/medusa-config.ts` under the notification module providers.

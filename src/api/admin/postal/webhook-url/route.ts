@@ -3,8 +3,11 @@ import {
   MedusaResponse,
 } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
-import { resolveOptionalPgConnection } from "../../../../modules/postal/db"
-import { getPostalSettings } from "../../../../modules/postal/settings"
+import { POSTAL_PLUGIN_MODULE } from "../../../../modules/postal/constants"
+import {
+  getPostalSettings,
+  type PostalSettingService,
+} from "../../../../modules/postal/settings"
 
 const toAbsoluteOrigin = (value: unknown) => {
   const candidate = String(value || "").trim()
@@ -57,16 +60,26 @@ const getRequestOrigin = (req: AuthenticatedMedusaRequest) => {
   )
 }
 
+const resolvePostalSettingService = (scope: {
+  resolve: (key: string) => unknown
+}): PostalSettingService | null => {
+  try {
+    return scope.resolve(POSTAL_PLUGIN_MODULE) as PostalSettingService
+  } catch {
+    return null
+  }
+}
+
 export const GET = async (req: AuthenticatedMedusaRequest, res: MedusaResponse) => {
-  const pgConnection = resolveOptionalPgConnection(req.scope)
-  const settings = await getPostalSettings(pgConnection)
+  const service = resolvePostalSettingService(req.scope)
+  const settings = await getPostalSettings(service)
   const token = String(settings.webhook_token || "").trim()
   const origin = getRequestOrigin(req)
 
   if (!token) {
     throw new MedusaError(
       MedusaError.Types.INVALID_DATA,
-      "Postal webhook token is not configured yet. Save Postal settings to generate it."
+      "Postal webhook token is not configured. Set POSTAL_WEBHOOK_TOKEN in the backend environment."
     )
   }
 

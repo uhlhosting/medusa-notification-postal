@@ -8,7 +8,7 @@ Postal notification provider for Medusa v2, published as `@uhlhosting/medusa-not
 
 ## Read first
 
-- `AGENTS.md` — contains **binding numbered invariants**. The Postal-critical ones: three explicit auth modes selected via `auth_type` (`smtp-api`, `smtp-ip`, `smtp`) with only that mode's credentials required; email content/metadata passed in `provider_data` (`subject`, `html`, `text`, `workflow_event`, `workflow_run_id`), not nested custom payloads; debug/test sends go through the `send-postal-email` workflow; `/admin/plugin-settings/postal` is a configuration-visibility endpoint, not delivery assurance. Update `AGENTS.md` in the same commit when a change alters architecture, auth, or route contracts.
+- `AGENTS.md` — contains **binding numbered invariants**. The Postal-critical ones: a single supported auth mode (`auth_type: "smtp-api"`, the Postal HTTP API) — the provider rejects any other value; email content/metadata passed in `provider_data` (`subject`, `html`, `text`, `workflow_event`, `workflow_run_id`), not nested custom payloads; debug/test sends go through the `send-postal-email` workflow; `/admin/plugin-settings/postal` is a configuration-visibility endpoint, not delivery assurance. Update `AGENTS.md` in the same commit when a change alters architecture, auth, or route contracts.
 - `SKILL.md` — routes to the shared Medusa workspace skills (`/Users/cosmic/Developer/MedusaJS/AGENTS.md` first).
 
 ## Commands (pnpm only, Node >= 20, Medusa pinned 2.17.1)

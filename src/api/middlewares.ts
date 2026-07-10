@@ -5,33 +5,31 @@ import {
 } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
 
-const zod = z as any
-
-  const postalSettingsSchema = zod.object({
-    action: zod.enum(["save", "test"]).optional(),
-    to: zod.string().optional(),
-  cc: zod.union([zod.string(), zod.array(zod.string())]).optional(),
-  bcc: zod.union([zod.string(), zod.array(zod.string())]).optional(),
-  from_name: zod.string().optional(),
-  reply_to: zod.string().optional(),
-  template: zod.string().optional(),
-  subject: zod.string().optional(),
-  html: zod.string().optional(),
-  text: zod.string().optional(),
-  headers: zod.record(zod.string()).optional(),
-  custom_args: zod.record(zod.any()).optional(),
-    metadata: zod.record(zod.any()).optional(),
-    settings: zod
-      .object({
-      auth_type: zod.enum(["smtp-api"]).optional(),
-      from: zod.string().optional(),
-      base_url: zod.string().optional(),
-      api_key: zod.string().optional(),
-      test_to: zod.string().optional(),
+const postalSettingsSchema = z.object({
+  action: z.enum(["save", "test"]).optional(),
+  to: z.string().optional(),
+  cc: z.union([z.string(), z.array(z.string())]).optional(),
+  bcc: z.union([z.string(), z.array(z.string())]).optional(),
+  from_name: z.string().optional(),
+  reply_to: z.string().optional(),
+  template: z.string().optional(),
+  subject: z.string().optional(),
+  html: z.string().optional(),
+  text: z.string().optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+  custom_args: z.record(z.string(), z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+  settings: z
+    .object({
+      auth_type: z.enum(["smtp-api"]).optional(),
+      from: z.string().optional(),
+      base_url: z.string().optional(),
+      api_key: z.string().optional(),
+      test_to: z.string().optional(),
     })
-      .partial()
-      .optional(),
-  })
+    .partial()
+    .optional(),
+})
 
 const MAX_EMAIL = 254
 const MAX_NAME = 255
@@ -40,38 +38,43 @@ const MAX_BODY = 2_097_152 // 2 MB
 const MAX_HEADER_KEY = 78
 const MAX_HEADER_VAL = 998
 
-const postalSendTestSchema = zod
+const postalSendTestSchema = z
   .object({
-    to: zod.union([
-      zod.string().min(1).max(MAX_EMAIL),
-      zod.array(zod.string().min(1).max(MAX_EMAIL)).min(1).max(50),
+    to: z.union([
+      z.string().min(1).max(MAX_EMAIL),
+      z.array(z.string().min(1).max(MAX_EMAIL)).min(1).max(50),
     ]),
-    from: zod.string().max(MAX_EMAIL).optional(),
-    from_name: zod.string().max(MAX_NAME).optional(),
-    reply_to: zod.string().max(MAX_EMAIL).optional(),
-    template: zod.string().max(MAX_NAME).optional(),
-    subject: zod.string().min(1).max(MAX_SUBJECT),
-    html: zod.string().max(MAX_BODY).optional(),
-    text: zod.string().max(MAX_BODY).optional(),
-    cc: zod
+    from: z.string().max(MAX_EMAIL).optional(),
+    from_name: z.string().max(MAX_NAME).optional(),
+    reply_to: z.string().max(MAX_EMAIL).optional(),
+    template: z.string().max(MAX_NAME).optional(),
+    subject: z.string().min(1).max(MAX_SUBJECT),
+    html: z.string().max(MAX_BODY).optional(),
+    text: z.string().max(MAX_BODY).optional(),
+    cc: z
       .union([
-        zod.string().max(MAX_EMAIL),
-        zod.array(zod.string().max(MAX_EMAIL)).max(50),
+        z.string().max(MAX_EMAIL),
+        z.array(z.string().max(MAX_EMAIL)).max(50),
       ])
       .optional(),
-    bcc: zod
+    bcc: z
       .union([
-        zod.string().max(MAX_EMAIL),
-        zod.array(zod.string().max(MAX_EMAIL)).max(50),
+        z.string().max(MAX_EMAIL),
+        z.array(z.string().max(MAX_EMAIL)).max(50),
       ])
       .optional(),
-    headers: zod
-      .record(zod.string().max(MAX_HEADER_KEY), zod.string().max(MAX_HEADER_VAL))
+    headers: z
+      .record(z.string().max(MAX_HEADER_KEY), z.string().max(MAX_HEADER_VAL))
       .optional(),
-    custom_args: zod.record(zod.string().max(MAX_NAME), zod.string().max(MAX_NAME)).optional(),
-    metadata: zod.record(zod.string().max(MAX_NAME), zod.string().max(MAX_NAME)).optional(),
+    custom_args: z.record(z.string().max(MAX_NAME), z.string().max(MAX_NAME)).optional(),
+    metadata: z.record(z.string().max(MAX_NAME), z.string().max(MAX_NAME)).optional(),
   })
   .strict()
+
+// Public webhook payloads from Postal are flexible JSON objects; accept any
+// object shape but reject arrays/primitives at the top level. The hard defense
+// against payload-amplification DoS is the bodyParser size cap on the route.
+const postalWebhookSchema = z.record(z.string(), z.unknown())
 
 export default defineMiddlewares({
   routes: [
@@ -120,6 +123,12 @@ export default defineMiddlewares({
         authenticate("user", ["session", "bearer", "api-key"]),
         validateAndTransformBody(postalSendTestSchema),
       ],
+    },
+    {
+      matcher: "/postal/webhooks/:token",
+      method: "POST",
+      bodyParser: { sizeLimit: "512kb" },
+      middlewares: [validateAndTransformBody(postalWebhookSchema)],
     },
   ],
 })

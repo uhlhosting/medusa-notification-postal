@@ -11,6 +11,7 @@
   "postal.from_email": "From Email",
   "postal.base_url": "Postal Base URL",
   "postal.api_key": "API Key",
+  "postal.api_key_env_managed": "Managed via the POSTAL_API_KEY environment variable and cannot be edited here.",
   "postal.default_test_recipient": "Default Test Recipient",
   "postal.default_test_recipient_hint": "Used as fallback for testing delivery if no recipient is provided.",
   "postal.test_connectivity": "Test Connectivity",

@@ -61,7 +61,18 @@ type PostalNotificationProviderData = {
   workflow_run_id?: string
 }
 
-const POSTAL_REQUEST_TIMEOUT_MS = 10000
+const POSTAL_DEFAULT_TIMEOUT_MS = 10000
+const POSTAL_MIN_TIMEOUT_MS = 1000
+const POSTAL_MAX_TIMEOUT_MS = 60000
+
+const resolveRequestTimeoutMs = (): number => {
+  const raw = Number.parseInt(String(process.env.POSTAL_REQUEST_TIMEOUT_MS || ""), 10)
+  if (!Number.isFinite(raw)) {
+    return POSTAL_DEFAULT_TIMEOUT_MS
+  }
+  return Math.min(Math.max(raw, POSTAL_MIN_TIMEOUT_MS), POSTAL_MAX_TIMEOUT_MS)
+}
+
 const POSTAL_WEBHOOK_TAG_PREFIX = "uhlhosting.medusa-notification-postal:"
 
 export class PostalNotificationService extends AbstractNotificationProviderService {
@@ -104,6 +115,22 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
         "Postal API mode requires 'base_url'"
+      )
+    }
+
+    let parsedBaseUrl: URL
+    try {
+      parsedBaseUrl = new URL(baseUrl)
+    } catch {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Postal 'base_url' must be a valid absolute URL"
+      )
+    }
+    if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Postal 'base_url' must use the http or https protocol"
       )
     }
 
@@ -257,7 +284,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
 
   private async fetchPostalApi(path: string, payload: any) {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), POSTAL_REQUEST_TIMEOUT_MS)
+    const timeout = setTimeout(() => controller.abort(), resolveRequestTimeoutMs())
 
     const response = await fetch(`${this.config_.baseUrl}/api/v1/${path}`, {
       method: "POST",
@@ -339,6 +366,15 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     return result
   }
 
+  private static assertNoHeaderInjection(value: string, field: string): void {
+    if (/[\r\n]/.test(value)) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        `Postal ${field} must not contain CR/LF characters`
+      )
+    }
+  }
+
   private buildSendPayload(input: {
     to: string[]
     cc: string[]
@@ -348,6 +384,12 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     attachments: any
     providerData: PostalNotificationProviderData
   }): PostalSendPayload {
+    PostalNotificationService.assertNoHeaderInjection(input.sender.from, "sender address")
+    PostalNotificationService.assertNoHeaderInjection(input.template.subject, "subject")
+    for (const recipient of [...input.to, ...input.cc, ...input.bcc]) {
+      PostalNotificationService.assertNoHeaderInjection(recipient, "recipient address")
+    }
+
     const htmlBody = input.template.html || ""
     const plainBody = input.template.text || (htmlBody ? this.stripHtml(htmlBody) : "")
     const customArgHeaders = normalizePostalCustomArgs(input.providerData.custom_args)
@@ -470,7 +512,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
 
   getHealthSnapshot() {
     return {
-      auth_type: "api",
+      auth_type: this.config_.authType,
       mode: "api",
     }
   }}
