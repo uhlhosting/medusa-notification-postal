@@ -44,14 +44,14 @@
 14. The build must emit TypeScript declarations so every `types`/`exports` target advertised in `package.json` resolves for consumers
 
 ## Publish and CI Rules
-1. GitHub publishing must use OIDC Trusted Publishing only
-2. The GitHub publish workflow must stay aligned with the npm trusted publisher configuration
-3. GitLab CI is the source of truth and should mirror to GitHub only after checks pass
-4. The GitLab mirror job must use a masked, protected CI/CD variable for GitHub push access
-5. Keep release validation in the repo and run it before publish-related changes are signed off
-6. Tag mirroring pipelines must push the tag ref specifically (using `refs/tags/...` format) to prevent conflicts with GitLab's background mirroring.
-7. GitHub npm publishing must verify protected refs, package-version tag alignment, and release-branch reachability before publishing.
-8. GitLab release tagging should derive the tag name from `package.json` version and use a protected `GIT_TAG_PUSH_TOKEN` variable when pushing tags back to the repository.
+1. Versioning and releases are automated with **semantic-release** on the default branch, per GitLab's documented example (`docs.gitlab.com/ci/examples/semantic-release/`). Commits MUST follow Conventional Commits (`fix:` → patch, `feat:` → minor, `feat!:`/`BREAKING CHANGE:` → major) — the commit type drives the version bump; never hand-edit `package.json` version.
+2. The `release:semantic` job (stage `deploy`, default branch only) runs `pnpm exec semantic-release`, which computes the next version, publishes to the GitLab npm registry (authenticated with the ephemeral `CI_JOB_TOKEN` via a generated `.npmrc`), creates a GitLab Release with generated notes, and commits the bumped `package.json` + `v*` tag back to the default branch.
+3. semantic-release requires a masked project CI/CD variable `GITLAB_TOKEN` (scopes `api` + `write_repository`) allowed to push to the protected default branch and create protected `v*` tags. The npm publish uses `CI_JOB_TOKEN`, not a static npm token. The GitLab package registry does not support provenance, so the release job sets `NPM_CONFIG_PROVENANCE=false`.
+4. The semantic-release plugin chain and options live in `.releaserc.json`; keep it aligned with the plugins declared in `devDependencies`.
+5. Keep release validation in the repo: `release:verify` (`pnpm release:check`) must pass before `release:semantic` runs (`needs`).
+6. Onboarding/reconciliation: semantic-release derives the last release from git tags, so every published version must have a matching `v<version>` tag reachable from the default branch (e.g. the `v0.1.17` baseline tag added when adopting semantic-release).
+7. GitHub npm publishing (public npmjs) uses OIDC Trusted Publishing and must verify protected refs and tag/version alignment before publishing.
+8. The GitLab mirror job (`mirror:github`) mirrors to GitHub, uses a masked/protected token, and pushes tag refs specifically (`refs/tags/...`) to avoid conflicts with GitLab's background mirroring.
 
 ## Validation Checklist
 1. `pnpm release:check` passes (includes admin typecheck via `typecheck:admin`)
