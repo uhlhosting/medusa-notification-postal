@@ -119,6 +119,16 @@ release:semantic:
         echo "${CI_API_V4_URL#https*:}/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=\${CI_JOB_TOKEN}"
       } | tee -a .npmrc
   script:
+    # Fail fast with a clear message if the release credential is missing.
+    # GITLAB_TOKEN must be a masked, protected project access token with
+    # api + write_repository scopes (see AGENTS.md). semantic-release reads it
+    # (and GL_TOKEN) from the environment automatically.
+    - |
+      if [ -z "$GITLAB_TOKEN" ]; then
+        echo "GITLAB_TOKEN is not set. Create a masked, protected project access token (scopes: api, write_repository) named GITLAB_TOKEN in Settings > CI/CD > Variables." >&2
+        exit 1
+      fi
+    - export GL_TOKEN="$GITLAB_TOKEN"
     - pnpm exec semantic-release
 
 mirror:github:
