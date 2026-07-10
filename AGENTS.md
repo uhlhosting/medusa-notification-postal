@@ -36,12 +36,14 @@
 6. Secrets (`POSTAL_API_KEY`, `POSTAL_WEBHOOK_TOKEN`) are sourced from provider options/environment at boot only — never persisted by the plugin and read-only in the admin UI. Non-secret settings (`from`, `base_url`, `auth_type`, `test_to`) persist in the `postal_setting` DML model via the module service; the plugin never writes to `.env` or mutates `process.env` on a request path. A boot loader reconciles the persisted row into `process.env` in memory.
 7. Postal HTTP calls must fail fast with a bounded timeout, configurable via `POSTAL_REQUEST_TIMEOUT_MS` and clamped to 1–60s
 8. Postal webhook callbacks must use a tokenized store route, and the exact tokenized URL should be surfaced from an admin-only view rather than the settings surface
-9. Persistence goes through Medusa data primitives: the `postal_setting` DML model + module service for settings, with tables created by migrations (never on request paths)
+9. Persistence goes through Medusa data primitives: the `postal_setting` and `postal_webhook_events` DML models + module service (no raw SQL, no PG-connection probing), with tables created by migrations (never on request paths)
 10. The admin webhook URL endpoint should return the tokenized path plus an absolute callback URL when the request origin can be resolved
 11. The provider must reject CR/LF characters in the sender address, subject, and recipients, and require an http/https `base_url`
 12. The public webhook route must validate its body and enforce a bounded body-size cap
 13. Admin message-inspection must delegate to the resolved provider service, not a duplicated Postal HTTP client
 14. The build must emit TypeScript declarations so every `types`/`exports` target advertised in `package.json` resolves for consumers
+15. Recording a Postal webhook is idempotent (a replayed message + event type must not duplicate a row) and emits a best-effort `postal.<status>` event on the event bus for subscribers
+16. Sends carry an `idempotency_key` derived from the workflow run id + template + recipient when a run id is present, so workflow retries do not duplicate emails
 
 ## Publish and CI Rules
 1. Versioning and releases are automated with **semantic-release** on the default branch, per GitLab's documented example (`docs.gitlab.com/ci/examples/semantic-release/`). Commits MUST follow Conventional Commits (`fix:` → patch, `feat:` → minor, `feat!:`/`BREAKING CHANGE:` → major) — the commit type drives the version bump; never hand-edit `package.json` version.

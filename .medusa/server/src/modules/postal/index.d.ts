@@ -16,6 +16,20 @@ declare const _default: import("@medusajs/types").ModuleExports<typeof PostalPlu
                 primaryKey: "id";
             };
         };
+        readonly postalWebhookEvents: {
+            id: {
+                serviceName: "postalPlugin";
+                field: "postalWebhookEvents";
+                linkable: "postal_webhook_events_id";
+                primaryKey: "id";
+            };
+            toJSON: () => {
+                serviceName: "postalPlugin";
+                field: "postalWebhookEvents";
+                linkable: "postal_webhook_events_id";
+                primaryKey: "id";
+            };
+        };
     };
 };
 export default _default;
