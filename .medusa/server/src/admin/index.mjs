@@ -2524,13 +2524,15 @@ const displayModule = {
   displays: {}
 };
 const i18nModule = { resources: i18nTranslations0 };
+const layoutModule = { layouts: [] };
 const plugin = {
   widgetModule,
   routeModule,
   menuItemModule,
   formModule,
   displayModule,
-  i18nModule
+  i18nModule,
+  layoutModule
 };
 export {
   plugin as default
