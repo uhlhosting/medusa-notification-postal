@@ -113,12 +113,10 @@ release:semantic:
     - npm install -g "pnpm@${PNPM_VERSION}"
     - pnpm config set store-dir "$PNPM_STORE_DIR"
     - pnpm install --frozen-lockfile --prefer-offline
-    # pnpm 11 intentionally ignores environment-expanded credentials in a
-    # project .npmrc. Store the ephemeral job token in the trusted user config.
-    - pnpm config set "@${CI_PROJECT_ROOT_NAMESPACE}:registry" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/" --location=user
-    - pnpm config set "${CI_API_V4_URL#https*:}/projects/${CI_PROJECT_ID}/packages/npm/:_authToken=$CI_JOB_TOKEN" --location=user
   script:
-    - pnpm exec semantic-release
+    # Set the publish registry only after dependency installation. The npm
+    # plugin uses NPM_TOKEN to create its temporary auth config for this URL.
+    - NPM_CONFIG_REGISTRY="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/" pnpm exec semantic-release
 
 mirror:github:
   stage: mirror
