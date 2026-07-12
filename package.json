@@ -10,8 +10,7 @@
     "url": "https://github.com/uhlhosting/medusa-notification-postal"
   },
   "publishConfig": {
-    "access": "public",
-    "provenance": true
+    "access": "public"
   },
   "files": [
     ".medusa/server",
