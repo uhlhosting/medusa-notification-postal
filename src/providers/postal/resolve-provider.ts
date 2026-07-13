@@ -1,20 +1,26 @@
-import { MedusaError } from "@medusajs/framework/utils"
+import { MedusaError, Modules } from "@medusajs/framework/utils"
 import type { PostalNotificationService } from "./services/postal"
 
-// Notification providers are registered by Medusa as `np_<provider id>`.
-// The consuming application configures this provider with the stable id
-// `postal`, so routes must resolve the generated container key rather than the
-// provider class identifier (`notification-postal`).
-export const POSTAL_PROVIDER_CONTAINER_KEY = "np_postal"
+export const POSTAL_PROVIDER_ID = "postal"
 
 type ProviderScope = {
   resolve: (key: string) => unknown
 }
 
+type NotificationModuleWithProviderRegistry = {
+  notificationProviderService_?: {
+    retrieveProviderRegistration: (providerId: string) => unknown
+  }
+}
+
 export const resolvePostalProvider = (
   scope: ProviderScope
 ): PostalNotificationService => {
-  const service = scope.resolve(POSTAL_PROVIDER_CONTAINER_KEY)
+  const notificationModule = scope.resolve(
+    Modules.NOTIFICATION
+  ) as NotificationModuleWithProviderRegistry
+  const service = notificationModule.notificationProviderService_
+    ?.retrieveProviderRegistration(POSTAL_PROVIDER_ID)
 
   if (!service) {
     throw new MedusaError(

@@ -1,5 +1,5 @@
 import type { PostalNotificationService } from "./services/postal";
-export declare const POSTAL_PROVIDER_CONTAINER_KEY = "np_postal";
+export declare const POSTAL_PROVIDER_ID = "postal";
 type ProviderScope = {
     resolve: (key: string) => unknown;
 };

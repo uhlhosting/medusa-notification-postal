@@ -25,7 +25,11 @@ test("health route reports the resolved Postal provider as active", async () => 
       resolve: (key: string) => {
         resolvedKey = key
         return {
-          getHealthSnapshot: () => ({ auth_type: "smtp-api", mode: "api" }),
+          notificationProviderService_: {
+            retrieveProviderRegistration: () => ({
+              getHealthSnapshot: () => ({ auth_type: "smtp-api", mode: "api" }),
+            }),
+          },
         }
       },
     },
@@ -34,7 +38,7 @@ test("health route reports the resolved Postal provider as active", async () => 
 
   await GET(req, response as any)
 
-  assert.equal(resolvedKey, "np_postal")
+  assert.equal(resolvedKey, "notification")
   assert.equal(output.status, 200)
   assert.equal(output.payload?.status, "ok")
   assert.equal(output.payload?.auth_type, "smtp-api")

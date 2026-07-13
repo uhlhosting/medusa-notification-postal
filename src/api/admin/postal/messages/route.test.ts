@@ -10,8 +10,12 @@ test("message route resolves the Postal provider and returns message details", a
       resolve: (key: string) => {
         resolvedKey = key
         return {
-          getMessageDetails: async (id: number) => ({ id, subject: "Test" }),
-          getMessageDeliveries: async (id: number) => [{ id, status: "sent" }],
+          notificationProviderService_: {
+            retrieveProviderRegistration: () => ({
+              getMessageDetails: async (id: number) => ({ id, subject: "Test" }),
+              getMessageDeliveries: async (id: number) => [{ id, status: "sent" }],
+            }),
+          },
         }
       },
     },
@@ -30,7 +34,7 @@ test("message route resolves the Postal provider and returns message details", a
 
   await GET(req, response as any)
 
-  assert.equal(resolvedKey, "np_postal")
+  assert.equal(resolvedKey, "notification")
   assert.equal(output.status, 200)
   assert.equal(output.payload?.id, 42)
   assert.deepEqual(output.payload?.message, { id: 42, subject: "Test" })

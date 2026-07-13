@@ -1,18 +1,16 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resolvePostalProvider = exports.POSTAL_PROVIDER_CONTAINER_KEY = void 0;
+exports.resolvePostalProvider = exports.POSTAL_PROVIDER_ID = void 0;
 const utils_1 = require("@medusajs/framework/utils");
-// Notification providers are registered by Medusa as `np_<provider id>`.
-// The consuming application configures this provider with the stable id
-// `postal`, so routes must resolve the generated container key rather than the
-// provider class identifier (`notification-postal`).
-exports.POSTAL_PROVIDER_CONTAINER_KEY = "np_postal";
+exports.POSTAL_PROVIDER_ID = "postal";
 const resolvePostalProvider = (scope) => {
-    const service = scope.resolve(exports.POSTAL_PROVIDER_CONTAINER_KEY);
+    const notificationModule = scope.resolve(utils_1.Modules.NOTIFICATION);
+    const service = notificationModule.notificationProviderService_
+        ?.retrieveProviderRegistration(exports.POSTAL_PROVIDER_ID);
     if (!service) {
         throw new utils_1.MedusaError(utils_1.MedusaError.Types.UNEXPECTED_STATE, "Postal notification provider is not loaded");
     }
     return service;
 };
 exports.resolvePostalProvider = resolvePostalProvider;
-//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoicmVzb2x2ZS1wcm92aWRlci5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uLy4uL3NyYy9wcm92aWRlcnMvcG9zdGFsL3Jlc29sdmUtcHJvdmlkZXIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEscURBQXVEO0FBR3ZELHlFQUF5RTtBQUN6RSx3RUFBd0U7QUFDeEUsK0VBQStFO0FBQy9FLHFEQUFxRDtBQUN4QyxRQUFBLDZCQUE2QixHQUFHLFdBQVcsQ0FBQTtBQU1qRCxNQUFNLHFCQUFxQixHQUFHLENBQ25DLEtBQW9CLEVBQ08sRUFBRTtJQUM3QixNQUFNLE9BQU8sR0FBRyxLQUFLLENBQUMsT0FBTyxDQUFDLHFDQUE2QixDQUFDLENBQUE7SUFFNUQsSUFBSSxDQUFDLE9BQU8sRUFBRSxDQUFDO1FBQ2IsTUFBTSxJQUFJLG1CQUFXLENBQ25CLG1CQUFXLENBQUMsS0FBSyxDQUFDLGdCQUFnQixFQUNsQyw0Q0FBNEMsQ0FDN0MsQ0FBQTtJQUNILENBQUM7SUFFRCxPQUFPLE9BQW9DLENBQUE7QUFDN0MsQ0FBQyxDQUFBO0FBYlksUUFBQSxxQkFBcUIseUJBYWpDIn0=
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJmaWxlIjoicmVzb2x2ZS1wcm92aWRlci5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uLy4uLy4uLy4uL3NyYy9wcm92aWRlcnMvcG9zdGFsL3Jlc29sdmUtcHJvdmlkZXIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQUEscURBQWdFO0FBR25ELFFBQUEsa0JBQWtCLEdBQUcsUUFBUSxDQUFBO0FBWW5DLE1BQU0scUJBQXFCLEdBQUcsQ0FDbkMsS0FBb0IsRUFDTyxFQUFFO0lBQzdCLE1BQU0sa0JBQWtCLEdBQUcsS0FBSyxDQUFDLE9BQU8sQ0FDdEMsZUFBTyxDQUFDLFlBQVksQ0FDcUIsQ0FBQTtJQUMzQyxNQUFNLE9BQU8sR0FBRyxrQkFBa0IsQ0FBQyw0QkFBNEI7UUFDN0QsRUFBRSw0QkFBNEIsQ0FBQywwQkFBa0IsQ0FBQyxDQUFBO0lBRXBELElBQUksQ0FBQyxPQUFPLEVBQUUsQ0FBQztRQUNiLE1BQU0sSUFBSSxtQkFBVyxDQUNuQixtQkFBVyxDQUFDLEtBQUssQ0FBQyxnQkFBZ0IsRUFDbEMsNENBQTRDLENBQzdDLENBQUE7SUFDSCxDQUFDO0lBRUQsT0FBTyxPQUFvQyxDQUFBO0FBQzdDLENBQUMsQ0FBQTtBQWpCWSxRQUFBLHFCQUFxQix5QkFpQmpDIn0=
