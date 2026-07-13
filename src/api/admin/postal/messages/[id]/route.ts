@@ -3,7 +3,7 @@ import {
   MedusaResponse,
 } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
-import type { PostalNotificationService } from "../../../../../providers/postal/services/postal"
+import { resolvePostalProvider } from "../../../../../providers/postal/resolve-provider"
 
 export const GET = async (
   req: AuthenticatedMedusaRequest,
@@ -22,9 +22,7 @@ export const GET = async (
   // Delegate to the resolved provider service instead of re-implementing the
   // Postal HTTP client and reading process.env directly. This keeps credential
   // and transport logic in one place (module -> provider -> route layering).
-  const service = req.scope.resolve(
-    "notification-postal"
-  ) as PostalNotificationService
+  const service = resolvePostalProvider(req.scope)
 
   const [message, deliveries] = await Promise.all([
     service.getMessageDetails(numericId),

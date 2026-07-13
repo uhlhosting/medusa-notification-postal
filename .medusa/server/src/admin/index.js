@@ -163,11 +163,12 @@ const resolvedBackendUrl = resolveBackendBaseUrl(
   typeof window !== "undefined" ? (_a = window.location) == null ? void 0 : _a.origin : null
 );
 const isDev = (__vite_import_meta_env__ == null ? void 0 : __vite_import_meta_env__.NODE_ENV) === "development" || false || runtimeEnv.DEV === true || runtimeEnv.DEV === "true";
+const ADMIN_SDK_AUTH_TYPE = "session";
 const sdk = new Medusa__default.default({
   baseUrl: resolvedBackendUrl,
   debug: Boolean(isDev),
   auth: {
-    type: "jwt"
+    type: ADMIN_SDK_AUTH_TYPE
   }
 });
 const getPublicBackendBaseUrl = () => resolvedBackendUrl;
@@ -1534,7 +1535,7 @@ const postalTemplateReferenceRows = [
   }
 ];
 const PostalSettingsPage = () => {
-  var _a2, _b, _c;
+  var _a2, _b, _c, _d;
   ensurePostalAdminTranslations();
   const { t } = reactI18next.useTranslation();
   const [form, setForm] = react.useState(emptyForm);
@@ -1645,8 +1646,7 @@ const PostalSettingsPage = () => {
   ];
   const { data: webhookUrlData } = reactQuery.useQuery({
     queryKey: ["plugin-settings-postal-webhook-url"],
-    queryFn: () => sdk.client.fetch("/admin/postal/webhook-url"),
-    enabled: Boolean(data)
+    queryFn: () => sdk.client.fetch("/admin/postal/webhook-url")
   });
   const webhookCallbackUrl = (webhookUrlData == null ? void 0 : webhookUrlData.callback_url) || webhookCallbackPath;
   react.useEffect(() => {
@@ -1702,7 +1702,9 @@ const PostalSettingsPage = () => {
       ui.toast.error((err == null ? void 0 : err.message) || t("postal.toast.test_failed"));
     }
   });
-  const isConfigured = (data == null ? void 0 : data.configured) && Object.values(data.configured).includes(true);
+  const isConfigured = Boolean(
+    ((_b = data == null ? void 0 : data.configured) == null ? void 0 : _b.from) && data.configured.base_url && data.configured.api_key
+  );
   const disabled = saveMutation.isPending || testMutation.isPending;
   const configuredSummary = [
     {
@@ -1841,11 +1843,11 @@ const PostalSettingsPage = () => {
                     id: "postal-api-key",
                     label: t("postal.api_key"),
                     type: "password",
-                    placeholder: ((_b = data == null ? void 0 : data.secret_hints) == null ? void 0 : _b.api_key_masked) || t("postal.masked_long"),
+                    placeholder: ((_c = data == null ? void 0 : data.secret_hints) == null ? void 0 : _c.api_key_masked) || t("postal.masked_long"),
                     value: "",
                     onChange: () => void 0,
                     disabled: true,
-                    hint: ((_c = data == null ? void 0 : data.secret_hints) == null ? void 0 : _c.api_key_masked) ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.api_key_env_managed")}` : t("postal.api_key_env_managed")
+                    hint: ((_d = data == null ? void 0 : data.secret_hints) == null ? void 0 : _d.api_key_masked) ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.api_key_env_managed")}` : t("postal.api_key_env_managed")
                   }
                 )
               ] }),
@@ -2494,12 +2496,12 @@ const routeModule = {
       path: "/postal"
     },
     {
-      Component: PostalSettingsPage,
-      path: "/settings/postal"
-    },
-    {
       Component: PostalPluginSettingsRedirect,
       path: "/plugin-settings/postal"
+    },
+    {
+      Component: PostalSettingsPage,
+      path: "/settings/postal"
     }
   ]
 };

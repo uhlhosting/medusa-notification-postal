@@ -378,7 +378,6 @@ export const PostalSettingsPage = () => {
   const { data: webhookUrlData } = useQuery<any>({
     queryKey: ["plugin-settings-postal-webhook-url"],
     queryFn: () => sdk.client.fetch("/admin/postal/webhook-url"),
-    enabled: Boolean(data),
   });
   const webhookCallbackUrl =
     webhookUrlData?.callback_url || webhookCallbackPath;
@@ -457,8 +456,11 @@ export const PostalSettingsPage = () => {
     },
   });
 
-  const isConfigured =
-    data?.configured && Object.values(data.configured).includes(true);
+  const isConfigured = Boolean(
+    data?.configured?.from &&
+      data.configured.base_url &&
+      data.configured.api_key,
+  );
   const disabled = saveMutation.isPending || testMutation.isPending;
   const configuredSummary = [
     {

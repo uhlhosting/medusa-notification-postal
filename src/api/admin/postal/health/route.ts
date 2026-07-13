@@ -2,32 +2,32 @@ import {
   AuthenticatedMedusaRequest,
   MedusaResponse,
 } from "@medusajs/framework/http"
+import { resolvePostalProvider } from "../../../../providers/postal/resolve-provider"
 
 export const GET = async (
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) => {
-  let authType = "api"
-  let mode = "api"
-
   try {
-    const service = req.scope.resolve("notification-postal") as any
-    const runtime = service?.getHealthSnapshot?.()
-    if (runtime?.auth_type && runtime?.mode) {
-      authType = runtime.auth_type
-      mode = runtime.mode
-    }
-  } catch {
-    // Keep env fallback for health endpoint resilience.
-  }
+    const service = resolvePostalProvider(req.scope)
+    const runtime = service.getHealthSnapshot()
 
-  res.json({
-    code: "postal_provider_active",
-    type: "postal_health_status",
-    status: "ok",
-    message: "Postal notification provider is active",
-    auth_type: authType,
-    mode,
-    timestamp: new Date().toISOString(),
-  })
+    return res.status(200).json({
+      code: "postal_provider_active",
+      type: "postal_health_status",
+      status: "ok",
+      message: "Postal notification provider is active",
+      auth_type: runtime.auth_type,
+      mode: runtime.mode,
+      timestamp: new Date().toISOString(),
+    })
+  } catch {
+    return res.status(503).json({
+      code: "postal_provider_unavailable",
+      type: "postal_health_status",
+      status: "error",
+      message: "Postal notification provider is not loaded",
+      timestamp: new Date().toISOString(),
+    })
+  }
 }

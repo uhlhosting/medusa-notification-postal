@@ -44,6 +44,8 @@
 14. The build must emit TypeScript declarations so every `types`/`exports` target advertised in `package.json` resolves for consumers
 15. Recording a Postal webhook is idempotent (a replayed message + event type must not duplicate a row) and emits a best-effort `postal.<status>` event on the event bus for subscribers
 16. Sends carry an `idempotency_key` derived from the workflow run id + template + recipient when a run id is present, so workflow retries do not duplicate emails
+17. Postal admin UI requests use the Medusa dashboard session through the shared JS SDK client; do not switch the plugin client to standalone JWT storage
+18. Provider-backed admin routes resolve the configured Postal notification provider through Medusa's `np_postal` container registration, and health must report unavailable when that provider cannot be resolved
 
 ## Publish and CI Rules
 1. Versioning and releases are automated with **semantic-release** on the default branch, per GitLab's documented example (`docs.gitlab.com/ci/examples/semantic-release/`). Commits MUST follow Conventional Commits (`fix:` → patch, `feat:` → minor, `feat!:`/`BREAKING CHANGE:` → major) — the commit type drives the version bump; never hand-edit `package.json` version.

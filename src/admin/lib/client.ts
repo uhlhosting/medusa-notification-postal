@@ -20,11 +20,13 @@ const isDev =
   runtimeEnv.DEV === true ||
   runtimeEnv.DEV === "true";
 
+export const ADMIN_SDK_AUTH_TYPE = "session" as const;
+
 export const sdk = new Medusa({
   baseUrl: resolvedBackendUrl,
   debug: Boolean(isDev),
   auth: {
-    type: "jwt",
+    type: ADMIN_SDK_AUTH_TYPE,
   },
 });
 
