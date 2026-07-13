@@ -22,8 +22,18 @@ export type PostalWebhookRecord = {
   created_at?: string
 }
 
-const POSTAL_WEBHOOK_EVENTS_TABLE = "postal_webhook_events"
 export const POSTAL_WEBHOOK_TAG_PREFIX = "uhlhosting.medusa-notification-postal:"
+
+// Minimal shape of the generated module service methods this file relies on.
+export type PostalWebhookEventService = {
+  listPostalWebhookEvents: (
+    filter?: Record<string, unknown>,
+    config?: Record<string, unknown>
+  ) => Promise<PostalWebhookRecord[]>
+  createPostalWebhookEvents: (
+    data: Record<string, unknown> | Record<string, unknown>[]
+  ) => Promise<unknown>
+}
 
 const sanitizeString = (value: unknown) =>
   typeof value === "string" ? value.trim() : ""
@@ -301,7 +311,7 @@ export const normalizePostalWebhookPayload = (
 }
 
 export const recordPostalWebhookEvent = async (
-  pgConnection: any,
+  service: PostalWebhookEventService | null | undefined,
   payload: Record<string, unknown>
 ): Promise<PostalWebhookRecord | null> => {
   if (!isPostalSentWebhookFromPlugin(payload)) {
@@ -310,25 +320,32 @@ export const recordPostalWebhookEvent = async (
 
   const event = normalizePostalWebhookPayload(payload)
 
-  if (!pgConnection || typeof pgConnection.raw !== "function") {
+  if (!service?.createPostalWebhookEvents) {
     return event
   }
 
   try {
-    await pgConnection.raw(
-      `INSERT INTO ${POSTAL_WEBHOOK_EVENTS_TABLE}
-        (id, event_type, status, message_id, recipient, occurred_at, payload, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, now())`,
-      [
-        event.id,
-        event.event_type,
-        event.status,
-        event.message_id,
-        event.recipient,
-        event.occurred_at,
-        JSON.stringify(event.payload),
-      ]
-    )
+    // Idempotency: a replayed callback for the same message + event type must
+    // not create a duplicate row.
+    if (event.message_id) {
+      const existing = await service.listPostalWebhookEvents(
+        { message_id: event.message_id, event_type: event.event_type },
+        { take: 1 }
+      )
+      if (existing?.length) {
+        return existing[0]
+      }
+    }
+
+    await service.createPostalWebhookEvents({
+      id: event.id,
+      event_type: event.event_type,
+      status: event.status,
+      message_id: event.message_id,
+      recipient: event.recipient,
+      occurred_at: event.occurred_at,
+      payload: event.payload,
+    })
   } catch {
     return event
   }
@@ -337,24 +354,19 @@ export const recordPostalWebhookEvent = async (
 }
 
 export const listPostalWebhookEvents = async (
-  pgConnection: any,
+  service: PostalWebhookEventService | null | undefined,
   limit = 25
 ) => {
-  if (!pgConnection || typeof pgConnection.raw !== "function") {
+  if (!service?.listPostalWebhookEvents) {
     return []
   }
 
   const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 100) : 25
   try {
-    const result = await pgConnection.raw(
-      `SELECT id, event_type, status, message_id, recipient, occurred_at, created_at, payload
-       FROM ${POSTAL_WEBHOOK_EVENTS_TABLE}
-       ORDER BY created_at DESC
-       LIMIT ?`,
-      [safeLimit]
+    return await service.listPostalWebhookEvents(
+      {},
+      { take: safeLimit, order: { created_at: "DESC" } }
     )
-
-    return (result.rows || []) as PostalWebhookRecord[]
   } catch {
     return []
   }

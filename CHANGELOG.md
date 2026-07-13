@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 - 2026-07-13
+
+- Persist Postal delivery/webhook events through a `postal_webhook_events` DML model (removing raw SQL and the PG-connection probing helper). Recording is now idempotent, and each recorded event emits a best-effort `postal.<status>` event on the event bus for subscribers.
+- Add a notification `idempotency_key` (workflow run id + template + recipient) so workflow retries do not send duplicate emails.
+- Surface SAST and Secret Detection results on merge requests via a `security:report` job (job-log summary plus downloadable report artifacts), and fail the release job fast with a clear message when `GITLAB_TOKEN` is missing.
+
 ## 0.1.18 - 2026-07-10
 
 - Replace runtime `.env` writing with a `postal_setting` DML model persisted through the plugin module service. Non-secret settings (`from`, `base_url`, `test_to`) are stored in the database; secrets (`POSTAL_API_KEY`, `POSTAL_WEBHOOK_TOKEN`) are sourced from the environment only and are now read-only in the admin UI. A boot loader reconciles persisted settings into the process environment. **This removes the previous behavior of writing the backend `.env` file, which failed on read-only/containerized filesystems and non-monorepo layouts.**

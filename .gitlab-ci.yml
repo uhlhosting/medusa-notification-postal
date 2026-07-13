@@ -10,6 +10,36 @@ secret_detection:
   before_script: []
   cache: []
 
+# The security findings widget on merge requests is a GitLab Premium/Ultimate
+# feature; this instance is Community Edition (Free). This job surfaces the SAST
+# and Secret Detection results in the pipeline log and exposes the raw reports as
+# a downloadable "Security scan reports" merge-request artifact (native,
+# tokenless, Free-tier). Set SECURITY_FAIL_ON_FINDINGS=true to gate on findings.
+security:report:
+  stage: build
+  needs:
+    - job: semgrep-sast
+      artifacts: true
+      optional: true
+    - job: secret_detection
+      artifacts: true
+      optional: true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  before_script: []
+  cache: []
+  script:
+    - node scripts/security-summary.mjs
+  artifacts:
+    when: always
+    expose_as: "Security scan reports"
+    name: "security-reports-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - gl-sast-report.json
+      - gl-secret-detection-report.json
+    expire_in: 30 days
+
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
@@ -114,6 +144,15 @@ release:semantic:
     - pnpm config set store-dir "$PNPM_STORE_DIR"
     - pnpm install --frozen-lockfile --prefer-offline
   script:
+    # Fail fast with a clear message if the release credential is missing.
+    # GITLAB_TOKEN must be a masked, protected project access token with
+    # api + write_repository scopes (see AGENTS.md). semantic-release reads it
+    # from the environment automatically.
+    - |
+      if [ -z "$GITLAB_TOKEN" ]; then
+        echo "GITLAB_TOKEN is not set. Create a masked, protected project access token (scopes: api, write_repository) named GITLAB_TOKEN in Settings > CI/CD > Variables." >&2
+        exit 1
+      fi
     # Set the publish registry only after dependency installation. The npm
     # plugin uses NPM_TOKEN to create its temporary auth config for this URL.
     - NPM_CONFIG_REGISTRY="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/" pnpm exec semantic-release

@@ -466,16 +466,52 @@ test("normalizePostalWebhookPayload falls back to the generic webhook label for 
   assert.equal(loaded.status, "loaded")
 })
 
-test("recordPostalWebhookEvent persists a normalized event", async () => {
-  const calls: Array<{ sql: string; params?: unknown[] }> = []
-  const pgConnection = {
-    raw: async (sql: string, params?: unknown[]) => {
-      calls.push({ sql, params })
-      return { rows: [] }
+type FakeWebhookServiceOpts = {
+  seed?: Array<Record<string, unknown>>
+  throwOnCreate?: boolean
+  throwOnList?: boolean
+}
+
+const createFakeWebhookService = (opts: FakeWebhookServiceOpts = {}): any => {
+  const rows: Array<Record<string, any>> = [...(opts.seed || [])]
+  const created: Array<Record<string, unknown>> = []
+  let lastListConfig: Record<string, unknown> | undefined
+  return {
+    rows,
+    created,
+    get lastListConfig() {
+      return lastListConfig
+    },
+    listPostalWebhookEvents: async (
+      filter: Record<string, any> = {},
+      config: Record<string, unknown> = {}
+    ) => {
+      if (opts.throwOnList) throw new Error("database unavailable")
+      lastListConfig = config
+      let out = rows
+      if (filter && filter.message_id) {
+        out = out.filter(
+          (r) =>
+            r.message_id === filter.message_id &&
+            (filter.event_type === undefined || r.event_type === filter.event_type)
+        )
+      }
+      const take = config?.take as number | undefined
+      return (typeof take === "number" ? out.slice(0, take) : out) as any
+    },
+    createPostalWebhookEvents: async (data: Record<string, unknown>) => {
+      if (opts.throwOnCreate) throw new Error("database unavailable")
+      created.push(data)
+      rows.push(data)
+      return data
     },
   }
+}
 
-  const event = await recordPostalWebhookEvent(pgConnection, {
+test("recordPostalWebhookEvent persists a normalized event via the module service", async () => {
+  const service = createFakeWebhookService()
+
+  const event = await recordPostalWebhookEvent(service, {
     event: "message.sent",
     status: "sent",
     message: {
@@ -486,8 +522,9 @@ test("recordPostalWebhookEvent persists a normalized event", async () => {
     },
   })
 
-  assert.equal(calls.length, 1)
-  assert.match(calls[0]!.sql, /INSERT INTO postal_webhook_events/)
+  assert.equal(service.created.length, 1)
+  assert.equal(service.created[0]!.message_id, "msg_recorded")
+  assert.equal(service.created[0]!.status, "sent")
   assert.notEqual(event, null)
   const recorded = event as NonNullable<typeof event>
   assert.equal(recorded.status, "sent")
@@ -495,16 +532,38 @@ test("recordPostalWebhookEvent persists a normalized event", async () => {
   assert.equal(recorded.recipient, "recipient@example.com")
 })
 
-test("recordPostalWebhookEvent ignores non-plugin messages", async () => {
-  const calls: Array<{ sql: string; params?: unknown[] }> = []
-  const pgConnection = {
-    raw: async (sql: string, params?: unknown[]) => {
-      calls.push({ sql, params })
-      return { rows: [] }
-    },
-  }
+test("recordPostalWebhookEvent is idempotent for a replayed message + event type", async () => {
+  const service = createFakeWebhookService({
+    seed: [
+      {
+        id: "postal_webhook_existing",
+        event_type: "message.sent",
+        status: "sent",
+        message_id: "msg_dup",
+        recipient: "recipient@example.com",
+      },
+    ],
+  })
 
-  const event = await recordPostalWebhookEvent(pgConnection, {
+  const event = await recordPostalWebhookEvent(service, {
+    event: "message.sent",
+    status: "sent",
+    message: {
+      id: "msg_dup",
+      recipient: "recipient@example.com",
+      tag: "uhlhosting.medusa-notification-postal:postal-test",
+    },
+  })
+
+  // No new row created; the existing record is returned.
+  assert.equal(service.created.length, 0)
+  assert.equal((event as NonNullable<typeof event>).id, "postal_webhook_existing")
+})
+
+test("recordPostalWebhookEvent ignores non-plugin messages", async () => {
+  const service = createFakeWebhookService()
+
+  const event = await recordPostalWebhookEvent(service, {
     event: "message.sent",
     status: "sent",
     message: {
@@ -515,19 +574,13 @@ test("recordPostalWebhookEvent ignores non-plugin messages", async () => {
   })
 
   assert.equal(event, null)
-  assert.equal(calls.length, 0)
+  assert.equal(service.created.length, 0)
 })
 
 test("recordPostalWebhookEvent ignores plugin-tagged non-sent messages", async () => {
-  const calls: Array<{ sql: string; params?: unknown[] }> = []
-  const pgConnection = {
-    raw: async (sql: string, params?: unknown[]) => {
-      calls.push({ sql, params })
-      return { rows: [] }
-    },
-  }
+  const service = createFakeWebhookService()
 
-  const event = await recordPostalWebhookEvent(pgConnection, {
+  const event = await recordPostalWebhookEvent(service, {
     event: "message.bounced",
     status: "bounced",
     message: {
@@ -538,14 +591,14 @@ test("recordPostalWebhookEvent ignores plugin-tagged non-sent messages", async (
   })
 
   assert.equal(event, null)
-  assert.equal(calls.length, 0)
+  assert.equal(service.created.length, 0)
 })
 
-test("recordPostalWebhookEvent returns event when pg connection is unavailable", async () => {
-  const event = await recordPostalWebhookEvent(undefined, {
+test("recordPostalWebhookEvent returns event when the service is unavailable", async () => {
+  const event = await recordPostalWebhookEvent(null, {
     message: {
       tag: "uhlhosting.medusa-notification-postal:postal-test",
-      id: "msg_no_pg",
+      id: "msg_no_service",
       recipient: "recipient@example.com",
     },
     status: "sent",
@@ -554,17 +607,13 @@ test("recordPostalWebhookEvent returns event when pg connection is unavailable",
   assert.notEqual(event, null)
   const recorded = event as NonNullable<typeof event>
   assert.equal(recorded.status, "sent")
-  assert.equal(recorded.message_id, "msg_no_pg")
+  assert.equal(recorded.message_id, "msg_no_service")
 })
 
 test("recordPostalWebhookEvent returns event when persistence fails", async () => {
-  const pgConnection = {
-    raw: async () => {
-      throw new Error("database unavailable")
-    },
-  }
+  const service = createFakeWebhookService({ throwOnCreate: true })
 
-  const event = await recordPostalWebhookEvent(pgConnection, {
+  const event = await recordPostalWebhookEvent(service, {
     event_type: "MessageSent",
     status: "Sent",
     message: {
@@ -582,51 +631,40 @@ test("recordPostalWebhookEvent returns event when persistence fails", async () =
   assert.equal(recorded.recipient, "recipient@example.com")
 })
 
-test("listPostalWebhookEvents returns normalized rows with limit bounds", async () => {
-  const calls: Array<{ sql: string; params?: unknown[] }> = []
-  const pgConnection = {
-    raw: async (sql: string, params?: unknown[]) => {
-      calls.push({ sql, params })
-      return {
-        rows: [
-          {
-            id: "postal_webhook_1",
-            event_type: "message.sent",
-            status: "sent",
-            message_id: "msg_1",
-            recipient: "recipient@example.com",
-            occurred_at: "2026-06-28T12:00:00.000Z",
-            created_at: "2026-06-28T12:01:00.000Z",
-            payload: {},
-          },
-        ],
-      }
-    },
-  }
+test("listPostalWebhookEvents returns rows with clamped limit bounds", async () => {
+  const service = createFakeWebhookService({
+    seed: [
+      {
+        id: "postal_webhook_1",
+        event_type: "message.sent",
+        status: "sent",
+        message_id: "msg_1",
+        recipient: "recipient@example.com",
+        occurred_at: "2026-06-28T12:00:00.000Z",
+        created_at: "2026-06-28T12:01:00.000Z",
+        payload: {},
+      },
+    ],
+  })
 
-  const rows = await listPostalWebhookEvents(pgConnection, 500)
+  const rows = await listPostalWebhookEvents(service, 500)
 
-  assert.equal(calls.length, 1)
-  assert.match(calls[0]!.sql, /SELECT id, event_type, status, message_id, recipient, occurred_at, created_at, payload/)
-  assert.deepEqual(calls[0]!.params, [100])
+  assert.equal(service.lastListConfig?.take, 100)
+  assert.deepEqual(service.lastListConfig?.order, { created_at: "DESC" })
   assert.equal(rows[0]?.id, "postal_webhook_1")
   assert.equal(rows[0]?.status, "sent")
 })
 
 test("listPostalWebhookEvents returns an empty list when the query fails", async () => {
-  const pgConnection = {
-    raw: async () => {
-      throw new Error("database unavailable")
-    },
-  }
+  const service = createFakeWebhookService({ throwOnList: true })
 
-  const rows = await listPostalWebhookEvents(pgConnection, Number.NaN)
+  const rows = await listPostalWebhookEvents(service, Number.NaN)
 
   assert.deepEqual(rows, [])
 })
 
-test("listPostalWebhookEvents returns an empty list when no pg connection is available", async () => {
-  const rows = await listPostalWebhookEvents(undefined, 25)
+test("listPostalWebhookEvents returns an empty list when no service is available", async () => {
+  const rows = await listPostalWebhookEvents(null, 25)
 
   assert.deepEqual(rows, [])
 })

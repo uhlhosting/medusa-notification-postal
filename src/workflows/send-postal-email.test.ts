@@ -43,4 +43,23 @@ test("buildPostalNotificationInput routes admin test sends through the postal pr
   assert.equal(notification.provider_data.workflow_event, "postal.admin.test")
   assert.equal(notification.provider_data.workflow_run_id, "admin_test_1")
   assert.deepEqual(notification.data, notification.provider_data)
+  // Idempotency key derived from run id + template + recipient dedupes retries.
+  assert.equal(
+    notification.idempotency_key,
+    "postal:admin_test_1:postal-test:recipient@example.com"
+  )
+})
+
+test("buildPostalNotificationInput omits idempotency_key without a workflow run id", () => {
+  const notification = buildPostalNotificationInput(
+    {
+      to: "recipient@example.com",
+      provider_data: { subject: "Hi" },
+    },
+    "recipient@example.com",
+    "postal-test",
+    { subject: "Hi" } as never
+  )
+
+  assert.equal(notification.idempotency_key, undefined)
 })

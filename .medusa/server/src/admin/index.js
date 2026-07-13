@@ -2494,12 +2494,12 @@ const routeModule = {
       path: "/postal"
     },
     {
-      Component: PostalPluginSettingsRedirect,
-      path: "/plugin-settings/postal"
-    },
-    {
       Component: PostalSettingsPage,
       path: "/settings/postal"
+    },
+    {
+      Component: PostalPluginSettingsRedirect,
+      path: "/plugin-settings/postal"
     }
   ]
 };

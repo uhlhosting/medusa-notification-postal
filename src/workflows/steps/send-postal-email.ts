@@ -96,13 +96,21 @@ export const buildPostalNotificationInput = (
   to: string,
   template: string,
   providerData: ReturnType<typeof buildProviderData>
-) =>
-  ({
+) => {
+  // Guard against duplicate sends on workflow retry: when a workflow run id is
+  // present, the same run + recipient dedupes at the notification module.
+  const workflowRunId = input.provider_data.workflow_run_id
+  const idempotencyKey = workflowRunId
+    ? `postal:${workflowRunId}:${template}:${to}`
+    : undefined
+
+  return {
     to,
     from: input.from,
     channel: "email",
     provider_id: POSTAL_PROVIDER_ID,
     template,
+    ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
     content: {
       subject: input.provider_data.subject,
       html: input.provider_data.html,
@@ -110,4 +118,5 @@ export const buildPostalNotificationInput = (
     },
     data: providerData,
     provider_data: providerData,
-  } as any)
+  } as any
+}
