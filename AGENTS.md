@@ -67,14 +67,46 @@
 ## Maintenance Rule
 - Update this file in the same commit whenever you change plugin architecture, auth behavior, route contracts, publish behavior, or CI/CD mirror behavior
 
-# Project security best practices
-
-- Always run **snyk_code_scan** tool for new first party code that is generated in a Snyk-supported language.
-- If any security issues are found based on newly introduced or modified code or dependencies, attempt to fix the issues using the results context from **Snyk**.
-- Rescan the code after fixing the issues to ensure that the issues were fixed and that there are no newly introduced issues.
-- Repeat this process until no new issues are found.
-
 ## Release assets
 - Use GitLab release assets as generic packages for distributable artifacts
 - Keep release assets aligned with the published package version and tag
 - Prefer Free-tier-safe release automation: avoid Ultimate-only security or release features unless explicitly requested
+
+## Secrets — never let a value reach the transcript
+
+Anything printed is permanent. It lands in the agent transcript, the shell history and
+any CI log at the same instant, and there is no unprinting it. **Treat an accidental
+print as a live incident requiring rotation, not a typo.** It has happened twice on this
+platform: a Proxmox CSI token (2026-07-08, `base64 -d` to stdout) and GitLab's incoming
+email password (2026-07-16, a `grep` over a config that matched the value along with the
+key). The second one happened *despite* the rule being written down — because it was
+written somewhere the agent never read, and only covered writing secrets, not reading a
+file that contains one.
+
+**Redact in the same command that reads — never afterwards.** Output is captured the
+moment it is emitted. When grepping anything that could hold a credential:
+
+```bash
+grep -nE "API_KEY|TOKEN|SECRET|PASSWORD" .env | sed -E "s/=.*/= <redacted>/"
+```
+
+Rules:
+
+- **Never print a `.env`, and never `cat` one.** List keys, not values:
+  `grep -oE '^[A-Z_]+' .env`
+- **Inject, never read.** `infisical run --env <env> -- <cmd>` passes values to the child
+  process without them crossing your terminal. Secrets for this platform live in
+  Infisical (`cerberus.uhl.cloud`), not in the repo — see `SECURITY.md` in the Talos repo
+  for the project layout and rotation procedure.
+- **`infisical secrets set ... >/dev/null`** — it echoes the value back in a confirmation
+  table. The redirect is not optional.
+- **Never `kubectl get secret -o yaml`, never `| base64 -d`.** Keys only:
+  `kubectl -n <ns> get secret <name> -o jsonpath='{.data}' | jq 'keys'`
+- **Never print a GitLab CI variable's value** (`glab variable get`, masked or not), and
+  never echo one inside a job — a masked variable is masked in job logs, not in yours.
+- **Pass secrets on stdin, never argv** — `argv` shows up in `ps` and shell history.
+- **Never ask a human to paste a secret into chat.** Their paste is transcript too. Hand
+  them a command that reads from stdin instead.
+
+If a value does escape: say so immediately, name exactly what leaked, and rotate it. A
+quiet fix leaves a live credential in a transcript nobody knows to purge.
