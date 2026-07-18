@@ -93,7 +93,7 @@
     "@swc/jest": "^0.2.39",
     "@tanstack/react-query": "^5.101.2",
     "@types/jest": "^30.0.0",
-    "@types/node": "20.19.43",
+    "@types/node": "26.1.1",
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
     "@typescript-eslint/eslint-plugin": "^8.64.0",
