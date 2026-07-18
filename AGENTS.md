@@ -110,3 +110,19 @@ Rules:
 
 If a value does escape: say so immediately, name exactly what leaked, and rotate it. A
 quiet fix leaves a live credential in a transcript nobody knows to purge.
+
+## Unified commit and release policy
+
+- Use Conventional Commits: `type(scope): description`. The scope is optional,
+  lowercase, and may contain letters, numbers, dots, slashes, underscores, or
+  hyphens.
+- `fix` and `perf` release a patch, `feat` releases a minor, and a `!` or
+  `BREAKING CHANGE:` footer releases a major.
+- `chore(deps)` releases a patch. This is the workspace-wide pattern for
+  dependency updates that must reach the published package.
+- Other `build`, `chore`, `ci`, `docs`, `refactor`, `style`, and
+  `test` commits do not release.
+- Do not use `fix` or `feat` only to force a release. The subject must describe
+  the actual change.
+- Run `pnpm commitlint` before pushing. The release gate runs the same check in
+  CI over the pushed commit range.

@@ -14,7 +14,8 @@ Releases are automated with [semantic-release](https://docs.gitlab.com/ci/exampl
   - `fix:` → patch (`0.1.x`)
   - `feat:` → minor (`0.x.0`)
   - `feat!:` or a `BREAKING CHANGE:` footer → major (`x.0.0`)
-  - `chore:`, `docs:`, `ci:`, `test:`, `refactor:` → no release
+  - `chore(deps):` → patch, matching the workspace dependency-maintenance convention
+  - Other `chore:`, `docs:`, `ci:`, `test:`, `refactor:` commits → no release
 - Never hand-edit the `version` in `package.json`; semantic-release owns it.
 - Keep package metadata scoped to `@uhlhosting/*`.
 - The public npmjs mirror is still published from GitHub via OIDC trusted publishing on mirrored tags; keep the GitHub Actions publish workflow aligned with the tags semantic-release creates.
@@ -39,3 +40,16 @@ If the repo contains publishable build output, also verify the package surface:
 ```bash
 npm pack --dry-run
 ```
+
+## Commit convention
+
+All plugin repositories use the same Conventional Commits contract:
+
+- `fix(scope): description` and `perf(scope): description` release a patch
+- `feat(scope): description` releases a minor
+- `type(scope)!: description` or a `BREAKING CHANGE:` footer releases a major
+- `chore(deps): description` releases a patch
+- Other maintenance-only types do not release
+
+Run `pnpm commitlint` before pushing. Use `chore(deps)` for publishable
+dependency maintenance rather than mislabeling it as `fix`.

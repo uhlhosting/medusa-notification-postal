@@ -65,9 +65,10 @@
   "scripts": {
     "build": "medusa plugin:build && tsc --emitDeclarationOnly --declaration --declarationMap false --outDir .medusa/server",
     "dev": "medusa plugin:develop",
+    "commitlint": "node scripts/verify-commit-messages.mjs",
     "lint": "medusa lint",
     "prepublishOnly": "pnpm run build",
-    "release:check": "pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && node scripts/verify-release.mjs",
+    "release:check": "pnpm run commitlint && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && node scripts/verify-release.mjs",
     "semantic-release": "semantic-release",
     "test": "tsx --test $(find src -name '*.test.ts' | sort)",
     "test:unit": "jest --runInBand --passWithNoTests",

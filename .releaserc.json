@@ -3,7 +3,18 @@
   "repositoryUrl": "https://gitlab.uhlhost.net/uhlhosting/medusa-notification-postal.git",
   "tagFormat": "v${version}",
   "plugins": [
-    "@semantic-release/commit-analyzer",
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "releaseRules": [
+          {
+            "type": "chore",
+            "scope": "deps",
+            "release": "patch"
+          }
+        ]
+      }
+    ],
     "@semantic-release/release-notes-generator",
     "@semantic-release/gitlab",
     [
