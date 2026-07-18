@@ -1,0 +1,4 @@
+[semgrep]
+  description = 'semgrep custom rules configuration'
+  targetdir = "/sgrules"
+  validate = true

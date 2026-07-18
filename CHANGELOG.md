@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Refresh compatible development tooling, including TypeScript 5.9.3 and current patch releases.
+- Defer breaking upgrades to React 19, ESLint 10, TypeScript 7, React Router 7, react-i18next 17, c8 12, and Node.js 26 types.
+
 ## 0.2.0 - 2026-07-13
 
 - Persist Postal delivery/webhook events through a `postal_webhook_events` DML model (removing raw SQL and the PG-connection probing helper). Recording is now idempotent, and each recorded event emits a best-effort `postal.<status>` event on the event bus for subscribers.
