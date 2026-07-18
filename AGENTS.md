@@ -124,5 +124,5 @@ quiet fix leaves a live credential in a transcript nobody knows to purge.
   `test` commits do not release.
 - Do not use `fix` or `feat` only to force a release. The subject must describe
   the actual change.
-- Run `pnpm commitlint` before pushing. The release gate runs the same check in
-  CI over the pushed commit range.
+- Run `pnpm commitlint` before pushing. It validates the local commit range;
+  the release gate validates the current pipeline commit from GitLab CI.

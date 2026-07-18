@@ -24,9 +24,11 @@ function resolveRange() {
   }
 }
 
-const commits = git("log", "--format=%H%x09%s", ...resolveRange())
-  .split("\n")
-  .filter(Boolean)
+const commits = process.env.CI_COMMIT_TITLE
+  ? [`${process.env.CI_COMMIT_SHA || "CI"}\t${process.env.CI_COMMIT_TITLE}`]
+  : git("log", "--format=%H%x09%s", ...resolveRange())
+      .split("\n")
+      .filter(Boolean)
 
 const invalid = commits.filter((line) => {
   const [, subject = ""] = line.split("\t", 2)
