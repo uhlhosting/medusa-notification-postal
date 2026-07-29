@@ -50,27 +50,40 @@ Non-secret settings edited in the admin (`from`, `base_url`, `test_to`) persist 
 
 ## Usage
 
-Add to `apps/backend/medusa-config.ts` under the notification module providers.
+Register the plugin package so its module, migrations, routes, and Admin
+extension are loaded. Then register the explicit Postal provider subpath under
+the Notification Module:
 
 ```ts
-{
-  resolve: "@medusajs/medusa/notification",
-  options: {
-    providers: [
-      {
-        resolve: "@uhlhosting/medusa-notification-postal",
-        id: "postal",
-        options: {
-          channels: ["email"],
-          auth_type: "smtp-api",
-          from: process.env.POSTAL_FROM,
-          base_url: process.env.POSTAL_BASE_URL,
-          api_key: process.env.POSTAL_API_KEY,
-        },
+module.exports = defineConfig({
+  plugins: [
+    {
+      resolve: "@uhlhosting/medusa-notification-postal",
+      options: {},
+    },
+  ],
+  modules: [
+    {
+      resolve: "@medusajs/medusa/notification",
+      options: {
+        providers: [
+          {
+            resolve:
+              "@uhlhosting/medusa-notification-postal/providers/postal",
+            id: "postal",
+            options: {
+              channels: ["email"],
+              auth_type: "smtp-api",
+              from: process.env.POSTAL_FROM,
+              base_url: process.env.POSTAL_BASE_URL,
+              api_key: process.env.POSTAL_API_KEY,
+            },
+          },
+        ],
       },
-    ],
-  },
-}
+    },
+  ],
+})
 ```
 
 ## Workflow tracking
