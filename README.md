@@ -134,6 +134,7 @@ The plugin includes a built-in template registry for common notification flows:
 | `postal-test` | Provider transport validation | `postal.example.test` | Used for operator sends and transport checks. |
 | `postal-admin-test` | Admin settings validation | `admin.postal.test` | Used by the admin test-send form. |
 | `order-placed` | Customer order confirmation | `order.placed` | Shared transactional order mail. |
+| `admin-invite` | Native Medusa Admin invitation | `invite.created`, `invite.resent` | Use application-rendered content so the environment-specific invite URL is delivered without logging the token. |
 | `password-reset` | Account password reset | `customer.password_reset` | Shared auth email template. |
 | `email-verification` | Account email verification | `customer.email_verification` | Shared auth email template. |
 | `welcome` | Customer onboarding | `customer.welcome` | Shared onboarding and first-contact template. |
