@@ -132,6 +132,7 @@ test("getPostalTemplateOptions returns the built-in examples in order", () => {
   assert.equal(options[0]?.value, "postal-admin-test")
   assert.equal(options[0]?.description, "Postal test from Medusa Admin")
   assert.equal(options.some((option) => option.value === "password-reset"), true)
+  assert.equal(options.some((option) => option.value === "admin-invite"), true)
   assert.equal(options.some((option) => option.value === "email-verification"), true)
   assert.equal(options.some((option) => option.value === "abandoned-cart"), true)
   assert.equal(options.some((option) => option.value === "restock-available"), true)
@@ -180,6 +181,24 @@ test("getPostalTemplatePreview returns the password reset content", () => {
   assert.match(preview.text, /We received a request to reset the password/)
 })
 
+test("getPostalTemplatePreview returns the Admin invitation content", () => {
+  const preview = getPostalTemplatePreview("admin-invite")
+
+  assert.equal(preview.value, "admin-invite")
+  assert.equal(preview.subject, "You have been invited to Medusa Admin")
+  assert.match(preview.html, /Accept your Admin invitation/)
+  assert.match(preview.text, /invited to administer this Medusa environment/)
+})
+
+test("getPostalTemplateExample returns a redaction-safe Admin invitation example", () => {
+  const example = getPostalTemplateExample("admin-invite")
+
+  assert.equal(example.workflow_event, "invite.created")
+  assert.equal(example.custom_args.invite_id, "invite_123")
+  assert.equal(example.metadata.audience, "admin")
+  assert.equal("invite_token" in example.custom_args, false)
+})
+
 test("getPostalTemplatePreview returns the email verification content", () => {
   const preview = getPostalTemplatePreview("email-verification")
 
@@ -225,6 +244,7 @@ test("getPostalTemplateExample covers all built-in templates", () => {
     "postal-test",
     "postal-admin-test",
     "order-placed",
+    "admin-invite",
     "password-reset",
     "email-verification",
     "welcome",

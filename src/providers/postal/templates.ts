@@ -3,6 +3,7 @@ export type PostalTemplateName =
   | "postal-test"
   | "postal-admin-test"
   | "order-placed"
+  | "admin-invite"
   | "password-reset"
   | "email-verification"
   | "welcome"
@@ -294,6 +295,30 @@ export const POSTAL_TEMPLATE_REGISTRY: Record<
     ),
     text: "We have received your order and are preparing it for fulfillment.",
   },
+  "admin-invite": {
+    subject: "You have been invited to Medusa Admin",
+    html: buildRichHtmlTemplate(
+      "Medusa Admin",
+      "Accept your Admin invitation",
+      `
+        <p style="margin:0 0 14px">
+          You have been invited to administer this Medusa environment.
+        </p>
+        <div style="margin:0 0 20px;padding:18px 20px;border-radius:20px;background:#f4f8ff;border:1px solid #dbe7ff">
+          <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#35507a;font-weight:700">Secure access</p>
+          <p style="margin:0;font-size:15px;line-height:24px;color:#2b3d57">
+            The invitation link can only be used once and expires automatically.
+          </p>
+        </div>
+        <p style="margin:0">
+          <a href="https://example.com/app/invite?token=example" style="display:inline-block;background-color:#171717;color:#ffffff;text-decoration:none;border-radius:999px;padding:14px 22px;font-size:15px;font-weight:700;line-height:20px">Accept invitation</a>
+        </p>
+      `,
+      "If you were not expecting this invitation, you can safely ignore this message.",
+      "You have been invited to Medusa Admin."
+    ),
+    text: "You have been invited to administer this Medusa environment.",
+  },
   "password-reset": {
     subject: "Reset your password",
     html: buildRichHtmlTemplate(
@@ -429,6 +454,7 @@ const POSTAL_TEMPLATE_ORDER: PostalTemplateName[] = [
   "postal-admin-test",
   "postal-test",
   "order-placed",
+  "admin-invite",
   "password-reset",
   "email-verification",
   "welcome",
@@ -597,6 +623,25 @@ export const getPostalTemplateExample = (
       },
       metadata: {
         store: "main",
+      },
+    },
+    "admin-invite": {
+      to: TEST_TO,
+      from: "security@example.com",
+      from_name: "Example Store",
+      reply_to: "support@example.com",
+      cc: [],
+      bcc: [],
+      headers: {
+        "X-Invite-Flow": "admin-invite",
+      },
+      workflow_event: "invite.created",
+      workflow_run_id: "wf_example_admin_invite",
+      custom_args: {
+        invite_id: "invite_123",
+      },
+      metadata: {
+        audience: "admin",
       },
     },
     "password-reset": {
