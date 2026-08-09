@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2 - 2026-08-09
+
+- Keep pnpm's supply-chain verification (`minimumReleaseAge`, 24h by default since pnpm 11) enabled on the npm publish path. Registry throttling is handled by exempting only the `@medusajs/*` scope from the release-age check, so every other dependency is still quarantined before it can enter a published build.
+- Ship `CHANGELOG.md` inside the published package. The `files` array overrides `.npmignore`, so releases up to and including `0.3.1` did not contain it despite the README linking to it.
+- Ignore major-version bumps for the packages the Medusa admin dashboard pins and shares with this plugin at runtime (`react`, `react-dom`, `react-router-dom`, `react-i18next` and their types), and for `@types/node`, which tracks the minimum supported runtime rather than the newest release.
+
 ## 0.3.1 - 2026-08-09
 
 > **Note for npm users.** The public npm registry was last updated at `0.1.7`. Releases `0.1.13` through `0.3.0` were published to the GitLab package registry only; this release brings npmjs back in sync. The entries below cover everything between `0.1.7` and `0.3.1`, so upgrading directly from `0.1.7` means adopting all of them at once — most notably the `0.1.18` removal of runtime `.env` writing and the `0.3.1` move to Medusa 2.18 peer dependencies.
