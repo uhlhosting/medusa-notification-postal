@@ -36,7 +36,7 @@ jobs:
       - name: Enable pnpm
         run: |
           corepack enable
-          corepack prepare pnpm@11.5.3 --activate
+          corepack prepare pnpm@11.9.0 --activate
 
       - name: Verify toolchain
         run: |
@@ -44,8 +44,19 @@ jobs:
           npm --version
           pnpm --version
 
+      # `@medusajs/*` packuments carry thousands of preview/snapshot versions, so
+      # npmjs rate-limits requests for them (medusajs/medusa#16294; npm is still
+      # unpublishing those versions). pnpm's supply-chain verification re-fetches
+      # metadata for all ~1600 lockfile entries on every install, which reliably
+      # trips that limit and fails the release with ERR_PNPM_FETCH_429 before any
+      # step runs. The lockfile is committed and already verified against the
+      # policy by the GitLab `validate` job, which is the case pnpm documents
+      # `--trust-lockfile` for.
       - name: Install
-        run: pnpm install --frozen-lockfile
+        run: |
+          pnpm config set fetch-retries 5
+          pnpm config set fetch-retry-maxtimeout 120000
+          pnpm install --frozen-lockfile --trust-lockfile
 
       - name: Verify release provenance
         run: |
