@@ -1,9 +1,10 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
 import { MedusaError, Modules } from "@medusajs/framework/utils"
-import type { INotificationModuleService } from "@medusajs/framework/types"
+import type {
+  CreateNotificationDTO,
+  INotificationModuleService,
+} from "@medusajs/framework/types"
 import type { PostalTemplateName } from "../../providers/postal/templates"
-
-const POSTAL_PROVIDER_ID = "postal"
 
 type SendPostalEmailStepInput = {
   to: string | string[]
@@ -59,7 +60,7 @@ export const sendPostalEmailStep = createStep(
           buildPostalNotificationInput(input, to, template, providerData)
         )
 
-        return { id: (result as any)?.id || null }
+        return { id: result?.id || null }
       })
     )
 
@@ -108,7 +109,6 @@ export const buildPostalNotificationInput = (
     to,
     from: input.from,
     channel: "email",
-    provider_id: POSTAL_PROVIDER_ID,
     template,
     ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
     content: {
@@ -118,5 +118,5 @@ export const buildPostalNotificationInput = (
     },
     data: providerData,
     provider_data: providerData,
-  } as any
+  } satisfies CreateNotificationDTO
 }

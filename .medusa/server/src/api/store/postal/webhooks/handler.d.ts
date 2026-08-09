@@ -1,5 +1,7 @@
 export type PostalWebhookPostHandlerInput = {
-    scope: any;
+    scope: {
+        resolve: (key: string) => unknown;
+    };
     body?: Record<string, unknown>;
     validatedBody?: Record<string, unknown>;
     runWebhookWorkflow?: (payload: Record<string, unknown>) => Promise<{

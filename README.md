@@ -95,7 +95,6 @@ await notificationModuleService.createNotifications({
   channel: "email",
   to: "cosmin@example.com",
   template: "order-placed",
-  provider_id: "postal",
   content: {
     subject: "Order confirmation",
     html: "<p>Thanks for your order</p>",

@@ -2,7 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { buildPostalNotificationInput } from "./steps/send-postal-email"
 
-test("buildPostalNotificationInput routes admin test sends through the postal provider", () => {
+test("buildPostalNotificationInput creates a typed email notification", () => {
   const providerData = {
     from: "no-reply@example.com",
     from_name: undefined,
@@ -37,7 +37,6 @@ test("buildPostalNotificationInput routes admin test sends through the postal pr
     providerData
   )
 
-  assert.equal(notification.provider_id, "postal")
   assert.equal(notification.channel, "email")
   assert.equal(notification.template, "postal-test")
   assert.equal(notification.provider_data.workflow_event, "postal.admin.test")

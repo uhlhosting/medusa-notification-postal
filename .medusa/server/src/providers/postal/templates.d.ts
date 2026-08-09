@@ -1,4 +1,4 @@
-export type PostalTemplateName = "default" | "postal-test" | "postal-admin-test" | "order-placed" | "password-reset" | "email-verification" | "welcome" | "abandoned-cart" | "restock-available";
+export type PostalTemplateName = "default" | "postal-test" | "postal-admin-test" | "order-placed" | "admin-invite" | "password-reset" | "email-verification" | "welcome" | "abandoned-cart" | "restock-available";
 export type PostalTemplateContent = {
     subject?: string;
     html?: string;

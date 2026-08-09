@@ -2,10 +2,11 @@ import {
   authenticate,
   defineMiddlewares,
   validateAndTransformBody,
+  validateAndTransformQuery,
 } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
 
-const postalSettingsSchema = z.object({
+export const postalSettingsSchema = z.object({
   action: z.enum(["save", "test"]).optional(),
   to: z.string().optional(),
   cc: z.union([z.string(), z.array(z.string())]).optional(),
@@ -17,8 +18,8 @@ const postalSettingsSchema = z.object({
   html: z.string().optional(),
   text: z.string().optional(),
   headers: z.record(z.string(), z.string()).optional(),
-  custom_args: z.record(z.string(), z.any()).optional(),
-  metadata: z.record(z.string(), z.any()).optional(),
+  custom_args: z.record(z.string(), z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   settings: z
     .object({
       auth_type: z.enum(["smtp-api"]).optional(),
@@ -38,7 +39,7 @@ const MAX_BODY = 2_097_152 // 2 MB
 const MAX_HEADER_KEY = 78
 const MAX_HEADER_VAL = 998
 
-const postalSendTestSchema = z
+export const postalSendTestSchema = z
   .object({
     to: z.union([
       z.string().min(1).max(MAX_EMAIL),
@@ -74,7 +75,16 @@ const postalSendTestSchema = z
 // Public webhook payloads from Postal are flexible JSON objects; accept any
 // object shape but reject arrays/primitives at the top level. The hard defense
 // against payload-amplification DoS is the bodyParser size cap on the route.
-const postalWebhookSchema = z.record(z.string(), z.unknown())
+export const postalWebhookSchema = z.record(z.string(), z.unknown())
+
+export const postalWebhookListSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+})
+
+export type PostalSettingsBody = z.infer<typeof postalSettingsSchema>
+export type PostalSendTestBody = z.infer<typeof postalSendTestSchema>
+export type PostalWebhookBody = z.infer<typeof postalWebhookSchema>
+export type PostalWebhookListQuery = z.infer<typeof postalWebhookListSchema>
 
 export default defineMiddlewares({
   routes: [
@@ -96,7 +106,10 @@ export default defineMiddlewares({
     {
       matcher: "/admin/postal/webhooks",
       method: "GET",
-      middlewares: [authenticate("user", ["session", "bearer", "api-key"])],
+      middlewares: [
+        authenticate("user", ["session", "bearer", "api-key"]),
+        validateAndTransformQuery(postalWebhookListSchema, {}),
+      ],
     },
     {
       matcher: "/admin/postal/webhook-url",

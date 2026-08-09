@@ -17,7 +17,7 @@ export const savePostalSettingsWorkflow: ReturnWorkflow<
   []
 > = createWorkflow(
   "save-postal-settings",
-  (payload: SavePostalSettingsWorkflowInput) => {
+  function (payload: SavePostalSettingsWorkflowInput) {
     return new WorkflowResponse(savePostalSettingsStep(payload))
   }
 )

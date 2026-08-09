@@ -4,6 +4,7 @@ import {
 } from "@medusajs/framework/utils"
 import {
   Logger,
+  Attachment,
   ProviderSendNotificationDTO,
   ProviderSendNotificationResultsDTO,
 } from "@medusajs/framework/types"
@@ -24,7 +25,14 @@ interface PostalOptions {
 
 type PostalApiResult = {
   status?: string
-  data?: any
+  data?: unknown
+}
+
+type PostalApiData = Record<string, unknown>
+
+type PostalRecipientMessage = {
+  id?: unknown
+  token?: unknown
 }
 
 type PostalSendPayload = {
@@ -84,12 +92,10 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     apiKey: string
     from: string
   }
-  protected logger_: Logger
-  protected container_: any
+  protected logger_: Pick<Logger, "info">
 
-  constructor(container: any, options: PostalOptions) {
+  constructor(container: { logger: Pick<Logger, "info"> }, options: PostalOptions) {
     super()
-    this.container_ = container
     const { logger } = container
 
     const authType = (options.auth_type || "smtp-api").trim() as PostalAuthType
@@ -150,7 +156,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     this.logger_ = logger
   }
 
-  static validateOptions(options: Record<string, any>) {
+  static validateOptions(options: Record<string, unknown>) {
     const from = String(options?.from || "").trim()
 
     if (!from) {
@@ -186,7 +192,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
 
     const providerData = this.resolveProviderData(notification)
-    const content = (notification.content as any) || {}
+    const content = notification.content || {}
     const to = this.normalizeEmails(notification.to)
     const cc = this.normalizeEmails(providerData.cc)
     const bcc = this.normalizeEmails(providerData.bcc)
@@ -226,7 +232,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       bcc,
       sender,
       template,
-      attachments: notification.attachments as any,
+      attachments: notification.attachments,
       providerData,
     })
 
@@ -270,19 +276,24 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       return {
         id: externalId,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof MedusaError) {
         throw error
       }
 
       throw new MedusaError(
         MedusaError.Types.UNEXPECTED_STATE,
-        `Failed to send email with Postal API: ${error?.message || "unknown error"}`
+        `Failed to send email with Postal API: ${
+          error instanceof Error ? error.message : "unknown error"
+        }`
       )
     }
   }
 
-  private async fetchPostalApi(path: string, payload: any) {
+  private async fetchPostalApi(
+    path: string,
+    payload: Record<string, unknown> | PostalSendPayload
+  ): Promise<PostalApiData> {
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), resolveRequestTimeoutMs())
 
@@ -298,10 +309,15 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
 
     const body = (await response.json().catch(() => null)) as PostalApiResult | null
 
-    if (!response.ok || !body || body.status === "error") {
+    const data =
+      body?.data && typeof body.data === "object"
+        ? (body.data as PostalApiData)
+        : null
+
+    if (!response.ok || !body || body.status === "error" || !data) {
       const details =
-        body?.data?.message ||
-        body?.data?.error ||
+        data?.message ||
+        data?.error ||
         body?.status ||
         "unknown error"
       throw new MedusaError(
@@ -310,7 +326,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
-    return body?.data
+    return data
   }
 
   private resolveProviderData(
@@ -381,7 +397,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     bcc: string[]
     sender: { from: string; reply_to?: string }
     template: { template_name?: string; subject: string; html?: string; text?: string }
-    attachments: any
+    attachments: Attachment[] | null | undefined
     providerData: PostalNotificationProviderData
   }): PostalSendPayload {
     PostalNotificationService.assertNoHeaderInjection(input.sender.from, "sender address")
@@ -427,7 +443,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       return null
     }
 
-    const entries = Object.entries(messages as Record<string, any>)
+    const entries = Object.entries(messages as Record<string, PostalRecipientMessage>)
     for (const [recipient, message] of entries) {
       const id = message?.id
       if (id === undefined || id === null || id === "") {
@@ -470,7 +486,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
   }
 
   protected normalizeAttachments(
-    attachments: any[] | null | undefined
+    attachments: Attachment[] | null | undefined
   ): PostalSendPayload["attachments"] | undefined {
     if (!Array.isArray(attachments) || !attachments.length) {
       return undefined

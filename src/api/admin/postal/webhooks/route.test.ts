@@ -24,7 +24,7 @@ test("admin webhook route returns webhook events from the module service", async
 
   const req = {
     scope: { resolve: () => service },
-    query: { limit: "500" },
+    validatedQuery: { limit: 100 },
   } as any
 
   const responseBody: any = {}
@@ -56,7 +56,7 @@ test("admin webhook route returns an empty list when the module is unavailable",
         throw new Error("module not registered")
       },
     },
-    query: {},
+    validatedQuery: { limit: 25 },
   } as any
 
   const responseBody: any = {}

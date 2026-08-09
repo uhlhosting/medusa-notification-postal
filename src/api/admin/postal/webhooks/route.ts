@@ -16,7 +16,7 @@ export const GET = async (req: AuthenticatedMedusaRequest, res: MedusaResponse) 
     service = null
   }
 
-  const limit = Number.parseInt(String(req.query.limit || "25"), 10)
+  const limit = Number(req.validatedQuery.limit ?? 25)
   const events = await listPostalWebhookEvents(service, limit)
 
   return res.status(200).json({

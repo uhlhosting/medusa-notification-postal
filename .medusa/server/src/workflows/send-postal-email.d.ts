@@ -22,9 +22,20 @@ export type SendPostalEmailWorkflowInput = {
         workflow_run_id?: string;
     };
 };
-export declare const sendPostalEmailWorkflow: ReturnWorkflow<SendPostalEmailWorkflowInput, {
+export type SendPostalEmailWorkflowResult = {
     success: boolean;
-    delivery: any;
-    deliveries: any[];
-}, [
+    delivery: {
+        id: string | null;
+        to: string[];
+        subject: string;
+        delivered_at: string;
+        deliveries: Array<{
+            id: string | null;
+        }>;
+    };
+    deliveries: Array<{
+        id: string | null;
+    }>;
+};
+export declare const sendPostalEmailWorkflow: ReturnWorkflow<SendPostalEmailWorkflowInput, SendPostalEmailWorkflowResult, [
 ]>;

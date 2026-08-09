@@ -22,12 +22,12 @@ type SendPostalEmailStepInput = {
     };
 };
 export declare const sendPostalEmailStep: import("@medusajs/framework/workflows-sdk").StepFunction<SendPostalEmailStepInput, {
-    id: any;
+    id: string | null;
     to: string[];
     subject: string;
     delivered_at: string;
     deliveries: {
-        id: any;
+        id: string | null;
     }[];
 }>;
 declare const buildProviderData: (input: SendPostalEmailStepInput) => {
@@ -42,5 +42,40 @@ declare const buildProviderData: (input: SendPostalEmailStepInput) => {
     workflow_event: string | undefined;
     workflow_run_id: string | undefined;
 };
-export declare const buildPostalNotificationInput: (input: SendPostalEmailStepInput, to: string, template: string, providerData: ReturnType<typeof buildProviderData>) => any;
+export declare const buildPostalNotificationInput: (input: SendPostalEmailStepInput, to: string, template: string, providerData: ReturnType<typeof buildProviderData>) => {
+    content: {
+        subject: string;
+        html: string | undefined;
+        text: string | undefined;
+    };
+    data: {
+        from: string | undefined;
+        from_name: string | undefined;
+        reply_to: string | undefined;
+        cc: string | string[] | undefined;
+        bcc: string | string[] | undefined;
+        headers: Record<string, string> | undefined;
+        custom_args: Record<string, unknown> | undefined;
+        metadata: Record<string, unknown> | undefined;
+        workflow_event: string | undefined;
+        workflow_run_id: string | undefined;
+    };
+    provider_data: {
+        from: string | undefined;
+        from_name: string | undefined;
+        reply_to: string | undefined;
+        cc: string | string[] | undefined;
+        bcc: string | string[] | undefined;
+        headers: Record<string, string> | undefined;
+        custom_args: Record<string, unknown> | undefined;
+        metadata: Record<string, unknown> | undefined;
+        workflow_event: string | undefined;
+        workflow_run_id: string | undefined;
+    };
+    idempotency_key?: string | undefined;
+    to: string;
+    from: string | undefined;
+    channel: string;
+    template: string;
+};
 export {};
