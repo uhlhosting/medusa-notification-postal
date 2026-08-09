@@ -60,19 +60,15 @@ variables:
   # Keep in sync with the `packageManager` field in package.json.
   PNPM_VERSION: "11.9.0"
   PNPM_STORE_DIR: "$CI_PROJECT_DIR/.pnpm-store"
+  # pnpm records the result of the supply-chain verification pass in its cache
+  # dir (`lockfile-verified.jsonl`) alongside the registry metadata cache.
+  # Keeping that cache in the project and keying it on pnpm-lock.yaml means only
+  # the first job on a new lockfile pays for the sweep; the rest reuse it.
+  PNPM_CACHE_DIR: "$CI_PROJECT_DIR/.pnpm-cache"
   NEXT_TELEMETRY_DISABLED: "1"
   NODE_OPTIONS: "--max-old-space-size=4096"
   GIT_STRATEGY: clone
   AST_ENABLE_MR_PIPELINES: "true"
-  # pnpm re-applies its supply-chain policy (minimumReleaseAge / trustPolicy) to
-  # every lockfile entry on each install, which means a full registry metadata
-  # sweep of ~1600 packages per job. Five jobs doing that concurrently from one
-  # runner IP gets rate-limited by npmjs (ERR_PNPM_FETCH_429) and fails the
-  # pipeline before any test runs. The `validate` job below overrides this to ""
-  # so the lockfile is still fully verified exactly once per pipeline; every
-  # later job trusts that already-verified lockfile, which is the usage pnpm
-  # documents for `--trust-lockfile`.
-  PNPM_INSTALL_FLAGS: "--trust-lockfile"
 
 default:
   image: "node:${NODE_VERSION}-bookworm"
@@ -82,20 +78,19 @@ default:
         - pnpm-lock.yaml
     paths:
       - .pnpm-store/
+      - .pnpm-cache/
   before_script:
     - npm install -g "pnpm@${PNPM_VERSION}"
     - pnpm config set store-dir "$PNPM_STORE_DIR"
+    - pnpm config set cache-dir "$PNPM_CACHE_DIR"
     # Survive transient npmjs throttling instead of failing the pipeline.
     - pnpm config set network-concurrency 8
     - pnpm config set fetch-retries 5
     - pnpm config set fetch-retry-maxtimeout 120000
-    - pnpm install --frozen-lockfile --prefer-offline $PNPM_INSTALL_FLAGS
+    - pnpm install --frozen-lockfile --prefer-offline
 
 validate:
   stage: validate
-  variables:
-    # The one job that verifies the lockfile against the supply-chain policy.
-    PNPM_INSTALL_FLAGS: ""
   script:
     - pnpm run lint
     - pnpm run typecheck
@@ -159,10 +154,11 @@ release:semantic:
   before_script:
     - npm install -g "pnpm@${PNPM_VERSION}"
     - pnpm config set store-dir "$PNPM_STORE_DIR"
+    - pnpm config set cache-dir "$PNPM_CACHE_DIR"
     - pnpm config set network-concurrency 8
     - pnpm config set fetch-retries 5
     - pnpm config set fetch-retry-maxtimeout 120000
-    - pnpm install --frozen-lockfile --prefer-offline $PNPM_INSTALL_FLAGS
+    - pnpm install --frozen-lockfile --prefer-offline
   script:
     # Fail fast with a clear message if the release credential is missing.
     # GITLAB_TOKEN must be a masked, protected project access token with

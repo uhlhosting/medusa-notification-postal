@@ -44,19 +44,17 @@ jobs:
           npm --version
           pnpm --version
 
-      # `@medusajs/*` packuments carry thousands of preview/snapshot versions, so
-      # npmjs rate-limits requests for them (medusajs/medusa#16294; npm is still
-      # unpublishing those versions). pnpm's supply-chain verification re-fetches
-      # metadata for all ~1600 lockfile entries on every install, which reliably
-      # trips that limit and fails the release with ERR_PNPM_FETCH_429 before any
-      # step runs. The lockfile is committed and already verified against the
-      # policy by the GitLab `validate` job, which is the case pnpm documents
-      # `--trust-lockfile` for.
+      # Supply-chain verification stays ON for this job: it is the public npm
+      # publish path and holds the OIDC trusted-publishing token, so it must not
+      # trust the lockfile on faith. The npmjs rate limiting that used to break
+      # it (medusajs/medusa#16294) is handled by the narrow
+      # `minimumReleaseAgeExclude` for `@medusajs/*` in pnpm-workspace.yaml, so
+      # every other dependency still gets the default 24h quarantine here.
       - name: Install
         run: |
           pnpm config set fetch-retries 5
           pnpm config set fetch-retry-maxtimeout 120000
-          pnpm install --frozen-lockfile --trust-lockfile
+          pnpm install --frozen-lockfile
 
       - name: Verify release provenance
         run: |

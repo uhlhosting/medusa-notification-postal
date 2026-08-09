@@ -1,5 +1,13 @@
 packages:
   - "."
+# pnpm quarantines releases younger than `minimumReleaseAge` (default 1440
+# minutes since v11) and needs each package's registry `time` metadata to do it.
+# @medusajs/* packuments carry thousands of preview/snapshot versions, so npmjs
+# throttles requests for them (medusajs/medusa#16294) and the check dies with
+# ERR_PNPM_FETCH_429. Exempt only that scope — every other dependency keeps the
+# 24h quarantine, and Medusa itself is pinned to exact, long-published versions.
+minimumReleaseAgeExclude:
+  - "@medusajs/*"
 overrides:
   zod: 4.4.3
   lodash: 4.18.1
