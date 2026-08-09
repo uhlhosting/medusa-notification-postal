@@ -42,3 +42,9 @@ test-*.ts
 # Local assistant tooling — machine-specific, not part of the published source
 .claude/
 CLAUDE.md
+
+# Compiled plugin bundle. `medusa plugin:build` regenerates it and the admin
+# bundle is not byte-stable between runs, so tracking it produces meaningless
+# diffs on every build. CI rebuilds it before packing (release:check ->
+# prepublishOnly), and .npmignore/package.json `files` still ship it.
+.medusa/
