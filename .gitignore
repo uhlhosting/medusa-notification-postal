@@ -38,3 +38,7 @@ test-*.ts
 
 # Codex
 .codex/
+
+# Local assistant tooling — machine-specific, not part of the published source
+.claude/
+CLAUDE.md

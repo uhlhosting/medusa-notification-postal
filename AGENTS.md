@@ -7,9 +7,9 @@
 - Avoid speculative rewrites and preserve existing architecture unless explicitly requested
 
 ## Shared Medusa Skills
-- Follow `/Users/cosmic/Developer/MedusaJS/AGENTS.md` first.
+- This file is canonical for this repository; read it first.
 - Then read this repo's root `SKILL.md`.
-- Use the shared Medusa skills from the workspace policy when the task matches those surfaces.
+- When this repo is checked out inside a multi-plugin Medusa workspace, that workspace's shared skills and policy apply on top of this file. Standalone checkouts need nothing beyond this repository.
 
 ## Repository Scope
 - This repository is the standalone source for `@uhlhosting/medusa-notification-postal`
