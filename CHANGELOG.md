@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3 - 2026-08-09
+
+- Accept the i18next version Medusa actually ships. The admin extension calls `addResourceBundle` on i18next's default singleton — the instance `@medusajs/dashboard` creates, currently i18next `23.7.11` — but the peer range demanded `^26.3.6`, which excludes it, so installing this plugin with npm raised an `ERESOLVE` conflict against the host project's own Medusa install. The peer is now `>=23.2.3`, the same constraint `react-i18next@13.5.0` declares.
+- Replace the real mailboxes used in two README send examples with `example.com` placeholders.
+- Stop tracking the compiled `.medusa` bundle in git; it is rebuilt by CI before packing and still ships in the published package.
+
 ## 0.3.2 - 2026-08-09
 
 - Keep pnpm's supply-chain verification (`minimumReleaseAge`, 24h by default since pnpm 11) enabled on the npm publish path. Registry throttling is handled by exempting only the `@medusajs/*` scope from the release-age check, so every other dependency is still quarantined before it can enter a published build.
