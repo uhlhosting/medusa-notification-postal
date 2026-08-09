@@ -7,3 +7,32 @@ updates:
     ignore:
       # Medusa 2.16 admin extension build currently fails on esbuild 0.28.x.
       - dependency-name: "esbuild"
+
+      # The admin extension is bundled into @medusajs/dashboard and shares its
+      # React, Router and i18n instances at runtime, so these are declared as
+      # peerDependencies and the devDependency must mirror whatever the
+      # dashboard resolves. @medusajs/dashboard@2.18.0 depends on
+      # react ^18.3.1, react-router-dom 6.30.4 and react-i18next 13.5.0, so a
+      # major bump here would typecheck the plugin against an API that is not
+      # the one the dashboard actually loads. Raise these only when Medusa
+      # itself does.
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-router"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-router-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-i18next"
+        update-types: ["version-update:semver-major"]
+
+      # @types/node must track the *minimum* supported runtime (engines: node
+      # >=20), not the newest release, otherwise the build typechecks against
+      # APIs that do not exist on the oldest Node this plugin supports.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
