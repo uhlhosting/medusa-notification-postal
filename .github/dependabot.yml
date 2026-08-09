@@ -30,6 +30,10 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-i18next"
         update-types: ["version-update:semver-major"]
+      # The admin extension calls addResourceBundle on i18next's default
+      # singleton, i.e. the instance the dashboard created (i18next 23.7.11).
+      - dependency-name: "i18next"
+        update-types: ["version-update:semver-major"]
 
       # @types/node must track the *minimum* supported runtime (engines: node
       # >=20), not the newest release, otherwise the build typechecks against

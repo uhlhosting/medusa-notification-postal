@@ -188,8 +188,8 @@ provider_data: {
   from: "no-reply@example.com",
   from_name: "Postal Admin",
   reply_to: "support@example.com",
-  cc: "cosmin@uhl-services.ch",
-  bcc: ["siravecavec@gmail.com"],
+  cc: "billing@example.com",
+  bcc: ["archive@example.com"],
   headers: {
     "X-Trace-Id": "trace_123",
   },
@@ -214,7 +214,7 @@ const { result } = await sendPostalEmailWorkflow(req.scope).run({
       subject: "Test Programmatic Email",
       html: "<p>Hello, this is a test email sent programmatically.</p>",
       text: "Hello, this is a test email sent programmatically.",
-      cc: "cosmin@uhl-services.ch",
+      cc: "billing@example.com",
       workflow_event: "admin.test_send",
       workflow_run_id: "wf_run_manual_123"
     }
