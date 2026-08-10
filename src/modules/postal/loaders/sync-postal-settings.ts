@@ -1,6 +1,7 @@
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { LoaderOptions } from "@medusajs/framework/types"
-import { POSTAL_PLUGIN_MODULE, POSTAL_SETTINGS_ID } from "../constants"
+import { POSTAL_SETTINGS_ID } from "../constants"
+import PostalPluginModuleService from "../service"
 
 type PostalSettingRecord = {
   id: string
@@ -16,7 +17,51 @@ type PostalSettingRecord = {
 // admin-saved values after a restart. Only in-memory `process.env` is touched;
 // nothing is written to disk. Secrets are never persisted, so they are never
 // synced here.
-const syncPostalSettingsLoader = async ({ container }: LoaderOptions) => {
+type SettingsService = {
+  listPostalSettings: (
+    filter: Record<string, unknown>,
+    config?: Record<string, unknown>
+  ) => Promise<PostalSettingRecord[]>
+  createPostalSettings: (data: Record<string, unknown>) => Promise<unknown>
+  updatePostalSettings: (data: Record<string, unknown>) => Promise<unknown>
+}
+
+// A module loader is handed the module's LOCAL container, not the application
+// one, and the module service is registered in the outer container only AFTER
+// every loader has run (see @medusajs/modules-sdk load-internal: runLoaders is
+// called before `container.register({ [keyName]: asValue(moduleService) })`).
+// So `container.resolve(POSTAL_PLUGIN_MODULE)` inside a loader can never
+// succeed — it threw on every boot, and because the whole body is wrapped in a
+// try/catch the failure surfaced only as a warning with no cause attached.
+//
+// The service is therefore constructed the same way Medusa constructs it, from
+// the local cradle. This is the documented shape: `new moduleService(
+// localContainer.cradle, resolution.options, resolution.moduleDeclaration)`.
+export type SettingsServiceFactory = (
+  cradle: Record<string, unknown>,
+  options: unknown,
+  moduleDeclaration: unknown
+) => SettingsService
+
+const defaultServiceFactory: SettingsServiceFactory = (
+  cradle,
+  options,
+  moduleDeclaration
+) =>
+  new PostalPluginModuleService(
+    cradle as never,
+    options as never,
+    moduleDeclaration as never
+  ) as unknown as SettingsService
+
+// The factory is a parameter with a default so the boot behaviour is testable
+// without a module mocker — Medusa calls this with two arguments and gets the
+// real service.
+const syncPostalSettingsLoader = async (
+  { container, options }: LoaderOptions,
+  moduleDeclaration?: unknown,
+  createService: SettingsServiceFactory = defaultServiceFactory
+) => {
   const logger = (() => {
     try {
       return container.resolve(ContainerRegistrationKeys.LOGGER) as {
@@ -28,14 +73,11 @@ const syncPostalSettingsLoader = async ({ container }: LoaderOptions) => {
   })()
 
   try {
-    const service = container.resolve(POSTAL_PLUGIN_MODULE) as {
-      listPostalSettings: (
-        filter: Record<string, unknown>,
-        config?: Record<string, unknown>
-      ) => Promise<PostalSettingRecord[]>
-      createPostalSettings: (data: Record<string, unknown>) => Promise<unknown>
-      updatePostalSettings: (data: Record<string, unknown>) => Promise<unknown>
-    }
+    const service = createService(
+      (container as unknown as { cradle: Record<string, unknown> }).cradle,
+      options,
+      moduleDeclaration
+    )
 
     const records = await service.listPostalSettings(
       { id: POSTAL_SETTINGS_ID },
@@ -76,9 +118,12 @@ const syncPostalSettingsLoader = async ({ container }: LoaderOptions) => {
       })
     }
   } catch (err) {
+    // The cause is interpolated rather than passed as a second argument:
+    // Medusa's winston logger drops extra arguments, which is how the previous
+    // failure stayed a mystery through every boot.
+    const cause = err instanceof Error ? err.message : String(err)
     logger.warn(
-      "[postal] Failed to sync settings from DB during boot — continuing with env-only config.",
-      err instanceof Error ? err.message : String(err)
+      `[postal] Failed to sync settings from DB during boot — continuing with env-only config. Cause: ${cause}`
     )
   }
 }
