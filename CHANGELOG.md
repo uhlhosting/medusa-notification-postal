@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.4 - 2026-08-10
+
+- Update the release tooling to `semantic-release` 25.0.9. Build-time only — no runtime or Medusa-facing change. (The commit subject says 25.0.8, the patch that was open at the time; 25.0.9 had landed by the time the range resolved.)
+
 ## 0.3.3 - 2026-08-09
 
 - Accept the i18next version Medusa actually ships. The admin extension calls `addResourceBundle` on i18next's default singleton — the instance `@medusajs/dashboard` creates, currently i18next `23.7.11` — but the peer range demanded `^26.3.6`, which excludes it, so installing this plugin with npm raised an `ERESOLVE` conflict against the host project's own Medusa install. The peer is now `>=23.2.3`, the same constraint `react-i18next@13.5.0` declares.
