@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { GET } from "./[id]/route"
+import { GET } from "./route"
 
 test("message route resolves the Postal provider and returns message details", async () => {
   let resolvedKey = ""
@@ -44,6 +44,18 @@ test("message route resolves the Postal provider and returns message details", a
 test("message route rejects a non-numeric Postal message id", async () => {
   const req = {
     params: { id: "message-42" },
+    scope: { resolve: () => undefined },
+  } as any
+
+  await assert.rejects(
+    () => GET(req, {} as any),
+    /Postal message lookup requires a numeric message id/
+  )
+})
+
+test("message route rejects an empty Postal message id", async () => {
+  const req = {
+    params: { id: "" },
     scope: { resolve: () => undefined },
   } as any
 
