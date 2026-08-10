@@ -109,7 +109,7 @@
     "react-dom": "18.3.1",
     "react-i18next": "13.5.0",
     "react-router-dom": "6.30.4",
-    "semantic-release": "^25.0.7",
+    "semantic-release": "^25.0.9",
     "ts-node": "^10.9.2",
     "tsx": "^4.23.1",
     "typescript": "5.9.3",
