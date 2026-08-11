@@ -150,26 +150,51 @@ export const persistPostalSettings = async (
   service: PostalSettingService | null | undefined,
   payload: PostalSettingsInput
 ): Promise<PostalSettingsSnapshot> => {
-  const current = await getPostalSettings(service)
+  // Without a module service nothing is persisted, so the caller must still see
+  // the environment-only truth rather than the payload echoed back.
+  if (!service?.listPostalSettings) {
+    return getPostalSettings(service)
+  }
+
+  // One read serves both the "current value" fallbacks and the exists check.
+  const existing = await readSettingRecord(service)
 
   const next = {
     auth_type: "smtp-api" as const,
-    from_address: sanitizeValue(payload.from) || current.from || "",
-    base_url: sanitizeValue(payload.base_url) || current.base_url || "",
-    test_to: sanitizeValue(payload.test_to) || current.test_to || "",
+    from_address:
+      sanitizeValue(payload.from) ||
+      existing?.from_address ||
+      process.env.POSTAL_FROM ||
+      "",
+    base_url:
+      sanitizeValue(payload.base_url) ||
+      existing?.base_url ||
+      process.env.POSTAL_BASE_URL ||
+      "",
+    test_to:
+      sanitizeValue(payload.test_to) ||
+      existing?.test_to ||
+      process.env.POSTAL_TEST_TO ||
+      "",
     pending_restart: true,
   }
 
-  if (service?.listPostalSettings) {
-    const existing = await readSettingRecord(service)
-    if (existing) {
-      await service.updatePostalSettings({ id: POSTAL_SETTINGS_ID, ...next })
-    } else {
-      await service.createPostalSettings({ id: POSTAL_SETTINGS_ID, ...next })
-    }
+  if (existing) {
+    await service.updatePostalSettings({ id: POSTAL_SETTINGS_ID, ...next })
+  } else {
+    await service.createPostalSettings({ id: POSTAL_SETTINGS_ID, ...next })
   }
 
-  return getPostalSettings(service)
+  // Secrets live only in the environment, so the saved row plus the env
+  // secrets is exactly what a re-read would produce.
+  return buildSnapshot({
+    auth_type: "smtp-api",
+    from: next.from_address,
+    base_url: next.base_url,
+    test_to: next.test_to,
+    api_key: process.env.POSTAL_API_KEY || "",
+    webhook_token: process.env.POSTAL_WEBHOOK_TOKEN || "",
+  })
 }
 
 export const validateModeRequirements = (settings: PostalSettingsSnapshot) => {

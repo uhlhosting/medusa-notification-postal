@@ -507,7 +507,9 @@ export const resolvePostalTemplate = (
   }
 }
 
-export const getPostalTemplateOptions = (): PostalTemplateOption[] =>
+// Derived from static data, so it is built once rather than on every call —
+// the admin settings page reads it on each render.
+const POSTAL_TEMPLATE_OPTIONS: PostalTemplateOption[] =
   POSTAL_TEMPLATE_ORDER.map((value) => {
     const definition = POSTAL_TEMPLATE_REGISTRY[value]
     const label = value
@@ -522,11 +524,14 @@ export const getPostalTemplateOptions = (): PostalTemplateOption[] =>
     }
   })
 
+export const getPostalTemplateOptions = (): PostalTemplateOption[] =>
+  POSTAL_TEMPLATE_OPTIONS
+
 export const getPostalTemplatePreview = (
   template: PostalTemplateName
 ): PostalTemplatePreview => {
   const definition = POSTAL_TEMPLATE_REGISTRY[template]
-  const option = getPostalTemplateOptions().find(
+  const option = POSTAL_TEMPLATE_OPTIONS.find(
     (candidate) => candidate.value === template
   )
 
@@ -540,15 +545,12 @@ export const getPostalTemplatePreview = (
   }
 }
 
-export const getPostalTemplateExample = (
-  template: PostalTemplateName
-): PostalTemplateExample => {
-  const preview = getPostalTemplatePreview(template)
-
-  const examples: Record<PostalTemplateName, Omit<
-    PostalTemplateExample,
-    keyof PostalTemplatePreview
-  >> = {
+// Static example payloads — hoisted so the whole record is not re-allocated on
+// every call (the admin page reads one entry per render).
+const POSTAL_TEMPLATE_EXAMPLES: Record<
+  PostalTemplateName,
+  Omit<PostalTemplateExample, keyof PostalTemplatePreview>
+> = {
     default: {
       to: TEST_TO,
       from: "no-reply@example.com",
@@ -735,13 +737,14 @@ export const getPostalTemplateExample = (
         store: "main",
       },
     },
-  }
-
-  return {
-    ...preview,
-    ...examples[template],
-  }
 }
+
+export const getPostalTemplateExample = (
+  template: PostalTemplateName
+): PostalTemplateExample => ({
+  ...getPostalTemplatePreview(template),
+  ...POSTAL_TEMPLATE_EXAMPLES[template],
+})
 
 export const normalizePostalCustomArgs = (
   customArgs?: Record<string, unknown>

@@ -13,6 +13,9 @@ import {
   resolvePostalTemplate,
   resolvePostalSender,
 } from "../templates"
+// The webhook side matches this exact prefix to attribute callbacks back to the
+// plugin, so writer and reader must share one definition.
+import { POSTAL_WEBHOOK_TAG_PREFIX } from "../../../modules/postal/webhooks"
 
 type PostalAuthType = "smtp-api"
 
@@ -80,8 +83,6 @@ const resolveRequestTimeoutMs = (): number => {
   }
   return Math.min(Math.max(raw, POSTAL_MIN_TIMEOUT_MS), POSTAL_MAX_TIMEOUT_MS)
 }
-
-const POSTAL_WEBHOOK_TAG_PREFIX = "uhlhosting.medusa-notification-postal:"
 
 export class PostalNotificationService extends AbstractNotificationProviderService {
   static readonly identifier = "notification-postal"

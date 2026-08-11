@@ -86,46 +86,51 @@ export type PostalSendTestBody = z.infer<typeof postalSendTestSchema>
 export type PostalWebhookBody = z.infer<typeof postalWebhookSchema>
 export type PostalWebhookListQuery = z.infer<typeof postalWebhookListSchema>
 
+// Invariant 4: every Postal admin route requires an authenticated Medusa admin
+// user. One definition so a route cannot be added with a weaker set.
+const authenticateAdmin = () =>
+  authenticate("user", ["session", "bearer", "api-key"])
+
 export default defineMiddlewares({
   routes: [
     {
       matcher: "/admin/plugin",
       method: "GET",
-      middlewares: [authenticate("user", ["session", "bearer", "api-key"])],
+      middlewares: [authenticateAdmin()],
     },
     {
       matcher: "/admin/postal/health",
       method: "GET",
-      middlewares: [authenticate("user", ["session", "bearer", "api-key"])],
+      middlewares: [authenticateAdmin()],
     },
     {
       matcher: "/admin/postal/messages/:id",
       method: "GET",
-      middlewares: [authenticate("user", ["session", "bearer", "api-key"])],
+      middlewares: [authenticateAdmin()],
     },
     {
       matcher: "/admin/postal/webhooks",
       method: "GET",
       middlewares: [
-        authenticate("user", ["session", "bearer", "api-key"]),
+        authenticateAdmin(),
         validateAndTransformQuery(postalWebhookListSchema, {}),
       ],
     },
     {
       matcher: "/admin/postal/webhook-url",
       method: "GET",
-      middlewares: [authenticate("user", ["session", "bearer", "api-key"])],
+      middlewares: [authenticateAdmin()],
     },
     {
       matcher: "/admin/plugin-settings/postal",
       method: "GET",
-      middlewares: [authenticate("user", ["session", "bearer", "api-key"])],
+      middlewares: [authenticateAdmin()],
     },
     {
       matcher: "/admin/plugin-settings/postal",
       method: "POST",
       middlewares: [
-        authenticate("user", ["session", "bearer", "api-key"]),
+        authenticateAdmin(),
         validateAndTransformBody(postalSettingsSchema),
       ],
     },
@@ -133,7 +138,7 @@ export default defineMiddlewares({
       matcher: "/admin/postal/send-test",
       method: "POST",
       middlewares: [
-        authenticate("user", ["session", "bearer", "api-key"]),
+        authenticateAdmin(),
         validateAndTransformBody(postalSendTestSchema),
       ],
     },

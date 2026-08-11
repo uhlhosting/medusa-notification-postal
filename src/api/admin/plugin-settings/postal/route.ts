@@ -2,7 +2,7 @@ import { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/
 import { MedusaError } from "@medusajs/framework/utils"
 import { sendPostalEmailWorkflow } from "../../../../workflows/send-postal-email"
 import { savePostalSettingsWorkflow } from "../../../../workflows/save-postal-settings"
-import { POSTAL_PLUGIN_MODULE } from "../../../../modules/postal/constants"
+import { resolvePostalModule } from "../../../../modules/postal/constants"
 import {
   getPostalSettings,
   toPublicPostalSettings,
@@ -23,21 +23,11 @@ type PostalPostBody = PostalAdminTestBody & {
 const trimString = (value: unknown) =>
   typeof value === "string" ? value.trim() : ""
 
-const resolvePostalSettingService = (scope: {
-  resolve: (key: string) => unknown
-}): PostalSettingService | null => {
-  try {
-    return scope.resolve(POSTAL_PLUGIN_MODULE) as PostalSettingService
-  } catch {
-    return null
-  }
-}
-
 export async function GET(
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) {
-  const service = resolvePostalSettingService(req.scope)
+  const service = resolvePostalModule<PostalSettingService>(req.scope)
   const settings = await getPostalSettings(service)
 
   res.json({
@@ -52,7 +42,7 @@ export async function POST(
   req: AuthenticatedMedusaRequest<PostalPostBody>,
   res: MedusaResponse
 ) {
-  const service = resolvePostalSettingService(req.scope)
+  const service = resolvePostalModule<PostalSettingService>(req.scope)
   const body = req.validatedBody || req.body || {}
   const action = body.action
 
@@ -90,17 +80,23 @@ export async function POST(
     })
   }
 
+  let savedSettings: Awaited<ReturnType<typeof getPostalSettings>> | null = null
+
   if (body.settings) {
-    const { errors } = await savePostalSettingsWorkflow(req.scope).run({
+    const { result, errors } = await savePostalSettingsWorkflow(req.scope).run({
       input: body.settings,
       throwOnError: false,
     })
     if (errors?.length) {
       throw errors[0].error
     }
+
+    // The workflow already returns the fresh snapshot — re-reading it here
+    // would be a second round trip for the same values.
+    savedSettings = result
   }
 
-  const currentSettings = await getPostalSettings(service)
+  const currentSettings = savedSettings ?? (await getPostalSettings(service))
   const validationError = validateModeRequirements(currentSettings)
   if (validationError) {
     return res.status(400).json({

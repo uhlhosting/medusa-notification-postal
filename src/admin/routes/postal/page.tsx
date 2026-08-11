@@ -98,101 +98,50 @@ const statusFromNotification = (notification: Notification) => {
   return "pending";
 };
 
-const statusBadgeColor = (status: string) => {
-  if (status === "accepted") {
-    return "green";
-  }
-
-  if (status === "failed") {
-    return "red";
-  }
-
-  return "orange";
+type StatusPresentation = {
+  color: "green" | "red" | "orange" | "blue" | "grey";
+  labelKey: string;
 };
 
-const statusLabelKey = (status: string) => {
-  if (status === "accepted") {
-    return "postal.activity.accepted";
-  }
-
-  if (status === "failed") {
-    return "postal.activity.failed";
-  }
-
-  return "postal.activity.pending";
+// Color and label always change together, so they live in one table per status
+// vocabulary rather than in four parallel if-chains.
+const ACTIVITY_STATUS: Record<string, StatusPresentation> = {
+  accepted: { color: "green", labelKey: "postal.activity.accepted" },
+  failed: { color: "red", labelKey: "postal.activity.failed" },
 };
 
-const webhookStatusLabelKey = (status: string) => {
-  if (status === "sent") {
-    return "postal.webhooks.sent";
-  }
-
-  if (status === "delayed") {
-    return "postal.webhooks.delayed";
-  }
-
-  if (status === "failed") {
-    return "postal.webhooks.failed";
-  }
-
-  if (status === "held") {
-    return "postal.webhooks.held";
-  }
-
-  if (status === "bounced") {
-    return "postal.webhooks.bounced";
-  }
-
-  if (status === "clicked") {
-    return "postal.webhooks.clicked";
-  }
-
-  if (status === "loaded") {
-    return "postal.webhooks.loaded";
-  }
-
-  if (status === "dns_error") {
-    return "postal.webhooks.dns_error";
-  }
-
-  return "postal.webhooks.unknown";
+const ACTIVITY_STATUS_FALLBACK: StatusPresentation = {
+  color: "orange",
+  labelKey: "postal.activity.pending",
 };
 
-const webhookStatusBadgeColor = (status: string) => {
-  if (status === "sent") {
-    return "green";
-  }
-
-  if (status === "delayed") {
-    return "orange";
-  }
-
-  if (status === "failed") {
-    return "red";
-  }
-
-  if (status === "held") {
-    return "blue";
-  }
-
-  if (status === "bounced") {
-    return "red";
-  }
-
-  if (status === "clicked") {
-    return "green";
-  }
-
-  if (status === "loaded") {
-    return "green";
-  }
-
-  if (status === "dns_error") {
-    return "red";
-  }
-
-  return "grey";
+const WEBHOOK_STATUS: Record<string, StatusPresentation> = {
+  sent: { color: "green", labelKey: "postal.webhooks.sent" },
+  delayed: { color: "orange", labelKey: "postal.webhooks.delayed" },
+  failed: { color: "red", labelKey: "postal.webhooks.failed" },
+  held: { color: "blue", labelKey: "postal.webhooks.held" },
+  bounced: { color: "red", labelKey: "postal.webhooks.bounced" },
+  clicked: { color: "green", labelKey: "postal.webhooks.clicked" },
+  loaded: { color: "green", labelKey: "postal.webhooks.loaded" },
+  dns_error: { color: "red", labelKey: "postal.webhooks.dns_error" },
 };
+
+const WEBHOOK_STATUS_FALLBACK: StatusPresentation = {
+  color: "grey",
+  labelKey: "postal.webhooks.unknown",
+};
+
+const statusBadgeColor = (status: string) =>
+  (ACTIVITY_STATUS[status] || ACTIVITY_STATUS_FALLBACK).color;
+
+const statusLabelKey = (status: string) =>
+  (ACTIVITY_STATUS[status] || ACTIVITY_STATUS_FALLBACK).labelKey;
+
+const webhookStatusBadgeColor = (status: string) =>
+  (WEBHOOK_STATUS[status] || WEBHOOK_STATUS_FALLBACK).color;
+
+const webhookStatusLabelKey = (status: string) =>
+  (WEBHOOK_STATUS[status] || WEBHOOK_STATUS_FALLBACK).labelKey;
 
 const buildPostalCallbackUrl = (token: string) => {
   const path = `/postal/webhooks/${token}`;
