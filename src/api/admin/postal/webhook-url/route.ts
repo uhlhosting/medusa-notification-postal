@@ -3,28 +3,16 @@ import {
   MedusaResponse,
 } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
-import { POSTAL_PLUGIN_MODULE } from "../../../../modules/postal/constants"
+import { resolvePostalModule } from "../../../../modules/postal/constants"
+import { toAbsoluteOrigin } from "../../../../modules/postal/origin"
 import {
   getPostalSettings,
   type PostalSettingService,
 } from "../../../../modules/postal/settings"
 
-const toAbsoluteOrigin = (value: unknown) => {
-  const candidate = String(value || "").trim()
-  if (!candidate) {
-    return null
-  }
-
-  try {
-    return new URL(candidate).origin.replace(/\/+$/, "")
-  } catch {
-    return null
-  }
-}
-
 const getRequestOrigin = (req: AuthenticatedMedusaRequest) => {
   const headers = req.headers || {}
-  const originHeader = toAbsoluteOrigin(headers.origin || headers["origin"])
+  const originHeader = toAbsoluteOrigin(headers.origin)
   if (originHeader) {
     return originHeader
   }
@@ -60,18 +48,8 @@ const getRequestOrigin = (req: AuthenticatedMedusaRequest) => {
   )
 }
 
-const resolvePostalSettingService = (scope: {
-  resolve: (key: string) => unknown
-}): PostalSettingService | null => {
-  try {
-    return scope.resolve(POSTAL_PLUGIN_MODULE) as PostalSettingService
-  } catch {
-    return null
-  }
-}
-
 export const GET = async (req: AuthenticatedMedusaRequest, res: MedusaResponse) => {
-  const service = resolvePostalSettingService(req.scope)
+  const service = resolvePostalModule<PostalSettingService>(req.scope)
   const settings = await getPostalSettings(service)
   const token = String(settings.webhook_token || "").trim()
   const origin = getRequestOrigin(req)

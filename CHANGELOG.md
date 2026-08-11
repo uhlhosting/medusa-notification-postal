@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Send-side and webhook-side now share one `POSTAL_WEBHOOK_TAG_PREFIX`. The provider declared its own copy of the literal the webhook matcher tests with `startsWith`, so a one-sided edit would have left sends working while every inbound callback was silently dropped as "not from this plugin".
+- Saving settings costs one database round trip instead of four. `persistPostalSettings` read the settings, re-read the row for an existence check, wrote, then re-read to build its return value; the returned snapshot is now built from the values just written plus the environment secrets. A "save + test" admin request drops from five reads to one, since the test path reuses the workflow's returned snapshot.
+- Inbound webhooks normalize their payload once instead of twice — the `sent`-and-from-this-plugin gate ran the full ~20-key normalization pass, then `recordPostalWebhookEvent` ran it again.
+- The tokenized webhook route now calls `handlePostalWebhookPost`, which previously had no production caller: the route reimplemented the identical response contract, so the handler's tests covered a copy rather than the shipped endpoint.
+- Template example payloads and the template option list are module-level constants instead of being rebuilt on every call, and the admin settings page memoizes its per-template lookups — that page has ~15 controlled inputs, so they were re-running on every keystroke.
+- Module resolution (`try { resolve } catch { null }`) was copy-pasted at five call sites and is now `resolvePostalModule()`; `toAbsoluteOrigin` was duplicated between the admin bundle and an API route; nine route entries repeated the same `authenticate("user", [...])` argument list.
+- The boot loader and the send workflow re-declared types that `modules/postal/settings.ts` and the send step already export.
+
 ## 0.3.4 - 2026-08-10
 
 - Update the release tooling to `semantic-release` 25.0.9. Build-time only — no runtime or Medusa-facing change. (The commit subject says 25.0.8, the patch that was open at the time; 25.0.9 had landed by the time the range resolved.)

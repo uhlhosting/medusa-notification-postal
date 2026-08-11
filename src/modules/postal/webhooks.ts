@@ -314,11 +314,17 @@ export const recordPostalWebhookEvent = async (
   service: PostalWebhookEventService | null | undefined,
   payload: Record<string, unknown>
 ): Promise<PostalWebhookRecord | null> => {
-  if (!isPostalSentWebhookFromPlugin(payload)) {
+  if (!isPostalWebhookFromPlugin(payload)) {
     return null
   }
 
+  // Normalize once and gate on the result — `isPostalSentWebhookFromPlugin`
+  // would repeat the full normalization pass on every inbound callback.
   const event = normalizePostalWebhookPayload(payload)
+
+  if (event.status !== "sent") {
+    return null
+  }
 
   if (!service?.createPostalWebhookEvents) {
     return event
