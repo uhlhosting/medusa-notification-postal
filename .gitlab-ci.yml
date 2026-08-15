@@ -6,6 +6,11 @@ sast:
   before_script: []
   cache: []
 
+semgrep-sast:
+  variables:
+    # v6.19.1 crashes before producing SARIF on our runners.
+    SAST_ANALYZER_IMAGE_TAG: "6.18.2"
+
 secret_detection:
   before_script: []
   cache: []
