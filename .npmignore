@@ -1,4 +1,5 @@
 *
+.DS_Store
 !.medusa/
 !.medusa/server/
 !.medusa/server/**
