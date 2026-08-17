@@ -88,7 +88,7 @@
     "@medusajs/medusa": "2.19.0",
     "@medusajs/test-utils": "2.19.0",
     "@medusajs/ui": "4.2.1",
-    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/git": "^11.0.1",
     "@semantic-release/gitlab": "^13.3.3",
     "@semantic-release/npm": "^13.1.5",
     "@swc/core": "^1.15.43",
