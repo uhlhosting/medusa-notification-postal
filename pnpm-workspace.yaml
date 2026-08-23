@@ -11,6 +11,12 @@ minimumReleaseAgeExclude:
 overrides:
   zod: 4.4.3
   lodash: 4.18.1
+  # @tanstack/react-virtual 3.14.10 currently declares an unpublished
+  # @tanstack/virtual-core 3.17.8 dependency. Keep the last resolvable pair.
+  "@tanstack/react-virtual": 3.14.9
+  # Rollup 4.62.5 was published without its platform-specific optional
+  # packages, so native loading fails. Keep the complete 4.62.4 release.
+  rollup: 4.62.4
 allowBuilds:
   "@medusajs/telemetry": false
   "@swc/core": true
