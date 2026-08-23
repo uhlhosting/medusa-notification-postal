@@ -13,7 +13,7 @@ import {
 } from "@medusajs/ui";
 import { PaperPlane } from "@medusajs/icons";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate } from "react-router-dom";
 import {
@@ -257,48 +257,66 @@ export const PostalSettingsPage = () => {
   const selectedTemplate = templateOptions.find(
     (option) => option.value === testForm.template,
   );
-  const templateExample = getPostalTemplateExample(
-    (testForm.template || "postal-admin-test") as PostalTemplateName,
+  // The page has ~15 controlled inputs; without memoization the template
+  // lookups below re-run on every keystroke in any of them.
+  const templateExample = useMemo(
+    () =>
+      getPostalTemplateExample(
+        (testForm.template || "postal-admin-test") as PostalTemplateName,
+      ),
+    [testForm.template],
   );
-  const templateExampleForUi = {
-    ...templateExample,
-    to: "",
-    from: "",
-    from_name: "",
-    reply_to: "",
-    cc: [],
-    bcc: [],
-    headers: {},
-    custom_args: {},
-    metadata: {},
-  };
-  const templatePreview = getPostalTemplatePreview(
-    (testForm.template || "postal-admin-test") as PostalTemplateName,
+  const templateExampleForUi = useMemo(
+    () => ({
+      ...templateExample,
+      to: "",
+      from: "",
+      from_name: "",
+      reply_to: "",
+      cc: [],
+      bcc: [],
+      headers: {},
+      custom_args: {},
+      metadata: {},
+    }),
+    [templateExample],
+  );
+  const templatePreview = useMemo(
+    () =>
+      getPostalTemplatePreview(
+        (testForm.template || "postal-admin-test") as PostalTemplateName,
+      ),
+    [testForm.template],
   );
   const renderedTemplateHtml = (testForm.html || templatePreview.html || "").trim();
   const webhookCallbackPath = "/postal/webhooks";
   const normalizedTemplateSearch = templateSearch.trim().toLowerCase();
-  const filteredTemplateRows = postalTemplateReferenceRows.filter((row) => {
-    const audienceMatches =
-      templateAudienceFilter === "all" || row.audience === templateAudienceFilter;
-    const searchMatches = normalizedTemplateSearch
-      ? [
-          row.template,
-          row.purpose,
-          row.audience,
-          row.source,
-          row.required,
-          row.optional,
-          row.event,
-          row.notes,
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedTemplateSearch)
-      : true;
+  const filteredTemplateRows = useMemo(
+    () =>
+      postalTemplateReferenceRows.filter((row) => {
+        const audienceMatches =
+          templateAudienceFilter === "all" ||
+          row.audience === templateAudienceFilter;
+        const searchMatches = normalizedTemplateSearch
+          ? [
+              row.template,
+              row.purpose,
+              row.audience,
+              row.source,
+              row.required,
+              row.optional,
+              row.event,
+              row.notes,
+            ]
+              .join(" ")
+              .toLowerCase()
+              .includes(normalizedTemplateSearch)
+          : true;
 
-    return audienceMatches && searchMatches;
-  });
+        return audienceMatches && searchMatches;
+      }),
+    [templateAudienceFilter, normalizedTemplateSearch],
+  );
 
   const parseJsonObject = (value: string, fieldLabel: string) => {
     const trimmed = value.trim();
@@ -559,14 +577,7 @@ export const PostalSettingsPage = () => {
           </div>
           <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
             {configuredSummary.map((item) => (
-              <div key={item.label} className="rounded-lg border border-ui-border-base bg-ui-bg-subtle p-3">
-                <Text size="small" leading="compact" className="text-ui-fg-subtle">
-                  {item.label}
-                </Text>
-                <Text size="small" leading="compact" weight="plus" className="break-words">
-                  {item.value}
-                </Text>
-              </div>
+              <SummaryCard key={item.label} label={item.label} value={item.value} />
             ))}
           </div>
         </div>

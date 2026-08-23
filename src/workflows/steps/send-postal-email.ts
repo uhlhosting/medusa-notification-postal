@@ -6,7 +6,7 @@ import type {
 } from "@medusajs/framework/types"
 import type { PostalTemplateName } from "../../providers/postal/templates"
 
-type SendPostalEmailStepInput = {
+export type SendPostalEmailStepInput = {
   to: string | string[]
   from?: string
   from_name?: string

@@ -1,7 +1,7 @@
 import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { MedusaError } from "@medusajs/framework/utils"
 import { timingSafeEqual } from "node:crypto"
-import { recordPostalWebhookWorkflow } from "../../../../workflows/record-postal-webhook"
+import { handlePostalWebhookPost } from "../../../store/postal/webhooks/handler"
 
 const normalizeToken = (value: unknown) =>
   typeof value === "string" ? value.trim() : ""
@@ -25,23 +25,11 @@ export const POST = async (req: MedusaRequest, res: MedusaResponse) => {
     )
   }
 
-  const payload = (req.validatedBody || req.body || {}) as Record<string, unknown>
-
-  const { result } = await recordPostalWebhookWorkflow(req.scope).run({
-    input: payload,
+  const { status, body } = await handlePostalWebhookPost({
+    scope: req.scope,
+    body: req.body as Record<string, unknown> | undefined,
+    validatedBody: req.validatedBody as Record<string, unknown> | undefined,
   })
 
-  if (!result) {
-    return res.status(202).json({
-      ok: true,
-      ignored: true,
-    })
-  }
-
-  return res.status(202).json({
-    ok: true,
-    id: result.id,
-    event_type: result.event_type,
-    status: result.status,
-  })
+  return res.status(status).json(body)
 }

@@ -1,6 +1,6 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
 import { Modules } from "@medusajs/framework/utils"
-import { POSTAL_PLUGIN_MODULE } from "../../modules/postal/constants"
+import { resolvePostalModule } from "../../modules/postal/constants"
 import {
   recordPostalWebhookEvent,
   type PostalWebhookEventService,
@@ -8,20 +8,10 @@ import {
 
 type RecordPostalWebhookStepInput = Record<string, unknown>
 
-const resolvePostalWebhookEventService = (container: {
-  resolve: (key: string) => unknown
-}): PostalWebhookEventService | null => {
-  try {
-    return container.resolve(POSTAL_PLUGIN_MODULE) as PostalWebhookEventService
-  } catch {
-    return null
-  }
-}
-
 export const recordPostalWebhookEventStep = createStep(
   "record-postal-webhook-event",
   async (payload: RecordPostalWebhookStepInput, { container }) => {
-    const service = resolvePostalWebhookEventService(container)
+    const service = resolvePostalModule<PostalWebhookEventService>(container)
     const event = await recordPostalWebhookEvent(service, payload)
 
     if (event) {

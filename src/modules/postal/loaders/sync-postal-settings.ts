@@ -1,30 +1,14 @@
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { LoaderOptions } from "@medusajs/framework/types"
 import { POSTAL_SETTINGS_ID } from "../constants"
+import type { PostalSettingService as SettingsService } from "../settings"
 import PostalPluginModuleService from "../service"
-
-type PostalSettingRecord = {
-  id: string
-  auth_type: string
-  from_address: string
-  base_url: string
-  test_to: string
-  pending_restart: boolean
-}
 
 // Reconciles persisted (non-secret) Postal settings with the process
 // environment at boot, so the provider — constructed from env/options — reflects
 // admin-saved values after a restart. Only in-memory `process.env` is touched;
 // nothing is written to disk. Secrets are never persisted, so they are never
 // synced here.
-type SettingsService = {
-  listPostalSettings: (
-    filter: Record<string, unknown>,
-    config?: Record<string, unknown>
-  ) => Promise<PostalSettingRecord[]>
-  createPostalSettings: (data: Record<string, unknown>) => Promise<unknown>
-  updatePostalSettings: (data: Record<string, unknown>) => Promise<unknown>
-}
 
 // A module loader is handed the module's LOCAL container, not the application
 // one, and the module service is registered in the outer container only AFTER

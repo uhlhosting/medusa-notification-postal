@@ -1,20 +1,8 @@
+import { toAbsoluteOrigin } from "../../modules/postal/origin";
+
 const DEFAULT_BACKEND_ORIGIN = "/";
 
-export const toAbsoluteOrigin = (
-  value: string | undefined | null,
-): string | null => {
-  const candidate = typeof value === "string" ? value.trim() : "";
-
-  if (!candidate) {
-    return null;
-  }
-
-  try {
-    return new URL(candidate).origin.replace(/\/+$/, "");
-  } catch {
-    return null;
-  }
-};
+export { toAbsoluteOrigin };
 
 export const resolveBackendBaseUrl = (
   candidate: string | undefined | null,
