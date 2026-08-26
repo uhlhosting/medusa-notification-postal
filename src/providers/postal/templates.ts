@@ -526,14 +526,17 @@ export const getPostalTemplatePreview = (
   template: PostalTemplateName
 ): PostalTemplatePreview => {
   const definition = POSTAL_TEMPLATE_REGISTRY[template]
-  const option = getPostalTemplateOptions().find(
-    (candidate) => candidate.value === template
-  )
+  const label = POSTAL_TEMPLATE_ORDER.includes(template)
+    ? template
+        .split("-")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ")
+    : template
 
   return {
     value: template,
-    label: option?.label || template,
-    description: option?.description || definition.subject,
+    label: label,
+    description: definition.subject,
     subject: definition.subject,
     html: definition.html || "",
     text: definition.text || "",
