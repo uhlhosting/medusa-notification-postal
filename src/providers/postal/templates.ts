@@ -750,35 +750,41 @@ export const normalizePostalCustomArgs = (
     return {}
   }
 
-  return Object.entries(customArgs).reduce<Record<string, string>>(
-    (acc, [key, value]) => {
-      if (value === undefined || value === null) {
-        return acc
-      }
+  const result: Record<string, string> = {}
 
-      if (
-        typeof value !== "string" &&
-        typeof value !== "number" &&
-        typeof value !== "boolean"
-      ) {
-        return acc
-      }
+  for (const key in customArgs) {
+    if (!Object.prototype.hasOwnProperty.call(customArgs, key)) {
+      continue
+    }
 
-      const normalizedKey = String(key)
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9-]+/g, "-")
-        .replace(/^-+|-+$/g, "")
+    const value = customArgs[key]
 
-      if (!normalizedKey) {
-        return acc
-      }
+    if (value === undefined || value === null) {
+      continue
+    }
 
-      acc[`X-Postal-Custom-Arg-${normalizedKey}`] = String(value)
-      return acc
-    },
-    {}
-  )
+    if (
+      typeof value !== "string" &&
+      typeof value !== "number" &&
+      typeof value !== "boolean"
+    ) {
+      continue
+    }
+
+    const normalizedKey = String(key)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+
+    if (!normalizedKey) {
+      continue
+    }
+
+    result[`X-Postal-Custom-Arg-${normalizedKey}`] = String(value)
+  }
+
+  return result
 }
 
 export const resolvePostalSender = (
