@@ -171,12 +171,19 @@ const buildModernFallbackHtml = (subject: string, text: string) => {
   const cleanSubject = subject.trim() || "Notification"
   const cleanText = text.trim() || "This is a transactional email."
   const safeSubject = escapeHtml(cleanSubject)
-  const label = POSTAL_TEMPLATE_ORDER.includes(template)
-    ? template
-        .split("-")
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ")
-    : template
+  const safeText = escapeHtml(cleanText).replace(/\n/g, "<br>")
+  return buildRichHtmlTemplate(
+    "Postal Notification",
+    safeSubject,
+    `<p style="margin:0">${safeText}</p>`,
+    "This is an automatically generated HTML fallback so the message still renders well in clients that prefer rich formatting.",
+    safeSubject
+  )
+}
+
+const normalizeTemplateText = (value: string, fallback = "") => {
+  const normalized = value.trim()
+  return normalized || fallback
 }
 
 const normalizeTemplateHtml = (value: string, fallback: string, subject: string) => {
@@ -524,27 +531,14 @@ export const getPostalTemplatePreview = (
   template: PostalTemplateName
 ): PostalTemplatePreview => {
   const definition = POSTAL_TEMPLATE_REGISTRY[template]
-<<<<<<< HEAD
   const option = POSTAL_TEMPLATE_OPTIONS.find(
     (candidate) => candidate.value === template
   )
-||||||| parent of ecba328544cb (⚡ refactor: remove inefficient map and find lookup in getPostalTemplatePreview)
-  const option = getPostalTemplateOptions().find(
-    (candidate) => candidate.value === template
-  )
-=======
-  const label = POSTAL_TEMPLATE_ORDER.includes(template)
-    ? template
-        .split("-")
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ")
-    : template
->>>>>>> ecba328544cb (⚡ refactor: remove inefficient map and find lookup in getPostalTemplatePreview)
 
   return {
     value: template,
-    label: label,
-    description: definition.subject,
+    label: option?.label || template,
+    description: option?.description || definition.subject,
     subject: definition.subject,
     html: definition.html || "",
     text: definition.text || "",
@@ -759,41 +753,35 @@ export const normalizePostalCustomArgs = (
     return {}
   }
 
-  const result: Record<string, string> = {}
+  return Object.entries(customArgs).reduce<Record<string, string>>(
+    (acc, [key, value]) => {
+      if (value === undefined || value === null) {
+        return acc
+      }
 
-  for (const key in customArgs) {
-    if (!Object.prototype.hasOwnProperty.call(customArgs, key)) {
-      continue
-    }
+      if (
+        typeof value !== "string" &&
+        typeof value !== "number" &&
+        typeof value !== "boolean"
+      ) {
+        return acc
+      }
 
-    const value = customArgs[key]
+      const normalizedKey = String(key)
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-")
+        .replace(/^-+|-+$/g, "")
 
-    if (value === undefined || value === null) {
-      continue
-    }
+      if (!normalizedKey) {
+        return acc
+      }
 
-    if (
-      typeof value !== "string" &&
-      typeof value !== "number" &&
-      typeof value !== "boolean"
-    ) {
-      continue
-    }
-
-    const normalizedKey = String(key)
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-
-    if (!normalizedKey) {
-      continue
-    }
-
-    result[`X-Postal-Custom-Arg-${normalizedKey}`] = String(value)
-  }
-
-  return result
+      acc[`X-Postal-Custom-Arg-${normalizedKey}`] = String(value)
+      return acc
+    },
+    {}
+  )
 }
 
 export const resolvePostalSender = (

@@ -4,7 +4,7 @@ import assert from "node:assert/strict"
 // Mock the workflow using require cache manipulation
 const mockWorkflow = {
   runCount: 0,
-  lastInput: null,
+  lastInput: null as any,
   returnDelivery: null as any
 }
 
@@ -133,6 +133,7 @@ test("send test route uses fallback values for optional fields", async () => {
   assert.equal(mockWorkflow.runCount, 1)
   assert.equal(output.status, 200)
 
+  assert.ok(mockWorkflow.lastInput)
   assert.equal(mockWorkflow.lastInput.template, "postal-test")
   assert.equal(mockWorkflow.lastInput.provider_data.html, "")
   assert.equal(mockWorkflow.lastInput.provider_data.text, "")
