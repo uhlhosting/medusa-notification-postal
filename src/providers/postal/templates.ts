@@ -171,19 +171,12 @@ const buildModernFallbackHtml = (subject: string, text: string) => {
   const cleanSubject = subject.trim() || "Notification"
   const cleanText = text.trim() || "This is a transactional email."
   const safeSubject = escapeHtml(cleanSubject)
-  const safeText = escapeHtml(cleanText).replace(/\n/g, "<br>")
-  return buildRichHtmlTemplate(
-    "Postal Notification",
-    safeSubject,
-    `<p style="margin:0">${safeText}</p>`,
-    "This is an automatically generated HTML fallback so the message still renders well in clients that prefer rich formatting.",
-    safeSubject
-  )
-}
-
-const normalizeTemplateText = (value: string, fallback = "") => {
-  const normalized = value.trim()
-  return normalized || fallback
+  const label = POSTAL_TEMPLATE_ORDER.includes(template)
+    ? template
+        .split("-")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ")
+    : template
 }
 
 const normalizeTemplateHtml = (value: string, fallback: string, subject: string) => {
@@ -531,14 +524,27 @@ export const getPostalTemplatePreview = (
   template: PostalTemplateName
 ): PostalTemplatePreview => {
   const definition = POSTAL_TEMPLATE_REGISTRY[template]
+<<<<<<< HEAD
   const option = POSTAL_TEMPLATE_OPTIONS.find(
     (candidate) => candidate.value === template
   )
+||||||| parent of ecba328544cb (⚡ refactor: remove inefficient map and find lookup in getPostalTemplatePreview)
+  const option = getPostalTemplateOptions().find(
+    (candidate) => candidate.value === template
+  )
+=======
+  const label = POSTAL_TEMPLATE_ORDER.includes(template)
+    ? template
+        .split("-")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ")
+    : template
+>>>>>>> ecba328544cb (⚡ refactor: remove inefficient map and find lookup in getPostalTemplatePreview)
 
   return {
     value: template,
-    label: option?.label || template,
-    description: option?.description || definition.subject,
+    label: label,
+    description: definition.subject,
     subject: definition.subject,
     html: definition.html || "",
     text: definition.text || "",
