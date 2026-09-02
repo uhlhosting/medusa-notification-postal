@@ -62,3 +62,25 @@ test("buildPostalNotificationInput omits idempotency_key without a workflow run 
 
   assert.equal(notification.idempotency_key, undefined)
 })
+
+import { normalizeRecipients } from "./steps/send-postal-email"
+
+test("normalizeRecipients formats a single string recipient", () => {
+  const result = normalizeRecipients(" recipient@example.com  ")
+  assert.deepEqual(result, ["recipient@example.com"])
+})
+
+test("normalizeRecipients formats an array of string recipients", () => {
+  const result = normalizeRecipients([" a@example.com ", "b@example.com", "   c@example.com"])
+  assert.deepEqual(result, ["a@example.com", "b@example.com", "c@example.com"])
+})
+
+test("normalizeRecipients filters out empty strings after trimming", () => {
+  const result = normalizeRecipients([" a@example.com ", "", "   ", "b@example.com"])
+  assert.deepEqual(result, ["a@example.com", "b@example.com"])
+})
+
+test("normalizeRecipients returns empty array for only empty strings", () => {
+  const result = normalizeRecipients(["", "   "])
+  assert.deepEqual(result, [])
+})
