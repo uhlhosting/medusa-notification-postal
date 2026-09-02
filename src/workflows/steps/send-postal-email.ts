@@ -74,9 +74,16 @@ export const sendPostalEmailStep = createStep(
   }
 )
 
-const normalizeRecipients = (value: string | string[]) => {
+export const normalizeRecipients = (value: string | string[]) => {
   const list = Array.isArray(value) ? value : [value]
-  return list.map((entry) => entry.trim()).filter(Boolean)
+  const result: string[] = []
+  for (const entry of list) {
+    const trimmed = entry.trim()
+    if (trimmed) {
+      result.push(trimmed)
+    }
+  }
+  return result
 }
 
 const buildProviderData = (input: SendPostalEmailStepInput) => ({
