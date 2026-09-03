@@ -81,6 +81,7 @@
     "@medusajs/admin-sdk": "2.19.0",
     "@medusajs/admin-shared": "2.19.0",
     "@medusajs/cli": "2.19.0",
+    "@medusajs/core-flows": "2.19.0",
     "@medusajs/eslint-plugin": "2.19.0",
     "@medusajs/framework": "2.19.0",
     "@medusajs/icons": "2.19.0",

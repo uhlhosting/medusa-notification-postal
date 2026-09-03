@@ -10,6 +10,11 @@ export const PostalWebhookEvent = model.define("postal_webhook_events", {
   recipient: model.text().nullable(),
   occurred_at: model.dateTime().nullable(),
   payload: model.json(),
-})
+}).indexes([
+  {
+    on: ["message_id", "event_type"],
+    unique: true,
+  }
+])
 
 export default PostalWebhookEvent

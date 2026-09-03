@@ -3,88 +3,57 @@ import {
   defineMiddlewares,
   validateAndTransformBody,
   validateAndTransformQuery,
+  MedusaRequest,
+  MedusaResponse,
+  MedusaNextFunction
 } from "@medusajs/framework/http"
 import { z } from "@medusajs/framework/zod"
+import { MedusaError } from "@medusajs/framework/utils"
+import { timingSafeEqual } from "node:crypto"
 
-export const postalSettingsSchema = z.object({
-  action: z.enum(["save", "test"]).optional(),
-  to: z.string().optional(),
-  cc: z.union([z.string(), z.array(z.string())]).optional(),
-  bcc: z.union([z.string(), z.array(z.string())]).optional(),
-  from_name: z.string().optional(),
-  reply_to: z.string().optional(),
-  template: z.string().optional(),
-  subject: z.string().optional(),
-  html: z.string().optional(),
-  text: z.string().optional(),
-  headers: z.record(z.string(), z.string()).optional(),
-  custom_args: z.record(z.string(), z.unknown()).optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-  settings: z
-    .object({
-      auth_type: z.enum(["smtp-api"]).optional(),
-      from: z.string().optional(),
-      base_url: z.string().optional(),
-      api_key: z.string().optional(),
-      test_to: z.string().optional(),
-    })
-    .partial()
-    .optional(),
-})
-
-const MAX_EMAIL = 254
-const MAX_NAME = 255
-const MAX_SUBJECT = 998 // RFC 5322 hard limit
-const MAX_BODY = 2_097_152 // 2 MB
-const MAX_HEADER_KEY = 78
-const MAX_HEADER_VAL = 998
-
-export const postalSendTestSchema = z
-  .object({
-    to: z.union([
-      z.string().min(1).max(MAX_EMAIL),
-      z.array(z.string().min(1).max(MAX_EMAIL)).min(1).max(50),
-    ]),
-    from: z.string().max(MAX_EMAIL).optional(),
-    from_name: z.string().max(MAX_NAME).optional(),
-    reply_to: z.string().max(MAX_EMAIL).optional(),
-    template: z.string().max(MAX_NAME).optional(),
-    subject: z.string().min(1).max(MAX_SUBJECT),
-    html: z.string().max(MAX_BODY).optional(),
-    text: z.string().max(MAX_BODY).optional(),
-    cc: z
-      .union([
-        z.string().max(MAX_EMAIL),
-        z.array(z.string().max(MAX_EMAIL)).max(50),
-      ])
-      .optional(),
-    bcc: z
-      .union([
-        z.string().max(MAX_EMAIL),
-        z.array(z.string().max(MAX_EMAIL)).max(50),
-      ])
-      .optional(),
-    headers: z
-      .record(z.string().max(MAX_HEADER_KEY), z.string().max(MAX_HEADER_VAL))
-      .optional(),
-    custom_args: z.record(z.string().max(MAX_NAME), z.string().max(MAX_NAME)).optional(),
-    metadata: z.record(z.string().max(MAX_NAME), z.string().max(MAX_NAME)).optional(),
-  })
-  .strict()
-
-// Public webhook payloads from Postal are flexible JSON objects; accept any
-// object shape but reject arrays/primitives at the top level. The hard defense
-// against payload-amplification DoS is the bodyParser size cap on the route.
-export const postalWebhookSchema = z.record(z.string(), z.unknown())
+import { postalSettingsSchema } from "./admin/plugin-settings/postal/validators"
+import { postalSendTestSchema } from "./admin/postal/send-test/validators"
+import { postalWebhookSchema } from "./postal/webhooks/[token]/validators"
 
 export const postalWebhookListSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
 })
-
-export type PostalSettingsBody = z.infer<typeof postalSettingsSchema>
-export type PostalSendTestBody = z.infer<typeof postalSendTestSchema>
-export type PostalWebhookBody = z.infer<typeof postalWebhookSchema>
 export type PostalWebhookListQuery = z.infer<typeof postalWebhookListSchema>
+
+const normalizeToken = (value: unknown) =>
+  typeof value === "string" ? value.trim() : ""
+
+const authenticatePostalWebhook = (
+  req: MedusaRequest,
+  res: MedusaResponse,
+  next: MedusaNextFunction
+) => {
+  const providedToken = normalizeToken(req.params.token)
+  const expectedToken = normalizeToken(process.env.POSTAL_WEBHOOK_TOKEN)
+
+  if (!providedToken || !expectedToken) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_ALLOWED,
+      "Invalid Postal webhook token"
+    )
+  }
+
+  const providedBuffer = Buffer.from(providedToken)
+  const expectedBuffer = Buffer.from(expectedToken)
+
+  if (
+    !providedBuffer.length ||
+    providedBuffer.length !== expectedBuffer.length ||
+    !timingSafeEqual(providedBuffer, expectedBuffer)
+  ) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_ALLOWED,
+      "Invalid Postal webhook token"
+    )
+  }
+
+  next()
+}
 
 // Invariant 4: every Postal admin route requires an authenticated Medusa admin
 // user. One definition so a route cannot be added with a weaker set.
@@ -146,7 +115,10 @@ export default defineMiddlewares({
       matcher: "/postal/webhooks/:token",
       method: "POST",
       bodyParser: { sizeLimit: "512kb" },
-      middlewares: [validateAndTransformBody(postalWebhookSchema)],
+      middlewares: [
+        authenticatePostalWebhook,
+        validateAndTransformBody(postalWebhookSchema)
+      ],
     },
   ],
 })

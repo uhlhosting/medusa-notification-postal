@@ -1,4 +1,5 @@
 import { POSTAL_SETTINGS_ID } from "./constants"
+import { MedusaError } from "@medusajs/framework/utils"
 
 export { POSTAL_PLUGIN_MODULE, POSTAL_SETTINGS_ID } from "./constants"
 
@@ -127,13 +128,9 @@ const readSettingRecord = async (
   }
 }
 
-// Secrets come from the environment only; non-secret values come from the
-// persisted row when present, otherwise from the environment.
-export const getPostalSettings = async (
-  service: PostalSettingService | null | undefined
-): Promise<PostalSettingsSnapshot> => {
-  const record = await readSettingRecord(service)
-
+export const getEffectivePostalSettings = (
+  record: PostalSettingRecord | undefined | null
+): PostalSettingsSnapshot => {
   return buildSnapshot({
     auth_type: "smtp-api",
     from: record?.from_address || process.env.POSTAL_FROM || "",
@@ -144,16 +141,27 @@ export const getPostalSettings = async (
   })
 }
 
+// Secrets come from the environment only; non-secret values come from the
+// persisted row when present, otherwise from the environment.
+export const getPostalSettings = async (
+  service: PostalSettingService | null | undefined
+): Promise<PostalSettingsSnapshot> => {
+  const record = await readSettingRecord(service)
+  return getEffectivePostalSettings(record)
+}
+
 // Persists non-secret settings via the module service. Secret fields in the
 // payload are ignored — secrets are managed through the environment only.
 export const persistPostalSettings = async (
   service: PostalSettingService | null | undefined,
   payload: PostalSettingsInput
 ): Promise<PostalSettingsSnapshot> => {
-  // Without a module service nothing is persisted, so the caller must still see
-  // the environment-only truth rather than the payload echoed back.
+  // Without a module service nothing is persisted.
   if (!service?.listPostalSettings) {
-    return getPostalSettings(service)
+    throw new MedusaError(
+      MedusaError.Types.UNEXPECTED_STATE,
+      "Postal module is unavailable"
+    )
   }
 
   // One read serves both the "current value" fallbacks and the exists check.

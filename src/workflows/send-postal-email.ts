@@ -1,11 +1,12 @@
-import { createWorkflow, WorkflowResponse, ReturnWorkflow } from "@medusajs/framework/workflows-sdk"
+import { createWorkflow, WorkflowResponse, ReturnWorkflow, transform } from "@medusajs/framework/workflows-sdk"
+import { sendNotificationsStep } from "@medusajs/core-flows"
 import {
-  sendPostalEmailStep,
+  normalizeRecipients,
+  buildPostalNotificationsStep,
   type SendPostalEmailStepInput,
 } from "./steps/send-postal-email"
+import { getPostalSettingsStep } from "./steps/get-postal-settings"
 
-// The workflow input is the step input — invariant 2 governs this
-// `provider_data` shape, so it is defined once next to the step that consumes it.
 export type SendPostalEmailWorkflowInput = SendPostalEmailStepInput
 
 export type SendPostalEmailWorkflowResult = {
@@ -27,7 +28,34 @@ export const sendPostalEmailWorkflow: ReturnWorkflow<
 > = createWorkflow(
   "send-postal-email",
   function (input: SendPostalEmailWorkflowInput) {
-    const delivery = sendPostalEmailStep(input)
+    const settings = getPostalSettingsStep()
+
+    const emailInput = transform({ input, settings }, (data) => {
+      const emailInput: SendPostalEmailStepInput = {
+        ...data.input,
+        from: data.input.from || data.settings.from || undefined,
+        provider_data: {
+          ...data.input.provider_data,
+          from: data.input.provider_data?.from || data.input.from || data.settings.from || undefined,
+        },
+      }
+      return emailInput
+    })
+
+    const notifications = buildPostalNotificationsStep(emailInput)
+
+    const sent = sendNotificationsStep(notifications)
+
+    const delivery = transform({ input, sent, notifications }, (data) => {
+      const recipients = normalizeRecipients(data.input.to)
+      return {
+        id: data.sent?.[0]?.id || null,
+        to: recipients,
+        subject: data.input.provider_data?.subject || "",
+        delivered_at: new Date().toISOString(),
+        deliveries: data.sent.map((s: any) => ({ id: s.id || null }))
+      }
+    })
 
     return new WorkflowResponse({
       success: true,

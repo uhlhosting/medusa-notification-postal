@@ -13,9 +13,7 @@ test("handlePostalWebhookPost uses validated body and returns workflow result", 
 
   const response = await handlePostalWebhookPost({
     scope,
-    body: {
-      event: "ignored",
-    },
+
     validatedBody: {
       event_type: "message.sent",
       status: "sent",
@@ -49,13 +47,13 @@ test("handlePostalWebhookPost falls back to the workflow path when no helper is 
 
   const response = await handlePostalWebhookPost({
     scope,
-    body: {
+    validatedBody: {
       event_type: "message.sent",
       status: "sent",
       message: {
         tag: "uhlhosting.medusa-notification-postal:postal-test",
       },
-    },
+    } as any,
   })
 
   assert.equal(response.status, 202)
