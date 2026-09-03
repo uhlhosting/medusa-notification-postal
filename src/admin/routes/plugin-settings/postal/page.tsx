@@ -150,6 +150,16 @@ const SettingsField = ({
   </div>
 )
 
+const audienceBadgeColors: Record<
+  PostalTemplateReferenceRow["audience"],
+  "blue" | "green" | "orange" | "grey"
+> = {
+  auth: "blue",
+  commerce: "green",
+  ops: "orange",
+  shared: "grey",
+};
+
 const postalTemplateReferenceRows: PostalTemplateReferenceRow[] = [
   {
     template: "default",
@@ -803,7 +813,10 @@ export const PostalSettingsPage = () => {
             </div>
 
             <div className="grid grid-cols-3 rounded-full border border-ui-border-base bg-ui-bg-subtle p-1 sm:inline-flex sm:w-fit">
-              {(["rendered", "source", "example"] as PreviewMode[]).map((mode) => (
+              {(["rendered", "source", "example"] as PreviewMode[]).map((mode) => {
+                const modeLabels: Record<PreviewMode, string> = { rendered: "Rendered", source: "Source", example: "Example" }
+                const modeLabel = modeLabels[mode]
+                return (
                 <Button
                   key={mode}
                   type="button"
@@ -812,9 +825,10 @@ export const PostalSettingsPage = () => {
                   onClick={() => setPreviewMode(mode)}
                   className="rounded-full"
                 >
-                  {mode === "rendered" ? "Rendered" : mode === "source" ? "Source" : "Example"}
+                  {modeLabel}
                 </Button>
-              ))}
+                )
+              })}
             </div>
 
             {previewMode === "rendered" && (
@@ -1028,7 +1042,9 @@ export const PostalSettingsPage = () => {
             <Table className="min-w-[920px]">
               <Table.Body>
                 {filteredTemplateRows.length ? (
-                  filteredTemplateRows.map((row) => (
+                  filteredTemplateRows.map((row) => {
+                    const audienceBadgeColor = audienceBadgeColors[row.audience]
+                    return (
                     <Table.Row key={row.template}>
                       <Table.Cell>
                         <div className="flex flex-col gap-y-1">
@@ -1082,15 +1098,7 @@ export const PostalSettingsPage = () => {
                         <div className="flex flex-col gap-y-1">
                           <Badge
                             size="small"
-                            color={
-                              row.audience === "auth"
-                                ? "blue"
-                                : row.audience === "commerce"
-                                  ? "green"
-                                  : row.audience === "ops"
-                                    ? "orange"
-                                    : "grey"
-                            }
+                            color={audienceBadgeColor}
                             className="w-fit"
                           >
                             {row.audience}
@@ -1127,7 +1135,8 @@ export const PostalSettingsPage = () => {
                         </Button>
                       </Table.Cell>
                     </Table.Row>
-                  ))
+                    )
+                  })
                 ) : (
                   <Table.Row>
                     <Table.Cell {...({ colSpan: 7 } as { colSpan?: number })}>

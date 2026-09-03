@@ -8,7 +8,6 @@ import {
   clx,
 } from "@medusajs/ui";
 import type {
-  PluginHeaderAction,
   PluginHeaderLink,
   PluginStatusColor,
 } from "./types";
@@ -19,7 +18,7 @@ type PluginHeaderProps = {
   statusLabel?: ReactNode;
   statusColor?: PluginStatusColor;
   lastSuccessfulExecution?: ReactNode;
-  actions?: PluginHeaderAction;
+  actions?: ReactNode;
   helpLinks?: PluginHeaderLink[];
   className?: string;
 };
