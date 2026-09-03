@@ -57,7 +57,7 @@ export const sendPostalTestWorkflow: ReturnWorkflow<
   function (input: SendPostalTestWorkflowInput) {
     const baseSettings = getPostalSettingsStep()
 
-    const savedSettings = when(input, (input) => {
+    const savedSettings = when("fetch-settings", input, (input) => {
       return !!input.settings
     }).then(() => {
       const payload = transform({ input }, (data) => data.input.settings || {})
