@@ -12,9 +12,9 @@ const mockWorkflow = {
 import Module from "node:module"
 const originalRequire = Module.prototype.require
 Module.prototype.require = function (id: string) {
-  if (id.includes("workflows/send-postal-email")) {
+  if (id.includes("workflows/send-postal-test")) {
     return {
-      sendPostalEmailWorkflow: () => ({
+      sendPostalTestWorkflow: () => ({
         run: async (args: any) => {
           mockWorkflow.runCount++
           mockWorkflow.lastInput = args.input
@@ -95,21 +95,15 @@ test("send test route calls workflow and returns success", async () => {
     from_name: "Test From",
     reply_to: "reply@example.com",
     template: "custom-template",
-    provider_data: {
-      from: "from@example.com",
-      from_name: "Test From",
-      reply_to: "reply@example.com",
-      subject: "Test Subject",
-      html: "<p>html</p>",
-      text: "text",
-      cc: "cc@example.com",
-      bcc: "bcc@example.com",
-      headers: { "X-Test": "test" },
-      custom_args: { "arg": "value" },
-      metadata: { "meta": "data" },
-      workflow_event: "postal.admin.test_send",
-      workflow_run_id: output.payload?.workflow_run_id
-    }
+    subject: "Test Subject",
+    html: "<p>html</p>",
+    text: "text",
+    cc: "cc@example.com",
+    bcc: "bcc@example.com",
+    headers: { "X-Test": "test" },
+    custom_args: { "arg": "value" },
+    metadata: { "meta": "data" },
+    run_id: output.payload?.workflow_run_id
   })
 })
 
@@ -134,11 +128,6 @@ test("send test route uses fallback values for optional fields", async () => {
   assert.equal(output.status, 200)
 
   assert.ok(mockWorkflow.lastInput)
-  assert.equal(mockWorkflow.lastInput.template, "postal-test")
-  assert.equal(mockWorkflow.lastInput.provider_data.html, "")
-  assert.equal(mockWorkflow.lastInput.provider_data.text, "")
-  assert.deepEqual(mockWorkflow.lastInput.provider_data.headers, {})
-  assert.deepEqual(mockWorkflow.lastInput.provider_data.custom_args, {})
-  assert.deepEqual(mockWorkflow.lastInput.provider_data.metadata, {})
-  assert.equal(mockWorkflow.lastInput.provider_data.workflow_event, "postal.admin.test_send")
+  assert.equal(mockWorkflow.lastInput.to, "test2@example.com")
+  assert.equal(mockWorkflow.lastInput.subject, "Test Subject 2")
 })

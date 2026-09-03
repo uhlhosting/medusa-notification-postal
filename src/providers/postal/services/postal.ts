@@ -16,6 +16,8 @@ import {
 // The webhook side matches this exact prefix to attribute callbacks back to the
 // plugin, so writer and reader must share one definition.
 import { POSTAL_WEBHOOK_TAG_PREFIX } from "../../../modules/postal/webhooks"
+import { getPostalSettings, type PostalSettingService } from "../../../modules/postal/settings"
+import { resolvePostalModule } from "../../../modules/postal/constants"
 
 type PostalAuthType = "smtp-api"
 
@@ -93,11 +95,13 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     apiKey: string
     from: string
   }
+  protected container_: any
   protected logger_: Pick<Logger, "info">
 
   constructor(container: { logger: Pick<Logger, "info"> }, options: PostalOptions) {
     super()
-    const { logger } = container
+    this.container_ = container
+    this.logger_ = container.logger
 
     const authType = (options.auth_type || "smtp-api").trim() as PostalAuthType
     const baseUrl = (options.base_url || "").trim().replace(/\/$/, "")
@@ -111,41 +115,22 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
-    if (!from) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "Postal notification provider requires 'from'"
-      )
-    }
-
-    if (!baseUrl) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "Postal API mode requires 'base_url'"
-      )
-    }
-
-    let parsedBaseUrl: URL
-    try {
-      parsedBaseUrl = new URL(baseUrl)
-    } catch {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "Postal 'base_url' must be a valid absolute URL"
-      )
-    }
-    if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "Postal 'base_url' must use the http or https protocol"
-      )
-    }
-
-    if (!apiKey) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "Postal API mode requires 'api_key'"
-      )
+    if (baseUrl) {
+      let parsedBaseUrl: URL
+      try {
+        parsedBaseUrl = new URL(baseUrl)
+      } catch {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          "Postal 'base_url' must be a valid absolute URL"
+        )
+      }
+      if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          "Postal 'base_url' must use the http or https protocol"
+        )
+      }
     }
 
     this.config_ = {
@@ -154,31 +139,24 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       apiKey,
       from,
     }
-    this.logger_ = logger
   }
 
-  static validateOptions(options: Record<string, unknown>) {
-    const from = String(options?.from || "").trim()
+  static validateOptions(_options: Record<string, unknown>) {
+    // Options can be empty if configured via the database.
+  }
 
-    if (!from) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "Option `from` is required in the provider's options."
-      )
-    }
-
-    if (!String(options?.base_url || "").trim()) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "Option `base_url` is required."
-      )
-    }
-
-    if (!String(options?.api_key || "").trim()) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "Option `api_key` is required."
-      )
+  private async getEffectiveConfig() {
+    try {
+      const service = resolvePostalModule<PostalSettingService>(this.container_)
+      const settings = await getPostalSettings(service)
+      return {
+        authType: "smtp-api" as PostalAuthType,
+        baseUrl: (settings.base_url || this.config_.baseUrl).trim().replace(/\/$/, ""),
+        apiKey: settings.api_key || this.config_.apiKey,
+        from: settings.from || this.config_.from,
+      }
+    } catch {
+      return this.config_
     }
   }
 
@@ -205,13 +183,15 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
+    const config = await this.getEffectiveConfig()
+
     const sender = resolvePostalSender(
       {
         from: providerData.from || notification.from || undefined,
         from_name: providerData.from_name,
         reply_to: providerData.reply_to,
       },
-      this.config_.from
+      config.from
     )
 
     if (!sender.from) {
@@ -264,7 +244,8 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
   private async sendViaApi(payload: PostalSendPayload): Promise<{ id: string }> {
     try {
       const body = await this.fetchPostalApi("send/message", payload)
-      const messageId = body?.message_id ? String(body.message_id) : ""
+      const rawMessageId = body?.message_id
+      const messageId = typeof rawMessageId === "string" || typeof rawMessageId === "number" ? String(rawMessageId) : ""
       const recipientMessage = this.getFirstRecipientMessage(body?.messages)
       const externalId = recipientMessage?.id || messageId
 
@@ -298,11 +279,20 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), resolveRequestTimeoutMs())
 
-    const response = await fetch(`${this.config_.baseUrl}/api/v1/${path}`, {
+    const config = await this.getEffectiveConfig()
+    
+    if (!config.baseUrl || !config.apiKey) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        "Postal API mode requires 'base_url' and 'api_key' to be configured"
+      )
+    }
+
+    const response = await fetch(`${config.baseUrl}/api/v1/${path}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Server-API-Key": this.config_.apiKey,
+        "X-Server-API-Key": config.apiKey,
       },
       signal: controller.signal,
       body: JSON.stringify(payload),
@@ -316,11 +306,12 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
         : null
 
     if (!response.ok || !body || body.status === "error" || !data) {
-      const details =
+      const detailsRaw =
         data?.message ||
         data?.error ||
         body?.status ||
         "unknown error"
+      const details = typeof detailsRaw === "string" || typeof detailsRaw === "number" ? String(detailsRaw) : JSON.stringify(detailsRaw)
       throw new MedusaError(
         MedusaError.Types.UNEXPECTED_STATE,
         `Postal API request failed: ${response.status} - ${details}`
@@ -447,14 +438,14 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     const entries = Object.entries(messages as Record<string, PostalRecipientMessage>)
     for (const [recipient, message] of entries) {
       const id = message?.id
-      if (id === undefined || id === null || id === "") {
+      if (id === undefined || id === null || id === "" || (typeof id !== "string" && typeof id !== "number")) {
         continue
       }
 
       return {
         recipient,
         id: String(id),
-        token: message?.token ? String(message.token) : undefined,
+        token: typeof message?.token === "string" ? message.token : undefined,
       }
     }
 
@@ -513,8 +504,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     const src = String(html)
     const out: string[] = []
     let inTag = false
-    for (let i = 0; i < src.length; i++) {
-      const ch = src[i]
+    for (const ch of src) {
       if (ch === "<") {
         inTag = true
         out.push(" ")

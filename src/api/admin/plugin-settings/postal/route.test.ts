@@ -23,7 +23,16 @@ test("postal settings GET returns public settings without secrets", async () => 
     const responseBody: any = {}
     const req = {
       scope: {
-        resolve: () => null,
+        resolve: (name: string) => {
+          if (name === "query") {
+            return {
+              graph: async () => ({
+                data: []
+              })
+            }
+          }
+          return null
+        }
       },
     } as any
     const res = {

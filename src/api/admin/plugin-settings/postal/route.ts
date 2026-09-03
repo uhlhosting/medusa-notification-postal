@@ -1,34 +1,36 @@
 import { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-import { MedusaError } from "@medusajs/framework/utils"
-import { sendPostalEmailWorkflow } from "../../../../workflows/send-postal-email"
+import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
+import { sendPostalTestWorkflow } from "../../../../workflows/send-postal-test"
 import { savePostalSettingsWorkflow } from "../../../../workflows/save-postal-settings"
-import { resolvePostalModule } from "../../../../modules/postal/constants"
 import {
-  getPostalSettings,
+  POSTAL_SETTINGS_ID,
+  getEffectivePostalSettings,
   toPublicPostalSettings,
-  validateModeRequirements,
-  type PostalSettingsInput,
-  type PostalSettingService,
+  type PostalSettingRecord
 } from "../../../../modules/postal/settings"
-import {
-  buildPostalAdminTestProviderData,
-  type PostalAdminTestBody,
-} from "./test-payload"
-
-type PostalPostBody = PostalAdminTestBody & {
-  action?: "save" | "test"
-  settings?: PostalSettingsInput
-}
-
-const trimString = (value: unknown) =>
-  typeof value === "string" ? value.trim() : ""
+import { type PostalSettingsBody } from "./validators"
 
 export async function GET(
   req: AuthenticatedMedusaRequest,
   res: MedusaResponse
 ) {
-  const service = resolvePostalModule<PostalSettingService>(req.scope)
-  const settings = await getPostalSettings(service)
+  const query = req.scope.resolve(ContainerRegistrationKeys.QUERY)
+  const { data: settingsRows } = await query.graph({
+    entity: "postal_setting",
+    fields: [
+      "id",
+      "auth_type",
+      "from_address",
+      "base_url",
+      "test_to",
+      "pending_restart",
+    ],
+    filters: {
+      id: POSTAL_SETTINGS_ID,
+    },
+  })
+
+  const settings = getEffectivePostalSettings(settingsRows[0] as PostalSettingRecord | undefined)
 
   res.json({
     ...toPublicPostalSettings(settings),
@@ -39,15 +41,14 @@ export async function GET(
 }
 
 export async function POST(
-  req: AuthenticatedMedusaRequest<PostalPostBody>,
+  req: AuthenticatedMedusaRequest<PostalSettingsBody>,
   res: MedusaResponse
 ) {
-  const service = resolvePostalModule<PostalSettingService>(req.scope)
-  const body = req.validatedBody || req.body || {}
+  const body = req.validatedBody
   const action = body.action
 
   if (action === "save") {
-    const { result: settings, errors } = await savePostalSettingsWorkflow(req.scope).run({
+    const { result, errors } = await savePostalSettingsWorkflow(req.scope).run({
       input: body.settings || {},
       throwOnError: false,
     })
@@ -56,127 +57,46 @@ export async function POST(
       throw errors[0].error
     }
 
-    const validationError = validateModeRequirements(settings)
-
     return res.json({
       ok: true,
       action: "save",
       code: "postal_settings_saved",
       type: "postal_settings_result",
       status: 200,
-      settings: toPublicPostalSettings(settings),
+      settings: toPublicPostalSettings(result.settings),
       requires_restart: true,
-      ready_for_test: !validationError,
-      validation_error: validationError,
+      ready_for_test: result.ready_for_test,
+      validation_error: result.validation_error,
     })
   }
 
-  if (action !== "test") {
-    return res.status(400).json({
-      code: "postal_action_invalid",
-      type: "postal_validation_error",
-      status: 400,
-      message: "Invalid action. Use `save` or `test`.",
-    })
-  }
+  if (action === "test") {
+    const runId = `admin_${Date.now()}`
 
-  let savedSettings: Awaited<ReturnType<typeof getPostalSettings>> | null = null
-
-  if (body.settings) {
-    const { result, errors } = await savePostalSettingsWorkflow(req.scope).run({
-      input: body.settings,
+    const { result, errors } = await sendPostalTestWorkflow(req.scope).run({
+      input: {
+        to: body.to,
+        settings: body.settings,
+        run_id: runId
+      },
       throwOnError: false,
     })
+
     if (errors?.length) {
       throw errors[0].error
     }
 
-    // The workflow already returns the fresh snapshot — re-reading it here
-    // would be a second round trip for the same values.
-    savedSettings = result
-  }
-
-  const currentSettings = savedSettings ?? (await getPostalSettings(service))
-  const validationError = validateModeRequirements(currentSettings)
-  if (validationError) {
-    return res.status(400).json({
-      ok: false,
+    return res.json({
+      ok: true,
       action: "test",
-      code: "postal_settings_invalid_for_test",
-      type: "postal_validation_error",
-      status: 400,
-      message: validationError,
-      settings: toPublicPostalSettings(currentSettings),
-      requires_restart: true,
+      code: "postal_test_queued",
+      type: "postal_test_result",
+      status: 200,
+      provider_id: "postal",
+      to: result.to,
+      workflow_run_id: runId,
+      result: result.delivery,
+      settings: toPublicPostalSettings(result.settings),
     })
   }
-
-  const to =
-    trimString(body.to) ||
-    currentSettings.test_to ||
-    currentSettings.from
-
-  if (!to) {
-    return res.status(400).json({
-      code: "postal_recipient_missing",
-      type: "postal_validation_error",
-      status: 400,
-      message: "Missing recipient. Provide `to` or set POSTAL_TEST_TO/POSTAL_FROM.",
-    })
-  }
-
-  const runId = `admin_${Date.now()}`
-  const providerData = buildPostalAdminTestProviderData(
-    {
-      from: currentSettings.from || undefined,
-      test_to: currentSettings.test_to || undefined,
-      auth_type: currentSettings.auth_type,
-    },
-    body as PostalAdminTestBody,
-    runId
-  )
-
-  const { result, errors } = await sendPostalEmailWorkflow(req.scope).run({
-    input: {
-      to,
-      from: currentSettings.from || undefined,
-      template: providerData.template,
-      provider_data: {
-        ...providerData,
-        from: currentSettings.from || undefined,
-      },
-    },
-    throwOnError: false,
-  })
-
-  if (errors?.length) {
-    const message = String(errors[0].error?.message || "")
-    if (
-      message.includes("Could not find a notification provider") ||
-      message.includes("not loaded")
-    ) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "Postal provider is not loaded. Save settings and restart backend."
-      )
-    }
-
-    throw new MedusaError(
-      MedusaError.Types.INVALID_DATA,
-      message || "Postal test send failed"
-    )
-  }
-
-  return res.json({
-    ok: true,
-    action: "test",
-    code: "postal_test_queued",
-    type: "postal_test_result",
-    status: 200,
-    provider_id: "postal",
-    to,
-    workflow_run_id: runId,
-    result,
-    settings: toPublicPostalSettings(currentSettings),
-  })
 }

@@ -459,7 +459,7 @@ export const PostalSettingsPage = () => {
       metadata?: Record<string, unknown>;
       settings: PostalSettingsForm;
     }) =>
-      sdk.client.fetch("/admin/plugin-settings/postal", {
+      sdk.client.fetch("/admin/postal/send-test", {
         method: "POST",
         body: payload,
       }),
