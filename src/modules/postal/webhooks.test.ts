@@ -501,6 +501,12 @@ const createFakeWebhookService = (opts: FakeWebhookServiceOpts = {}): any => {
     },
     createPostalWebhookEvents: async (data: Record<string, unknown>) => {
       if (opts.throwOnCreate) throw new Error("database unavailable")
+      const isDuplicate = rows.some((r) => r.message_id === data.message_id && r.event_type === data.event_type)
+      if (isDuplicate) {
+        const err = new Error("duplicate key value violates unique constraint") as any
+        err.code = "23505"
+        throw err
+      }
       created.push(data)
       rows.push(data)
       return data
@@ -577,7 +583,7 @@ test("recordPostalWebhookEvent ignores non-plugin messages", async () => {
   assert.equal(service.created.length, 0)
 })
 
-test("recordPostalWebhookEvent ignores plugin-tagged non-sent messages", async () => {
+test("recordPostalWebhookEvent persists plugin-tagged non-sent messages", async () => {
   const service = createFakeWebhookService()
 
   const event = await recordPostalWebhookEvent(service, {
@@ -590,8 +596,8 @@ test("recordPostalWebhookEvent ignores plugin-tagged non-sent messages", async (
     },
   })
 
-  assert.equal(event, null)
-  assert.equal(service.created.length, 0)
+  assert.notEqual(event, null)
+  assert.equal(service.created.length, 1)
 })
 
 test("recordPostalWebhookEvent returns event when the service is unavailable", async () => {
@@ -610,25 +616,21 @@ test("recordPostalWebhookEvent returns event when the service is unavailable", a
   assert.equal(recorded.message_id, "msg_no_service")
 })
 
-test("recordPostalWebhookEvent returns event when persistence fails", async () => {
+test("recordPostalWebhookEvent throws when persistence fails", async () => {
   const service = createFakeWebhookService({ throwOnCreate: true })
 
-  const event = await recordPostalWebhookEvent(service, {
-    event_type: "MessageSent",
-    status: "Sent",
-    message: {
-      message_id: "msg_failed_write",
-      recipient: "recipient@example.com",
-      tag: "uhlhosting.medusa-notification-postal:postal-test",
-    },
-  })
-
-  assert.notEqual(event, null)
-  const recorded = event as NonNullable<typeof event>
-  assert.equal(recorded.event_type, "message.sent")
-  assert.equal(recorded.status, "sent")
-  assert.equal(recorded.message_id, "msg_failed_write")
-  assert.equal(recorded.recipient, "recipient@example.com")
+  await assert.rejects(
+    recordPostalWebhookEvent(service, {
+      event_type: "MessageSent",
+      status: "Sent",
+      message: {
+        message_id: "msg_failed_write",
+        recipient: "recipient@example.com",
+        tag: "uhlhosting.medusa-notification-postal:postal-test",
+      },
+    }),
+    /database unavailable/
+  )
 })
 
 test("listPostalWebhookEvents returns rows with clamped limit bounds", async () => {

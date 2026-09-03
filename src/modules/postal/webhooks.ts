@@ -322,27 +322,14 @@ export const recordPostalWebhookEvent = async (
   // would repeat the full normalization pass on every inbound callback.
   const event = normalizePostalWebhookPayload(payload)
 
-  if (event.status !== "sent") {
-    return null
-  }
+  // We persist all recognized lifecycle events.
+
 
   if (!service?.createPostalWebhookEvents) {
     return event
   }
 
   try {
-    // Idempotency: a replayed callback for the same message + event type must
-    // not create a duplicate row.
-    if (event.message_id) {
-      const existing = await service.listPostalWebhookEvents(
-        { message_id: event.message_id, event_type: event.event_type },
-        { take: 1 }
-      )
-      if (existing?.length) {
-        return existing[0]
-      }
-    }
-
     await service.createPostalWebhookEvents({
       id: event.id,
       event_type: event.event_type,
@@ -352,8 +339,22 @@ export const recordPostalWebhookEvent = async (
       occurred_at: event.occurred_at,
       payload: event.payload,
     })
-  } catch {
-    return event
+  } catch (error: any) {
+    const msg = error?.message?.toLowerCase() || ""
+    const code = error?.code || error?.parent?.code
+    if (code === "23505" || msg.includes("unique constraint") || msg.includes("duplicate key")) {
+      if (event.message_id) {
+        const existing = await service.listPostalWebhookEvents(
+          { message_id: event.message_id, event_type: event.event_type },
+          { take: 1 }
+        )
+        if (existing?.length) {
+          return existing[0]
+        }
+      }
+      return event
+    }
+    throw error
   }
 
   return event

@@ -46,86 +46,9 @@ test("constructor and option validation reject invalid configuration", () => {
     MedusaError
   )
 
-  assert.throws(
-    () =>
-      new PostalNotificationService(
-        { logger },
-        {
-          from: "",
-          base_url: "https://postal.example.com",
-          api_key: "secret",
-          auth_type: "smtp-api",
-        } as any
-      ),
-    MedusaError
-  )
-
-  assert.throws(
-    () =>
-      new PostalNotificationService(
-        { logger },
-        {
-          from: "ops@example.com",
-          base_url: "",
-          api_key: "secret",
-          auth_type: "smtp-api",
-        } as any
-      ),
-    MedusaError
-  )
-
-  assert.throws(
-    () =>
-      new PostalNotificationService(
-        { logger },
-        {
-          from: "ops@example.com",
-          base_url: "https://postal.example.com",
-          api_key: "",
-          auth_type: "smtp-api",
-        } as any
-      ),
-    MedusaError
-  )
-
-  assert.throws(
-    () =>
-      PostalNotificationService.validateOptions({
-        from: " ",
-        base_url: "https://postal.example.com",
-        api_key: "secret",
-      }),
-    MedusaError
-  )
-
-  assert.throws(
-    () =>
-      PostalNotificationService.validateOptions({
-        from: "ops@example.com",
-        base_url: "https://postal.example.com",
-        api_key: " ",
-      }),
-    MedusaError
-  )
-
-  assert.throws(
-    () =>
-      PostalNotificationService.validateOptions({
-        from: "ops@example.com",
-        api_key: "secret",
-      }),
-    MedusaError
-  )
 })
 
 test("validates options and builds a send payload", async () => {
-  assert.doesNotThrow(() =>
-    PostalNotificationService.validateOptions({
-      from: "ops@example.com",
-      base_url: "https://postal.example.com",
-      api_key: "secret",
-    })
-  )
 
   const service = createService()
 

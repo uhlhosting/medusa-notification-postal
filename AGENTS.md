@@ -18,10 +18,14 @@
 - Do not import instructions, invariants, or paths from other Medusa repositories
 
 ## Working Rules
-- Keep mutation logic in workflows, not routes
-- Keep route handlers thin and typed
+- Keep mutation logic and readiness validation in workflows, not routes
+- Do not throw inside a workflow `transform()` callback. Create dedicated validation steps using `createStep` or use `when-then` to gate work.
+- Keep route handlers thin and use inferred Zod types from route-local `validators.ts` files rather than importing from global middleware configurations.
+- Action validation belongs at the HTTP schema boundary (Zod). Business validation belongs in workflows.
+- Zod `.strict()` is fully supported; do not replace it as a migration fix.
 - Prefer `AuthenticatedMedusaRequest` for protected admin endpoints and enforce auth in `src/api/middlewares.ts`
 - Keep workflow composition in `src/workflows/*.ts` and import workflows statically from routes and handlers
+- Webhook token authentication MUST be performed in `src/api/middlewares.ts` using `timingSafeEqual` with byte-length validation
 - Use Medusa SDK clients where applicable instead of raw `fetch`
 - Preserve the compiled `.medusa/server` bundle as the package publish surface
 - Do not add npm tokens, automation tokens, or `.npmrc` auth entries
@@ -30,9 +34,9 @@
 ## Postal Plugin Invariants
 1. Provider auth mode is `smtp-api`
 2. `provider_data` must carry email content and workflow metadata such as `subject`, `html`, `text`, `workflow_event`, and `workflow_run_id`
-3. The admin settings route under `/admin/plugin-settings/postal` is a configuration visibility surface and must not expose secrets
+3. The admin settings routes (`/admin/plugin-settings/postal` for GET/POST save, `/admin/postal/send-test` for tests) are configuration visibility surfaces and must not expose secrets. Schemas must strictly reject secret fields
 4. Postal admin routes must require authenticated Medusa admin users through route-local middleware
-5. Postal debug or test sends must use the plugin workflow path so trace metadata is preserved
+5. Postal debug or test sends must use the `sendPostalTestWorkflow` path so trace metadata is preserved
 6. Secrets (`POSTAL_API_KEY`, `POSTAL_WEBHOOK_TOKEN`) are sourced from provider options/environment at boot only — never persisted by the plugin and read-only in the admin UI. Non-secret settings (`from`, `base_url`, `auth_type`, `test_to`) persist in the `postal_setting` DML model via the module service; the plugin never writes to `.env` or mutates `process.env` on a request path. A boot loader reconciles the persisted row into `process.env` in memory. That loader must build the module service from its **local container cradle**, never by resolving the module key: Medusa passes a loader the module's local container and registers the service in the outer container only after every loader has run, so `container.resolve(POSTAL_PLUGIN_MODULE)` there always throws. It must also keep catching its own errors — an uncaught loader error makes Medusa register the module as `undefined` — and must interpolate the cause into the warning, because the logger drops extra arguments.
 7. Postal HTTP calls must fail fast with a bounded timeout, configurable via `POSTAL_REQUEST_TIMEOUT_MS` and clamped to 1–60s
 8. Postal webhook callbacks must use a tokenized store route, and the exact tokenized URL should be surfaced from an admin-only view rather than the settings surface
@@ -42,7 +46,7 @@
 12. The public webhook route must validate its body and enforce a bounded body-size cap
 13. Admin message-inspection must delegate to the resolved provider service, not a duplicated Postal HTTP client
 14. The build must emit TypeScript declarations so every `types`/`exports` target advertised in `package.json` resolves for consumers
-15. Recording a Postal webhook is idempotent (a replayed message + event type must not duplicate a row) and emits a best-effort `postal.<status>` event on the event bus for subscribers
+15. Recording a Postal webhook is idempotent (enforced by a database composite unique constraint on `message_id` + `event_type`) and emits a best-effort `postal.<status>` event on the event bus for subscribers. All recognized lifecycle events are persisted without swallowing generic database errors.
 16. Sends carry an `idempotency_key` derived from the workflow run id + template + recipient when a run id is present, so workflow retries do not duplicate emails
 17. Postal admin UI requests use the Medusa dashboard session through the shared JS SDK client; do not switch the plugin client to standalone JWT storage
 18. Provider-backed admin routes resolve the configured `postal` provider through Medusa's Notification module provider registry, and health must report unavailable when that provider cannot be resolved

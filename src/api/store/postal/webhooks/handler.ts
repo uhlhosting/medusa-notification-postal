@@ -3,7 +3,6 @@ import type { MedusaContainer } from "@medusajs/framework/types"
 
 export type PostalWebhookPostHandlerInput = {
   scope: { resolve: (key: string) => unknown }
-  body?: Record<string, unknown>
   validatedBody?: Record<string, unknown>
   runWebhookWorkflow?: (payload: Record<string, unknown>) => Promise<{
     result: {
@@ -19,11 +18,10 @@ export const handlePostalWebhookPost = async (
 ) => {
   const {
     scope,
-    body,
     validatedBody,
     runWebhookWorkflow,
   } = input
-  const payload = (validatedBody || body || {}) as Record<string, unknown>
+  const payload = (validatedBody || {}) as Record<string, unknown>
 
   const { result } = runWebhookWorkflow
     ? await runWebhookWorkflow(payload)
