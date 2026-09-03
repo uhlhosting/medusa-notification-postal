@@ -171,7 +171,7 @@ const buildModernFallbackHtml = (subject: string, text: string) => {
   const cleanSubject = subject.trim() || "Notification"
   const cleanText = text.trim() || "This is a transactional email."
   const safeSubject = escapeHtml(cleanSubject)
-  const safeText = escapeHtml(cleanText).replace(/\n/g, "<br>")
+  const safeText = escapeHtml(cleanText).replaceAll("\n", "<br>")
   return buildRichHtmlTemplate(
     "Postal Notification",
     safeSubject,

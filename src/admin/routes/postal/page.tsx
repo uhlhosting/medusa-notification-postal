@@ -348,6 +348,10 @@ const PostalAdminPage = () => {
     },
   });
 
+  const statusLabelKey = (health as any)?.status === "ok"
+    ? "postal.activity.connected"
+    : "postal.activity.disconnected"
+
   return (
     <PluginShell>
       <PluginHeader
@@ -357,9 +361,7 @@ const PostalAdminPage = () => {
         statusLabel={
           isHealthLoading
             ? t("postal.activity.checking")
-            : (health as any)?.status === "ok"
-              ? t("postal.activity.connected")
-              : t("postal.activity.disconnected")
+            : t(statusLabelKey)
         }
         lastSuccessfulExecution={
           lastCheckedAt
