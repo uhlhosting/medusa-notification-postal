@@ -40,24 +40,26 @@ test("handlePostalWebhookPost uses validated body and returns workflow result", 
   assert.equal(response.body.status, "sent")
 })
 
-test("handlePostalWebhookPost falls back to the workflow path when no helper is injected", async () => {
+test("handlePostalWebhookPost surfaces missing webhook persistence", async () => {
   const scope = {
     resolve: () => null,
   }
 
-  const response = await handlePostalWebhookPost({
-    scope,
-    validatedBody: {
-      event_type: "message.sent",
-      status: "sent",
-      message: {
-        tag: "uhlhosting.medusa-notification-postal:postal-test",
+  await assert.rejects(
+    handlePostalWebhookPost({
+      scope,
+      validatedBody: {
+        event_type: "message.sent",
+        status: "sent",
+        message: {
+          tag: "uhlhosting.medusa-notification-postal:postal-test",
+        },
       },
-    } as any,
-  })
-
-  assert.equal(response.status, 202)
-  assert.equal(response.body.ok, true)
-  assert.equal(response.body.event_type, "message.sent")
-  assert.equal(response.body.status, "sent")
+    }),
+    (error: unknown) =>
+      typeof error === "object" &&
+      error !== null &&
+      "message" in error &&
+      error.message === "Postal webhook persistence is unavailable"
+  )
 })

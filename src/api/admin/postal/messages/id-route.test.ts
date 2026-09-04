@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { GET } from "./route"
+import { GET } from "./[id]/route"
 
 test("message route resolves the Postal provider and returns message details", async () => {
   let resolvedKey = ""

@@ -429,7 +429,10 @@ export const PostalSettingsPage = () => {
   }, [data]);
 
   const saveMutation = useMutation({
-    mutationFn: (payload: { action: "save"; settings: PostalSettingsForm }) =>
+    mutationFn: (payload: {
+      action: "save";
+      settings: Omit<PostalSettingsForm, "api_key">;
+    }) =>
       sdk.client.fetch("/admin/plugin-settings/postal", {
         method: "POST",
         body: payload,
@@ -454,7 +457,6 @@ export const PostalSettingsPage = () => {
 
   const testMutation = useMutation({
     mutationFn: (payload: {
-      action: "test";
       to?: string;
       cc?: string[];
       bcc?: string[];
@@ -467,7 +469,6 @@ export const PostalSettingsPage = () => {
       headers?: Record<string, string>;
       custom_args?: Record<string, unknown>;
       metadata?: Record<string, unknown>;
-      settings: PostalSettingsForm;
     }) =>
       sdk.client.fetch("/admin/postal/send-test", {
         method: "POST",
@@ -519,22 +520,22 @@ export const PostalSettingsPage = () => {
         testForm.metadata_json,
         t("postal.invalid_metadata_json"),
       );
+      const cc = parseEmailList(testForm.cc);
+      const bcc = parseEmailList(testForm.bcc);
 
       testMutation.mutate({
-        action: "test",
         to: testForm.to.trim() || undefined,
         template: testForm.template || undefined,
         subject: testForm.subject.trim() || undefined,
         text: testForm.text.trim() || undefined,
         html: testForm.html.trim() || undefined,
-        cc: parseEmailList(testForm.cc),
-        bcc: parseEmailList(testForm.bcc),
+        cc: cc.length ? cc : undefined,
+        bcc: bcc.length ? bcc : undefined,
         from_name: testForm.from_name.trim() || undefined,
         reply_to: testForm.reply_to.trim() || undefined,
         headers,
         custom_args: customArgs,
         metadata,
-        settings: form,
       });
     } catch (error) {
       toast.error(
@@ -661,7 +662,15 @@ export const PostalSettingsPage = () => {
                 variant="primary"
                 size="small"
                 onClick={() =>
-                  saveMutation.mutate({ action: "save", settings: form })
+                  saveMutation.mutate({
+                    action: "save",
+                    settings: {
+                      auth_type: form.auth_type,
+                      from: form.from,
+                      base_url: form.base_url,
+                      test_to: form.test_to,
+                    },
+                  })
                 }
                 isLoading={saveMutation.isPending}
                 disabled={disabled}

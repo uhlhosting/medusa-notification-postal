@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto"
+import { MedusaError } from "@medusajs/framework/utils"
 
 export type PostalWebhookStatus =
   | "sent"
@@ -23,6 +24,22 @@ export type PostalWebhookRecord = {
 }
 
 export const POSTAL_WEBHOOK_TAG_PREFIX = "uhlhosting.medusa-notification-postal:"
+
+const isPostgresUniqueViolation = (error: unknown): boolean => {
+  const visited = new Set<unknown>()
+  let current = error
+
+  while (current && typeof current === "object" && !visited.has(current)) {
+    visited.add(current)
+    const record = current as Record<string, unknown>
+    if (record.code === "23505") {
+      return true
+    }
+    current = record.cause || record.driverException || record.parent
+  }
+
+  return false
+}
 
 // Minimal shape of the generated module service methods this file relies on.
 export type PostalWebhookEventService = {
@@ -322,11 +339,18 @@ export const recordPostalWebhookEvent = async (
   // would repeat the full normalization pass on every inbound callback.
   const event = normalizePostalWebhookPayload(payload)
 
-  // We persist all recognized lifecycle events.
+  if (event.status === "unknown") {
+    return null
+  }
 
-
-  if (!service?.createPostalWebhookEvents) {
-    return event
+  if (
+    !service?.createPostalWebhookEvents ||
+    !service.listPostalWebhookEvents
+  ) {
+    throw new MedusaError(
+      MedusaError.Types.UNEXPECTED_STATE,
+      "Postal webhook persistence is unavailable"
+    )
   }
 
   try {
@@ -339,20 +363,15 @@ export const recordPostalWebhookEvent = async (
       occurred_at: event.occurred_at,
       payload: event.payload,
     })
-  } catch (error: any) {
-    const msg = error?.message?.toLowerCase() || ""
-    const code = error?.code || error?.parent?.code
-    if (code === "23505" || msg.includes("unique constraint") || msg.includes("duplicate key")) {
-      if (event.message_id) {
-        const existing = await service.listPostalWebhookEvents(
-          { message_id: event.message_id, event_type: event.event_type },
-          { take: 1 }
-        )
-        if (existing?.length) {
-          return existing[0]
-        }
+  } catch (error: unknown) {
+    if (isPostgresUniqueViolation(error) && event.message_id) {
+      const existing = await service.listPostalWebhookEvents(
+        { message_id: event.message_id, event_type: event.event_type },
+        { take: 1 }
+      )
+      if (existing?.length) {
+        return existing[0]
       }
-      return event
     }
     throw error
   }
