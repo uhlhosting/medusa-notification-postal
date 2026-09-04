@@ -23,7 +23,7 @@ export type PostalWebhookListQuery = z.infer<typeof postalWebhookListSchema>
 const normalizeToken = (value: unknown) =>
   typeof value === "string" ? value.trim() : ""
 
-const authenticatePostalWebhook = (
+export const authenticatePostalWebhook = (
   req: MedusaRequest,
   res: MedusaResponse,
   next: MedusaNextFunction

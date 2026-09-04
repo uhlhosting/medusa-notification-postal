@@ -600,20 +600,32 @@ test("recordPostalWebhookEvent persists plugin-tagged non-sent messages", async 
   assert.equal(service.created.length, 1)
 })
 
-test("recordPostalWebhookEvent returns event when the service is unavailable", async () => {
-  const event = await recordPostalWebhookEvent(null, {
+test("recordPostalWebhookEvent fails when persistence is unavailable", async () => {
+  await assert.rejects(
+    recordPostalWebhookEvent(null, {
+      message: {
+        tag: "uhlhosting.medusa-notification-postal:postal-test",
+        id: "msg_no_service",
+        recipient: "recipient@example.com",
+      },
+      status: "sent",
+    }),
+    /persistence is unavailable/
+  )
+})
+
+test("recordPostalWebhookEvent ignores unrecognized lifecycle events", async () => {
+  const service = createFakeWebhookService()
+  const event = await recordPostalWebhookEvent(service, {
+    event: "message.unrecognized",
     message: {
+      id: "msg_unknown",
       tag: "uhlhosting.medusa-notification-postal:postal-test",
-      id: "msg_no_service",
-      recipient: "recipient@example.com",
     },
-    status: "sent",
   })
 
-  assert.notEqual(event, null)
-  const recorded = event as NonNullable<typeof event>
-  assert.equal(recorded.status, "sent")
-  assert.equal(recorded.message_id, "msg_no_service")
+  assert.equal(event, null)
+  assert.equal(service.created.length, 0)
 })
 
 test("recordPostalWebhookEvent throws when persistence fails", async () => {

@@ -2,12 +2,10 @@ import {
   createWorkflow,
   WorkflowResponse,
   transform,
-  when,
   type ReturnWorkflow
 } from "@medusajs/framework/workflows-sdk"
-import { sendNotificationsStep } from "@medusajs/core-flows"
-import type { PostalSettingsInput, PostalSettingsSnapshot } from "../modules/postal/settings"
-import { savePostalSettingsStep } from "./steps/save-postal-settings"
+import { sendNotificationsStep } from "@medusajs/medusa/core-flows"
+import type { PostalSettingsSnapshot } from "../modules/postal/settings"
 import { getPostalSettingsStep } from "./steps/get-postal-settings"
 import {
   buildPostalNotificationsStep,
@@ -15,11 +13,10 @@ import {
   validateModeRequirementsStep,
   validateTestRecipientStep,
 } from "./steps/send-postal-email"
-import { buildPostalAdminTestProviderData } from "../api/admin/plugin-settings/postal/test-payload"
+import { buildPostalAdminTestProviderData } from "./postal-test-payload"
 
 export type SendPostalTestWorkflowInput = {
   to?: string | string[]
-  settings?: PostalSettingsInput
   run_id: string
   // Test payload fields
   from?: string
@@ -57,18 +54,7 @@ export const sendPostalTestWorkflow: ReturnWorkflow<
   function (input: SendPostalTestWorkflowInput) {
     const baseSettings = getPostalSettingsStep()
 
-    const savedSettings = when("fetch-settings", input, (input) => {
-      return !!input.settings
-    }).then(() => {
-      const payload = transform({ input }, (data) => data.input.settings || {})
-      return savePostalSettingsStep(payload)
-    })
-
-    const effectiveSettings = transform({ baseSettings, savedSettings }, (data) => {
-      return data.savedSettings || data.baseSettings
-    })
-
-    const validatedSettings = validateModeRequirementsStep(effectiveSettings)
+    const validatedSettings = validateModeRequirementsStep(baseSettings)
 
     const to = validateTestRecipientStep({ 
       to: input.to, 
@@ -102,14 +88,16 @@ export const sendPostalTestWorkflow: ReturnWorkflow<
 
     const sent = sendNotificationsStep(notifications)
 
-    const delivery = transform({ input, sent, notifications, to }, (data) => {
+    const delivery = transform({ sent, emailInput, to }, (data) => {
       const recipients = normalizeRecipients(data.to)
       return {
         id: data.sent?.[0]?.id || null,
         to: recipients,
-        subject: (data.notifications[0]?.provider_data as Record<string, unknown>)?.subject as string || "",
+        subject: data.emailInput.provider_data.subject,
         delivered_at: new Date().toISOString(),
-        deliveries: data.sent.map((s: any) => ({ id: s.id || null }))
+        deliveries: data.sent.map((notification) => ({
+          id: notification.id || null,
+        }))
       }
     })
 

@@ -35,6 +35,7 @@ export type PostalSettingService = {
   ) => Promise<PostalSettingRecord[]>
   createPostalSettings: (data: Record<string, unknown>) => Promise<unknown>
   updatePostalSettings: (data: Record<string, unknown>) => Promise<unknown>
+  deletePostalSettings?: (ids: string | string[]) => Promise<unknown>
 }
 
 export type PostalSettings = PostalSettingsSnapshot
@@ -109,19 +110,25 @@ export const toPublicPostalSettings = (settings: PostalSettingsSnapshot) => ({
   webhook_token: "",
 })
 
-const readSettingRecord = async (
+export const retrievePostalSettingRecord = async (
   service: PostalSettingService | null | undefined
 ): Promise<PostalSettingRecord | undefined> => {
   if (!service?.listPostalSettings) {
     return undefined
   }
 
+  const rows = await service.listPostalSettings(
+    { id: POSTAL_SETTINGS_ID },
+    { take: 1 }
+  )
+  return rows?.[0]
+}
+
+const readSettingRecord = async (
+  service: PostalSettingService | null | undefined
+): Promise<PostalSettingRecord | undefined> => {
   try {
-    const rows = await service.listPostalSettings(
-      { id: POSTAL_SETTINGS_ID },
-      { take: 1 }
-    )
-    return rows?.[0]
+    return await retrievePostalSettingRecord(service)
   } catch {
     // Fall back to environment-only configuration.
     return undefined
@@ -154,18 +161,24 @@ export const getPostalSettings = async (
 // payload are ignored — secrets are managed through the environment only.
 export const persistPostalSettings = async (
   service: PostalSettingService | null | undefined,
-  payload: PostalSettingsInput
+  payload: PostalSettingsInput,
+  existingRecord?: PostalSettingRecord | null
 ): Promise<PostalSettingsSnapshot> => {
   // Without a module service nothing is persisted.
-  if (!service?.listPostalSettings) {
+  if (
+    !service?.listPostalSettings ||
+    !service.createPostalSettings ||
+    !service.updatePostalSettings
+  ) {
     throw new MedusaError(
       MedusaError.Types.UNEXPECTED_STATE,
       "Postal module is unavailable"
     )
   }
 
-  // One read serves both the "current value" fallbacks and the exists check.
-  const existing = await readSettingRecord(service)
+  const existing = existingRecord === undefined
+    ? await retrievePostalSettingRecord(service)
+    : existingRecord || undefined
 
   const next = {
     auth_type: "smtp-api" as const,

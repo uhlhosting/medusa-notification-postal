@@ -12,6 +12,7 @@ export const PostalWebhookEvent = model.define("postal_webhook_events", {
   payload: model.json(),
 }).indexes([
   {
+    name: "IDX_postal_webhook_message_event_unique",
     on: ["message_id", "event_type"],
     unique: true,
   }

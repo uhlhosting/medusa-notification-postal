@@ -1,7 +1,7 @@
 import {
   getPostalTemplateExample,
   type PostalTemplateName,
-} from "../../../../providers/postal/templates"
+} from "../providers/postal/templates"
 
 export type PostalAdminTestBody = {
   to?: string | string[]
@@ -61,11 +61,8 @@ export const buildPostalAdminTestProviderData = (
   body: PostalAdminTestBody,
   runId: string
 ): PostalAdminTestProviderData => {
-  const templateName =
-    normalizeString(body.template) || "postal-admin-test"
-  const example = getPostalTemplateExample(
-    templateName as PostalTemplateName
-  )
+  const templateName = normalizeString(body.template) || "postal-admin-test"
+  const example = getPostalTemplateExample(templateName as PostalTemplateName)
 
   return {
     template: templateName,

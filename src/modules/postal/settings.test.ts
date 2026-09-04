@@ -191,6 +191,18 @@ test("persistPostalSettings updates an existing row and preserves prior values",
   )
 })
 
+test("persistPostalSettings does not swallow database read failures", async () => {
+  const service = createFakeService()
+  service.listPostalSettings = async () => {
+    throw new Error("database unavailable")
+  }
+
+  await assert.rejects(
+    persistPostalSettings(service, { from: "changed@example.com" }),
+    /database unavailable/
+  )
+})
+
 test("toPublicPostalSettings strips secret values", async () => {
   await withEnv(
     { POSTAL_API_KEY: "secret-key", POSTAL_WEBHOOK_TOKEN: "whtoken1234" },
