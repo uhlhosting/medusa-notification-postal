@@ -19,6 +19,8 @@ import { POSTAL_WEBHOOK_TAG_PREFIX } from "../../../modules/postal/webhooks"
 import { getPostalSettings, type PostalSettingService } from "../../../modules/postal/settings"
 import { resolvePostalModule } from "../../../modules/postal/constants"
 
+const CRLF_REGEX = /[\r\n]/
+
 type PostalAuthType = "smtp-api"
 
 interface PostalOptions {
@@ -363,7 +365,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       const name = String(key).trim()
       const val = String(value ?? "").trim()
       // Reject headers with CRLF injection characters in name or value
-      if (/[\r\n]/.test(name) || /[\r\n]/.test(val)) {
+      if (CRLF_REGEX.test(name) || CRLF_REGEX.test(val)) {
         continue
       }
       if (!PostalNotificationService.isAllowedHeader(name)) {
@@ -375,7 +377,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
   }
 
   private static assertNoHeaderInjection(value: string, field: string): void {
-    if (/[\r\n]/.test(value)) {
+    if (CRLF_REGEX.test(value)) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
         `Postal ${field} must not contain CR/LF characters`
@@ -404,7 +406,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     const filteredInputHeaders = this.filterHeaders(input.providerData.headers)
     const filteredCustomArgHeaders = this.filterHeaders(customArgHeaders)
     const replyToHeader: Record<string, string> =
-      input.sender.reply_to && !/[\r\n]/.test(input.sender.reply_to)
+      input.sender.reply_to && !CRLF_REGEX.test(input.sender.reply_to)
         ? { "Reply-To": input.sender.reply_to }
         : {}
     const headers: Record<string, string> = {
