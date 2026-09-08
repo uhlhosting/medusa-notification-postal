@@ -48,6 +48,24 @@ type WebhookEvent = {
   payload?: any;
 };
 
+type AdminNotificationsResponse = {
+  notifications: Notification[];
+};
+
+type AdminPostalWebhooksResponse = {
+  events: WebhookEvent[];
+};
+
+type AdminPostalWebhookUrlResponse = {
+  token?: string;
+  callback_url?: string;
+};
+
+type AdminPostalHealthResponse = {
+  status?: string;
+};
+
+
 const sanitizeEmailDisplay = (value?: string | null) => {
   const email = String(value || "").trim();
 
@@ -247,7 +265,7 @@ const PostalAdminPage = () => {
   // Health check query
   const { data: health, isLoading: isHealthLoading, dataUpdatedAt: healthUpdatedAt } = useQuery({
     queryKey: ["postal-health"],
-    queryFn: () => sdk.client.fetch("/admin/postal/health"),
+    queryFn: () => sdk.client.fetch<AdminPostalHealthResponse>("/admin/postal/health"),
     refetchInterval: 30000, // Refetch every 30s
   });
   const lastCheckedAt = healthUpdatedAt
@@ -259,7 +277,7 @@ const PostalAdminPage = () => {
     useQuery({
       queryKey: ["postal-notifications", searchValue],
       queryFn: async () => {
-        const response = await sdk.client.fetch("/admin/notifications", {
+        const response = await sdk.client.fetch<AdminNotificationsResponse>("/admin/notifications", {
           query: {
             fields:
               "id,to,channel,template,data,provider_data,created_at,updated_at,status,external_id,provider_id,from",
@@ -268,17 +286,17 @@ const PostalAdminPage = () => {
             q: searchValue || undefined,
           },
         });
-        const notifications = Array.isArray((response as any)?.notifications)
-          ? (response as any).notifications
+        const notifications = Array.isArray(response?.notifications)
+          ? response.notifications
           : [];
 
         // Keep compatibility with both provider ids seen in this repo.
         return notifications.filter(
-          (n: any) =>
+          (n: Notification) =>
             n?.provider_id === "notification-postal" ||
             n?.provider_id === "postal" ||
             (n?.channel === "email" && !n?.provider_id),
-        ).map((notification: any) => ({
+        ).map((notification: Notification) => ({
           ...notification,
           to: sanitizeEmailDisplay(notification?.to),
         })) as Notification[];
@@ -289,14 +307,14 @@ const PostalAdminPage = () => {
     useQuery({
       queryKey: ["postal-webhook-events"],
       queryFn: async () => {
-        const response = await sdk.client.fetch("/admin/postal/webhooks", {
+        const response = await sdk.client.fetch<AdminPostalWebhooksResponse>("/admin/postal/webhooks", {
           query: {
             limit: 25,
           },
         });
 
-        return Array.isArray((response as any)?.events)
-          ? ((response as any).events as WebhookEvent[]).map((event) => ({
+        return Array.isArray(response?.events)
+          ? response.events.map((event) => ({
               ...event,
               recipient: sanitizeEmailDisplay(event.recipient),
             }))
@@ -308,8 +326,8 @@ const PostalAdminPage = () => {
     queryKey: ["postal-webhook-url"],
     queryFn: async () => {
       try {
-        const response = await sdk.client.fetch("/admin/postal/webhook-url");
-        return (response as any) || {};
+        const response = await sdk.client.fetch<AdminPostalWebhookUrlResponse>("/admin/postal/webhook-url");
+        return response || {};
       } catch {
         return null;
       }
@@ -348,7 +366,7 @@ const PostalAdminPage = () => {
     },
   });
 
-  const statusLabelKey = (health as any)?.status === "ok"
+  const statusLabelKey = health?.status === "ok"
     ? "postal.activity.connected"
     : "postal.activity.disconnected"
 
@@ -357,7 +375,7 @@ const PostalAdminPage = () => {
       <PluginHeader
         title={t("postal.title")}
           description={t("postal.activity.subtitle")}
-        statusColor={(health as any)?.status === "ok" ? "green" : "red"}
+        statusColor={health?.status === "ok" ? "green" : "red"}
         statusLabel={
           isHealthLoading
             ? t("postal.activity.checking")
