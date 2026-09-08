@@ -511,3 +511,40 @@ test("helper methods normalize addresses, attachments, and health snapshots", ()
     mode: "api",
   })
 })
+
+
+import { describe, it } from "node:test";
+describe("PostalNotificationService URL Validation", () => {
+
+
+  it("fetchPostalApi rejects local/private URLs in config", async () => {
+    const service = new PostalNotificationService({} as any, { auth_type: "smtp-api" } as any)
+    ;(service as any).getEffectiveConfig = async () => ({ baseUrl: "http://localhost:5000", apiKey: "test" })
+
+    await assert.rejects(
+      service["fetchPostalApi"]("ping", {}),
+      (err: any) => err.type === MedusaError.Types.INVALID_DATA && err.message.includes("Invalid Postal base_url")
+    )
+  })
+
+  it("fetchPostalApi rejects private IP URLs in config", async () => {
+    const service = new PostalNotificationService({} as any, { auth_type: "smtp-api" } as any)
+    ;(service as any).getEffectiveConfig = async () => ({ baseUrl: "http://10.0.0.1", apiKey: "test" })
+
+    await assert.rejects(
+      service["fetchPostalApi"]("ping", {}),
+      (err: any) => err.type === MedusaError.Types.INVALID_DATA && err.message.includes("Invalid Postal base_url")
+    )
+  })
+
+  it("fetchPostalApi rejects loopback IP URLs in config", async () => {
+    const service = new PostalNotificationService({} as any, { auth_type: "smtp-api" } as any)
+    ;(service as any).getEffectiveConfig = async () => ({ baseUrl: "http://127.0.0.1", apiKey: "test" })
+
+    await assert.rejects(
+      service["fetchPostalApi"]("ping", {}),
+      (err: any) => err.type === MedusaError.Types.INVALID_DATA && err.message.includes("Invalid Postal base_url")
+    )
+  })
+
+});

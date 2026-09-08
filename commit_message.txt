@@ -1,0 +1,5 @@
+🔒 Fix SSRF vulnerability in Postal API fetch
+
+🎯 What: Server-Side Request Forgery (SSRF) in Postal API Fetch.
+⚠️ Risk: The baseUrl was retrieved from configuration and used directly in fetch without checking if it targeted an internal IP or local network address. This could lead to a Server-Side Request Forgery (SSRF) vulnerability.
+🛡️ Solution: Added a URL validation function `isValidPostalUrl` that utilizes the built-in `net` module to prevent using private IP ranges and `localhost`. Updated `fetchPostalApi` to throw `MedusaError.Types.INVALID_DATA` upon validation failure.
