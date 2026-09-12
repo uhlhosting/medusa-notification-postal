@@ -956,7 +956,7 @@ export const PostalSettingsPage = () => {
       </div>
 
       <PluginSection
-        title={t("postal.template_contract")}
+        title={t("postal.template_contract" as any)}
         description="Reference payloads for built-in Postal templates, project workflows, and fallback content."
         bodyClassName="flex flex-col gap-4"
       >

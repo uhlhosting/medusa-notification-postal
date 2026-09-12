@@ -1,46 +1,17 @@
-import type { ReactNode } from "react";
-import { clx } from "@medusajs/ui";
+import { LayoutComposer } from "@medusajs/dashboard/components";
 
-type SingleColumnLayoutProps = {
-  children: ReactNode;
-  className?: string;
+
+
+
+
+
+
+export const SingleColumnLayout = ({ children }: any) => {
+  return <LayoutComposer preferredLayoutId="core:single-column" sections={{ main: children }} widgetsZonePrefix="" />;
 };
 
-type TwoColumnLayoutProps = {
-  firstCol: ReactNode;
-  secondCol: ReactNode;
-  className?: string;
-};
-
-export const SingleColumnLayout = ({
-  children,
-  className,
-}: SingleColumnLayoutProps) => {
-  return (
-    <div className={clx("flex min-w-0 flex-col gap-y-3", className)}>
-      {children}
-    </div>
-  );
-};
-
-export const TwoColumnLayout = ({
-  firstCol,
-  secondCol,
-  className,
-}: TwoColumnLayoutProps) => {
-  return (
-    <div
-      className={clx(
-        "flex flex-col gap-x-4 gap-y-3 xl:flex-row xl:items-start",
-        className,
-      )}
-    >
-      <div className="flex min-w-0 w-full flex-col gap-y-3">{firstCol}</div>
-      <div className="flex min-w-0 w-full max-w-full flex-col gap-y-3 xl:max-w-[440px]">
-        {secondCol}
-      </div>
-    </div>
-  );
+export const TwoColumnLayout = ({ firstCol, secondCol }: any) => {
+  return <LayoutComposer preferredLayoutId="core:two-column" sections={{ main: firstCol, side: secondCol }} widgetsZonePrefix="" />;
 };
 
 export const PluginShell = SingleColumnLayout;
