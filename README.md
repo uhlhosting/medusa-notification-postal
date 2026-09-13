@@ -34,7 +34,8 @@ The provider options above are typically wired from environment variables. The p
 | `POSTAL_API_KEY` | **yes** | Postal server API key (`api_key` option). |
 | `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path; generated if unset. |
 | `POSTAL_REQUEST_TIMEOUT_MS` | no | Outbound Postal HTTP timeout in ms (default `10000`). |
-| `POSTAL_TEST_TO` | no | Default recipient for admin test sends. |
+| `POSTAL_TEST_TO` | no | Recipient for admin test sends, and the address sandbox mode redirects to. |
+| `POSTAL_SANDBOX` | no | `true` redirects every recipient to `POSTAL_TEST_TO` (see [Sandbox mode](#sandbox-mode)). Off unless set. |
 | `POSTAL_TEMPLATE_REGISTRY` | no | JSON overriding the built-in template registry. |
 | `POSTAL_TEMPLATE_ORDER` | no | Comma-separated template display order. |
 | `POSTAL_WEBHOOK_TAG_PREFIX` | no | Overrides the tag prefix used to correlate webhook callbacks. |
@@ -43,6 +44,21 @@ The provider options above are typically wired from environment variables. The p
 | `POSTAL_PLUGIN_MODULE` | no | Overrides the plugin module registration name. |
 
 Keep the secret variables out of logs and client-visible surfaces; the admin settings endpoint never returns them.
+
+### Sandbox mode
+
+A staging or preview deployment sends the same mail a production one does — order confirmations, quotes, contact enquiries — to the same real customers. Set `POSTAL_SANDBOX=true` there and every recipient is replaced by `POSTAL_TEST_TO` instead:
+
+- `to`, `cc` and `bcc` all collapse to the single sandbox address, so nobody else is written to.
+- The original addresses are preserved in `X-Postal-Sandbox-To`, `-Cc` and `-Bcc`, alongside `X-Postal-Sandbox: true`. These are applied after the caller's own headers, so a notification cannot forge or overwrite them.
+- The subject is prefixed with the address it was meant for — `[sandbox: customer@example.com +3] Ihre Bestellung` — because one inbox now receives mail addressed to many different people, and the subject is the only part of that a mailbox list shows.
+
+The switch is explicit and off by default, for two reasons:
+
+- **`NODE_ENV` cannot stand in for it.** A typical Medusa container image sets `NODE_ENV=production` in its runtime stage, so staging, preview and production are all "production" to the running process and the value carries no signal.
+- **Neither can the presence of `POSTAL_TEST_TO`.** Production sets that too — it is the recipient of the admin's *send test email* button — so defaulting to on would turn one forgotten variable in production into every customer's order confirmation landing in an internal test inbox. Silently swallowing real mail is a worse failure than the one sandbox mode prevents, so it fails closed.
+
+If sandbox mode is on but `POSTAL_TEST_TO` is empty, the provider logs the misconfiguration once and sends as addressed; refusing would leave the environment unable to send anything at all.
 
 ### Settings persistence
 
