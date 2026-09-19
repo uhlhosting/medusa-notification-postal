@@ -1,5 +1,5 @@
 import type { MedusaContainer } from "@medusajs/framework/types"
-import { purgeExpiredNotificationsWorkflow } from "../workflows/purge-expired-notifications"
+import { postalPurgeExpiredNotificationsWorkflow } from "../workflows/postal-purge-expired-notifications"
 import { runRetentionJob } from "../lib/retention-job"
 
 /**
@@ -14,7 +14,7 @@ export default async function purgeExpiredNotifications(
     container,
     option: "notification_retention_days",
     label: "notification records",
-    run: (input) => purgeExpiredNotificationsWorkflow(container).run({ input }),
+    run: (input) => postalPurgeExpiredNotificationsWorkflow(container).run({ input }),
   })
 }
 

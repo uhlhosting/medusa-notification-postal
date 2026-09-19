@@ -19,7 +19,7 @@ class PostalPluginModuleService extends MedusaService({
     this.pluginOptions_ = resolvePostalPluginOptions(args[1])
   }
 
-  getPluginOptions(): ResolvedPostalPluginOptions {
+  async getPluginOptions(): Promise<ResolvedPostalPluginOptions> {
     return this.pluginOptions_
   }
 }

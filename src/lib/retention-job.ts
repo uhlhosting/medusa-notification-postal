@@ -41,7 +41,7 @@ export const runRetentionJob = async ({
   now = () => new Date(),
 }: RunRetentionJobInput): Promise<RetentionStepResult | null> => {
   const service = resolvePostalModule<PostalPluginOptionsReader>(container)
-  const options: ResolvedPostalPluginOptions = readPostalPluginOptions(service)
+  const options: ResolvedPostalPluginOptions = await readPostalPluginOptions(service)
   const setting: ResolvedRetentionOption = options[option]
 
   if (setting.days === null) {

@@ -3,7 +3,7 @@ import {
   ReturnWorkflow,
   WorkflowResponse,
 } from "@medusajs/framework/workflows-sdk"
-import { deleteExpiredPostalWebhookEventsStep } from "./steps/delete-expired-postal-webhook-events"
+import { postalDeleteExpiredWebhookEventsStep } from "./steps/postal-delete-expired-webhook-events"
 import type {
   RetentionStepInput,
   RetentionStepResult,
@@ -16,14 +16,14 @@ export type PurgePostalWebhookEventsWorkflowInput = RetentionStepInput
  * the `postal-purge-webhook-events` job when the plugin option
  * `webhook_event_retention_days` is set.
  */
-export const purgePostalWebhookEventsWorkflow: ReturnWorkflow<
+export const postalPurgeWebhookEventsWorkflow: ReturnWorkflow<
   PurgePostalWebhookEventsWorkflowInput,
   RetentionStepResult,
   []
 > = createWorkflow(
   "postal-purge-webhook-events",
   function (input: PurgePostalWebhookEventsWorkflowInput) {
-    const result = deleteExpiredPostalWebhookEventsStep(input)
+    const result = postalDeleteExpiredWebhookEventsStep(input)
 
     return new WorkflowResponse(result)
   }

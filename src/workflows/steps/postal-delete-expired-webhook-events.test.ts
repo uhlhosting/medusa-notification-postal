@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { POSTAL_PLUGIN_MODULE } from "../../modules/postal/constants"
-import { deleteExpiredPostalWebhookEventsStepHandler } from "./delete-expired-postal-webhook-events"
+import { postalDeleteExpiredWebhookEventsStepHandler } from "./postal-delete-expired-webhook-events"
 
 const NOW = "2026-09-14T03:40:00.000Z"
 
@@ -24,7 +24,7 @@ test("deletes stored webhook events created before the cutoff", async () => {
     },
   }
 
-  const response = await deleteExpiredPostalWebhookEventsStepHandler(
+  const response = await postalDeleteExpiredWebhookEventsStepHandler(
     { now: NOW, retention_days: 30 },
     { container }
   )
@@ -49,7 +49,7 @@ test("does nothing where the plugin module is not registered", async () => {
     },
   }
 
-  const response = await deleteExpiredPostalWebhookEventsStepHandler(
+  const response = await postalDeleteExpiredWebhookEventsStepHandler(
     { now: NOW, retention_days: 30 },
     { container }
   )
@@ -59,7 +59,7 @@ test("does nothing where the plugin module is not registered", async () => {
 
 test("rejects a period it cannot measure from", async () => {
   await assert.rejects(
-    deleteExpiredPostalWebhookEventsStepHandler(
+    postalDeleteExpiredWebhookEventsStepHandler(
       { now: NOW, retention_days: 0 },
       { container: { resolve: () => null } }
     ),

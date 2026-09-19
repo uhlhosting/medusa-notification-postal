@@ -37,7 +37,7 @@ type StepContainer = {
  * Does nothing where no notification module is registered. No compensation:
  * a retention delete is not rolled back.
  */
-export const deleteExpiredNotificationsStepHandler = async (
+export const postalDeleteExpiredNotificationsStepHandler = async (
   input: RetentionStepInput,
   { container }: { container: StepContainer }
 ): Promise<StepResponse<RetentionStepResult>> => {
@@ -59,7 +59,7 @@ export const deleteExpiredNotificationsStepHandler = async (
   return new StepResponse({ deleted, cutoff: cutoff.toISOString() })
 }
 
-export const deleteExpiredNotificationsStep = createStep(
+export const postalDeleteExpiredNotificationsStep = createStep(
   "postal-delete-expired-notifications",
-  deleteExpiredNotificationsStepHandler
+  postalDeleteExpiredNotificationsStepHandler
 )

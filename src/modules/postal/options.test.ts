@@ -81,12 +81,18 @@ test("ignore_engagement_webhooks accepts booleans and env-style strings", () => 
   )
 })
 
-test("readPostalPluginOptions treats a missing reader as every option off", () => {
-  assert.equal(readPostalPluginOptions(null).notification_retention_days.days, null)
-  assert.equal(readPostalPluginOptions({}).ignore_engagement_webhooks, false)
+test("readPostalPluginOptions treats a missing reader as every option off", async () => {
+  assert.equal(
+    (await readPostalPluginOptions(null)).notification_retention_days.days,
+    null
+  )
+  assert.equal(
+    (await readPostalPluginOptions({})).ignore_engagement_webhooks,
+    false
+  )
 })
 
-test("the module service exposes the plugin options it was constructed with", () => {
+test("the module service exposes the plugin options it was constructed with", async () => {
   const service = new (PostalPluginModuleService as any)(
     {},
     {
@@ -96,19 +102,22 @@ test("the module service exposes the plugin options it was constructed with", ()
     }
   )
 
-  assert.deepEqual(service.getPluginOptions(), {
+  assert.deepEqual(await service.getPluginOptions(), {
     notification_retention_days: { days: 90, invalid: false },
     webhook_event_retention_days: { days: 30, invalid: false },
     ignore_engagement_webhooks: true,
   })
   assert.deepEqual(
-    readPostalPluginOptions(service),
-    service.getPluginOptions()
+    await readPostalPluginOptions(service),
+    await service.getPluginOptions()
   )
 })
 
-test("the module service defaults every option off without plugin options", () => {
+test("the module service defaults every option off without plugin options", async () => {
   const service = new (PostalPluginModuleService as any)({})
 
-  assert.deepEqual(service.getPluginOptions(), resolvePostalPluginOptions({}))
+  assert.deepEqual(
+    await service.getPluginOptions(),
+    resolvePostalPluginOptions({})
+  )
 })

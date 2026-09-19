@@ -1,4 +1,4 @@
 export * from "./send-postal-email"
 export * from "./save-postal-settings"
-export * from "./purge-expired-notifications"
-export * from "./purge-postal-webhook-events"
+export * from "./postal-purge-expired-notifications"
+export * from "./postal-purge-webhook-events"

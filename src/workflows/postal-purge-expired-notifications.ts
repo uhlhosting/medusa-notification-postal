@@ -3,7 +3,7 @@ import {
   ReturnWorkflow,
   WorkflowResponse,
 } from "@medusajs/framework/workflows-sdk"
-import { deleteExpiredNotificationsStep } from "./steps/delete-expired-notifications"
+import { postalDeleteExpiredNotificationsStep } from "./steps/postal-delete-expired-notifications"
 import type {
   RetentionStepInput,
   RetentionStepResult,
@@ -16,14 +16,14 @@ export type PurgeExpiredNotificationsWorkflowInput = RetentionStepInput
  * the `postal-purge-expired-notifications` job when the plugin option
  * `notification_retention_days` is set.
  */
-export const purgeExpiredNotificationsWorkflow: ReturnWorkflow<
+export const postalPurgeExpiredNotificationsWorkflow: ReturnWorkflow<
   PurgeExpiredNotificationsWorkflowInput,
   RetentionStepResult,
   []
 > = createWorkflow(
   "postal-purge-expired-notifications",
   function (input: PurgeExpiredNotificationsWorkflowInput) {
-    const result = deleteExpiredNotificationsStep(input)
+    const result = postalDeleteExpiredNotificationsStep(input)
 
     return new WorkflowResponse(result)
   }

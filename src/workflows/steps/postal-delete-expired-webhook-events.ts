@@ -22,7 +22,7 @@ type PostalWebhookEventRecords = {
  * Does nothing where the plugin module is not registered. No compensation: a
  * retention delete is not rolled back.
  */
-export const deleteExpiredPostalWebhookEventsStepHandler = async (
+export const postalDeleteExpiredWebhookEventsStepHandler = async (
   input: RetentionStepInput,
   { container }: { container: { resolve: (key: string) => unknown } }
 ): Promise<StepResponse<RetentionStepResult>> => {
@@ -45,7 +45,7 @@ export const deleteExpiredPostalWebhookEventsStepHandler = async (
   return new StepResponse({ deleted, cutoff: cutoff.toISOString() })
 }
 
-export const deleteExpiredPostalWebhookEventsStep = createStep(
+export const postalDeleteExpiredWebhookEventsStep = createStep(
   "postal-delete-expired-webhook-events",
-  deleteExpiredPostalWebhookEventsStepHandler
+  postalDeleteExpiredWebhookEventsStepHandler
 )

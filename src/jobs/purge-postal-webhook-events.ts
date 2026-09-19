@@ -1,5 +1,5 @@
 import type { MedusaContainer } from "@medusajs/framework/types"
-import { purgePostalWebhookEventsWorkflow } from "../workflows/purge-postal-webhook-events"
+import { postalPurgeWebhookEventsWorkflow } from "../workflows/postal-purge-webhook-events"
 import { runRetentionJob } from "../lib/retention-job"
 
 /**
@@ -13,7 +13,7 @@ export default async function purgePostalWebhookEvents(
     container,
     option: "webhook_event_retention_days",
     label: "Postal webhook events",
-    run: (input) => purgePostalWebhookEventsWorkflow(container).run({ input }),
+    run: (input) => postalPurgeWebhookEventsWorkflow(container).run({ input }),
   })
 }
 

@@ -19,7 +19,7 @@ export const recordPostalWebhookEventStepHandler = async (
   const service = resolvePostalModule<
     PostalWebhookEventService & PostalPluginOptionsReader
   >(container)
-  const { ignore_engagement_webhooks } = readPostalPluginOptions(service)
+  const { ignore_engagement_webhooks } = await readPostalPluginOptions(service)
   const event = await recordPostalWebhookEvent(service, payload, {
     ignoreEngagement: ignore_engagement_webhooks,
   })

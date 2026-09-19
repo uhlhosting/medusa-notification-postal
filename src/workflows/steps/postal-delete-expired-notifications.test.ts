@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { Modules } from "@medusajs/framework/utils"
-import { deleteExpiredNotificationsStepHandler } from "./delete-expired-notifications"
+import { postalDeleteExpiredNotificationsStepHandler } from "./postal-delete-expired-notifications"
 import {
   RETENTION_BATCH_SIZE,
   RETENTION_MAX_BATCHES,
@@ -70,7 +70,7 @@ test("deletes every notification row before the cutoff, whatever its resource, i
     ids(2, 500),
   ])
 
-  const response = await deleteExpiredNotificationsStepHandler(
+  const response = await postalDeleteExpiredNotificationsStepHandler(
     { now: NOW, retention_days: 90 },
     { container }
   )
@@ -95,7 +95,7 @@ test("deletes every notification row before the cutoff, whatever its resource, i
 test("deletes nothing when no row is old enough", async () => {
   const { container, listCalls, deleteCalls } = makeContainer([[]])
 
-  const response = await deleteExpiredNotificationsStepHandler(
+  const response = await postalDeleteExpiredNotificationsStepHandler(
     { now: NOW, retention_days: 90 },
     { container }
   )
@@ -108,7 +108,7 @@ test("deletes nothing when no row is old enough", async () => {
 test("does nothing where no notification module is registered", async () => {
   const { container, listCalls, resolveCalls } = makeContainer([], false)
 
-  const response = await deleteExpiredNotificationsStepHandler(
+  const response = await postalDeleteExpiredNotificationsStepHandler(
     { now: NOW, retention_days: 90 },
     { container }
   )
@@ -123,7 +123,7 @@ test("does nothing where no notification module is registered", async () => {
 test("stops after a bounded number of batches if deletes do not take effect", async () => {
   const { container, listCalls } = makeContainer(() => ids(500))
 
-  const response = await deleteExpiredNotificationsStepHandler(
+  const response = await postalDeleteExpiredNotificationsStepHandler(
     { now: NOW, retention_days: 90 },
     { container }
   )
@@ -136,7 +136,7 @@ test("rejects a timestamp or period it cannot measure from", async () => {
   const { container, listCalls } = makeContainer([])
 
   await assert.rejects(
-    deleteExpiredNotificationsStepHandler(
+    postalDeleteExpiredNotificationsStepHandler(
       { now: "not-a-date", retention_days: 90 },
       { container }
     ),
@@ -144,7 +144,7 @@ test("rejects a timestamp or period it cannot measure from", async () => {
   )
   for (const retention_days of [0, -5, 1.5, Number.NaN]) {
     await assert.rejects(
-      deleteExpiredNotificationsStepHandler(
+      postalDeleteExpiredNotificationsStepHandler(
         { now: NOW, retention_days },
         { container }
       ),

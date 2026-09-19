@@ -115,12 +115,14 @@ export const resolvePostalPluginOptions = (
  * older module service or an unregistered module means.
  */
 export type PostalPluginOptionsReader = {
-  getPluginOptions?: () => ResolvedPostalPluginOptions
+  getPluginOptions?: () =>
+    | ResolvedPostalPluginOptions
+    | Promise<ResolvedPostalPluginOptions>
 }
 
-export const readPostalPluginOptions = (
+export const readPostalPluginOptions = async (
   service: PostalPluginOptionsReader | null | undefined
-): ResolvedPostalPluginOptions =>
+): Promise<ResolvedPostalPluginOptions> =>
   typeof service?.getPluginOptions === "function"
-    ? service.getPluginOptions()
+    ? await service.getPluginOptions()
     : resolvePostalPluginOptions(undefined)
