@@ -13,6 +13,7 @@ import {
   resolvePostalTemplate,
   resolvePostalSender,
 } from "../templates"
+import { isSingleEmailAddress } from "../address"
 // The webhook side matches this exact prefix to attribute callbacks back to the
 // plugin, so writer and reader must share one definition.
 import { POSTAL_WEBHOOK_TAG_PREFIX } from "../../../modules/postal/webhooks"
@@ -24,6 +25,11 @@ interface PostalOptions {
   base_url?: string
   api_key?: string
   from: string
+  /**
+   * Outbound Postal HTTP timeout in milliseconds, clamped to 1-60s. Falls back
+   * to POSTAL_REQUEST_TIMEOUT_MS, then 10s, when unset or not a number.
+   */
+  request_timeout_ms?: number | string
 }
 
 type PostalApiResult = {
@@ -76,9 +82,24 @@ const POSTAL_DEFAULT_TIMEOUT_MS = 10000
 const POSTAL_MIN_TIMEOUT_MS = 1000
 const POSTAL_MAX_TIMEOUT_MS = 60000
 
-const resolveRequestTimeoutMs = (): number => {
-  const raw = Number.parseInt(String(process.env.POSTAL_REQUEST_TIMEOUT_MS || ""), 10)
-  if (!Number.isFinite(raw)) {
+const parseTimeoutMs = (value: unknown): number | null => {
+  if (value === undefined || value === null || value === "") {
+    return null
+  }
+  const raw =
+    typeof value === "number" ? Math.trunc(value) : Number.parseInt(String(value), 10)
+  return Number.isFinite(raw) ? raw : null
+}
+
+/**
+ * The provider option `request_timeout_ms` wins; POSTAL_REQUEST_TIMEOUT_MS is
+ * the fallback, then 10s. Either way the value is clamped to 1-60s so a Postal
+ * call always fails fast.
+ */
+export const resolveRequestTimeoutMs = (option?: unknown): number => {
+  const raw =
+    parseTimeoutMs(option) ?? parseTimeoutMs(process.env.POSTAL_REQUEST_TIMEOUT_MS)
+  if (raw === null) {
     return POSTAL_DEFAULT_TIMEOUT_MS
   }
   return Math.min(Math.max(raw, POSTAL_MIN_TIMEOUT_MS), POSTAL_MAX_TIMEOUT_MS)
@@ -139,10 +160,14 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     baseUrl: string
     apiKey: string
     from: string
+    requestTimeoutOption?: number | string
   }
-  protected logger_: Pick<Logger, "info">
+  protected logger_: Pick<Logger, "info"> & Partial<Pick<Logger, "warn">>
 
-  constructor(container: { logger: Pick<Logger, "info"> }, options: PostalOptions) {
+  constructor(
+    container: { logger: Pick<Logger, "info"> & Partial<Pick<Logger, "warn">> },
+    options: PostalOptions
+  ) {
     super()
     const { logger } = container
 
@@ -200,6 +225,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       baseUrl,
       apiKey,
       from,
+      requestTimeoutOption: options.request_timeout_ms,
     }
     this.logger_ = logger
   }
@@ -260,6 +286,21 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       },
       this.config_.from
     )
+
+    // A Reply-To that is not one plain address is dropped, never sent and
+    // never thrown on: callers that pass a customer-supplied address (a
+    // contact form, a quote request) keep sending, just without the reply
+    // path. The warning names no address, because the value is personal data.
+    if (sender.reply_to && !isSingleEmailAddress(sender.reply_to)) {
+      sender.reply_to = undefined
+      const warn = this.logger_.warn ?? this.logger_.info
+      warn.call(
+        this.logger_,
+        `Postal notification reply_to is not a single plain email address and was dropped template=${
+          notification.template || "default"
+        } run_id=${providerData.workflow_run_id || "none"}`
+      )
+    }
 
     if (!sender.from) {
       throw new MedusaError(
@@ -349,7 +390,10 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     payload: Record<string, unknown> | PostalSendPayload
   ): Promise<PostalApiData> {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), resolveRequestTimeoutMs())
+    const timeout = setTimeout(
+      () => controller.abort(),
+      resolveRequestTimeoutMs(this.config_.requestTimeoutOption)
+    )
 
     const response = await fetch(`${this.config_.baseUrl}/api/v1/${path}`, {
       method: "POST",

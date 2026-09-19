@@ -1,7 +1,11 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { MedusaError } from "@medusajs/framework/utils"
-import { PostalNotificationService, resolvePostalSandbox } from "./postal"
+import {
+  PostalNotificationService,
+  resolvePostalSandbox,
+  resolveRequestTimeoutMs,
+} from "./postal"
 
 const originalFetch = globalThis.fetch
 const POSTAL_WEBHOOK_TAG_PREFIX = "uhlhosting.medusa-notification-postal:"
@@ -789,4 +793,167 @@ test("sandbox refuses a recipient that would inject a header", async () => {
       )
     }
   )
+})
+
+const okFetch = (calls: Array<{ body: any }>) =>
+  (async (_url: string, init: any) => {
+    calls.push({ body: JSON.parse(init.body) })
+    return {
+      ok: true,
+      json: async () => ({
+        status: "ok",
+        data: { message_id: "msg_rt", messages: {} },
+      }),
+    }
+  }) as unknown as typeof fetch
+
+test("send drops a reply_to that is not one plain address, warns without content, and still sends", async () => {
+  const warnings: string[] = []
+  const service = new PostalNotificationService(
+    {
+      logger: {
+        info: () => undefined,
+        warn: (message: string) => {
+          warnings.push(message)
+        },
+      } as never,
+    },
+    {
+      from: "ops@example.com",
+      base_url: "https://postal.example.com",
+      api_key: "secret",
+      auth_type: "smtp-api",
+    }
+  )
+
+  const invalid = [
+    "Enquirer <enquirer@example.com>",
+    "a@example.com, b@example.com",
+    "enquirer@example.com\r\nBcc: victim@example.com",
+    "énquirer@example.com",
+    "not-an-address",
+  ]
+
+  for (const reply_to of invalid) {
+    const calls: Array<{ body: any }> = []
+    globalThis.fetch = okFetch(calls)
+
+    const result = await service.send({
+      to: ["staff@example.com"],
+      provider_data: {
+        reply_to,
+        subject: "Website enquiry",
+        text: "body",
+        workflow_run_id: "wf_rt",
+      },
+      template: "website-enquiry",
+    } as never)
+
+    assert.deepEqual(result, { id: "msg_rt" })
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0]?.body.reply_to, undefined)
+    assert.equal(calls[0]?.body.headers?.["Reply-To"], undefined)
+  }
+
+  assert.equal(warnings.length, invalid.length)
+  for (const warning of warnings) {
+    assert.match(warning, /reply_to is not a single plain email address and was dropped/)
+    assert.doesNotMatch(warning, /@|enquirer|victim|not-an-address/)
+  }
+})
+
+test("send keeps a valid reply_to and falls back to info logging when the logger has no warn", async () => {
+  const infos: string[] = []
+  const service = new PostalNotificationService(
+    { logger: { info: (message: string) => void infos.push(message) } as never },
+    {
+      from: "ops@example.com",
+      base_url: "https://postal.example.com",
+      api_key: "secret",
+      auth_type: "smtp-api",
+    }
+  )
+  const calls: Array<{ body: any }> = []
+  globalThis.fetch = okFetch(calls)
+
+  await service.send({
+    to: ["staff@example.com"],
+    provider_data: { reply_to: " enquirer@example.com ", subject: "S", text: "t" },
+  } as never)
+  assert.equal(calls[0]?.body.reply_to, "enquirer@example.com")
+  assert.equal(calls[0]?.body.headers["Reply-To"], "enquirer@example.com")
+
+  await service.send({
+    to: ["staff@example.com"],
+    provider_data: { reply_to: "a@example.com;b@example.com", subject: "S", text: "t" },
+  } as never)
+  assert.equal(calls[1]?.body.reply_to, undefined)
+  assert.equal(
+    infos.filter((line) => line.includes("reply_to is not a single plain email address")).length,
+    1
+  )
+})
+
+test("resolveRequestTimeoutMs prefers the option, then the env, then 10s, clamped to 1-60s", () => {
+  const original = process.env.POSTAL_REQUEST_TIMEOUT_MS
+  try {
+    delete process.env.POSTAL_REQUEST_TIMEOUT_MS
+    assert.equal(resolveRequestTimeoutMs(), 10000)
+    assert.equal(resolveRequestTimeoutMs(undefined), 10000)
+    assert.equal(resolveRequestTimeoutMs(5000), 5000)
+    assert.equal(resolveRequestTimeoutMs("7000"), 7000)
+    assert.equal(resolveRequestTimeoutMs(10), 1000)
+    assert.equal(resolveRequestTimeoutMs(600000), 60000)
+    assert.equal(resolveRequestTimeoutMs("abc"), 10000)
+
+    process.env.POSTAL_REQUEST_TIMEOUT_MS = "15000"
+    assert.equal(resolveRequestTimeoutMs(), 15000)
+    assert.equal(resolveRequestTimeoutMs(""), 15000)
+    assert.equal(resolveRequestTimeoutMs(3000), 3000)
+  } finally {
+    if (original === undefined) {
+      delete process.env.POSTAL_REQUEST_TIMEOUT_MS
+    } else {
+      process.env.POSTAL_REQUEST_TIMEOUT_MS = original
+    }
+  }
+})
+
+test("send arms its abort timer with the request_timeout_ms provider option", async () => {
+  const original = process.env.POSTAL_REQUEST_TIMEOUT_MS
+  const originalSetTimeout = globalThis.setTimeout
+  const delays: number[] = []
+  try {
+    process.env.POSTAL_REQUEST_TIMEOUT_MS = "20000"
+    globalThis.setTimeout = ((handler: () => void, delay?: number) => {
+      delays.push(Number(delay))
+      return originalSetTimeout(handler, 0x7fffffff)
+    }) as typeof setTimeout
+
+    const service = new PostalNotificationService(
+      { logger },
+      {
+        from: "ops@example.com",
+        base_url: "https://postal.example.com",
+        api_key: "secret",
+        auth_type: "smtp-api",
+        request_timeout_ms: 4000,
+      }
+    )
+    globalThis.fetch = okFetch([])
+
+    await service.send({
+      to: ["user@example.com"],
+      provider_data: { subject: "S", text: "t" },
+    } as never)
+
+    assert.deepEqual(delays, [4000])
+  } finally {
+    globalThis.setTimeout = originalSetTimeout
+    if (original === undefined) {
+      delete process.env.POSTAL_REQUEST_TIMEOUT_MS
+    } else {
+      process.env.POSTAL_REQUEST_TIMEOUT_MS = original
+    }
+  }
 })
