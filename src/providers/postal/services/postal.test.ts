@@ -894,6 +894,116 @@ test("send keeps a valid reply_to and falls back to info logging when the logger
   )
 })
 
+const createWarningService = (warnings: string[]) =>
+  new PostalNotificationService(
+    {
+      logger: {
+        info: () => undefined,
+        warn: (message: string) => {
+          warnings.push(message)
+        },
+      } as never,
+    },
+    {
+      from: "ops@example.com",
+      base_url: "https://postal.example.com",
+      api_key: "secret",
+      auth_type: "smtp-api",
+    }
+  )
+
+const replyToHeaders = (headers: Record<string, string> | undefined) =>
+  Object.entries(headers ?? {}).filter(([name]) => name.toLowerCase() === "reply-to")
+
+test("send drops a Reply-To header that is not one plain address, warns without content, and still sends", async () => {
+  const warnings: string[] = []
+  const service = createWarningService(warnings)
+  const invalid = [
+    "Enquirer <enquirer@example.com>",
+    "enquirer@example.com, attacker@example.com",
+    "enquirer@example.com Bcc: victim@example.com",
+    "énquirer@example.com",
+    "not-an-address",
+  ]
+
+  for (const [index, value] of invalid.entries()) {
+    const calls: Array<{ body: any }> = []
+    globalThis.fetch = okFetch(calls)
+
+    const result = await service.send({
+      to: ["staff@example.com"],
+      provider_data: {
+        subject: "Website enquiry",
+        text: "body",
+        workflow_run_id: "wf_rh",
+        headers: {
+          [index % 2 ? "reply-to" : "Reply-To"]: value,
+          "X-Contact-Topic": "quote",
+        },
+      },
+      template: "contact-form",
+    } as never)
+
+    assert.deepEqual(result, { id: "msg_rt" })
+    assert.equal(calls.length, 1)
+    assert.deepEqual(replyToHeaders(calls[0]?.body.headers), [])
+    assert.equal(calls[0]?.body.reply_to, undefined)
+    assert.equal(calls[0]?.body.headers["X-Contact-Topic"], "quote")
+  }
+
+  assert.equal(warnings.length, invalid.length)
+  for (const warning of warnings) {
+    assert.match(warning, /Reply-To header is not a single plain email address and was dropped/)
+    assert.doesNotMatch(warning, /@|enquirer|attacker|victim|not-an-address/)
+  }
+})
+
+test("send keeps one valid Reply-To header, and a valid reply_to replaces any caller Reply-To header", async () => {
+  const warnings: string[] = []
+  const service = createWarningService(warnings)
+  const calls: Array<{ body: any }> = []
+  globalThis.fetch = okFetch(calls)
+
+  await service.send({
+    to: ["staff@example.com"],
+    provider_data: {
+      subject: "S",
+      text: "t",
+      headers: { "Reply-To": " enquirer@example.com " },
+    },
+  } as never)
+  assert.deepEqual(replyToHeaders(calls[0]?.body.headers), [
+    ["Reply-To", "enquirer@example.com"],
+  ])
+
+  await service.send({
+    to: ["staff@example.com"],
+    provider_data: {
+      subject: "S",
+      text: "t",
+      headers: { "Reply-To": "first@example.com", "reply-to": "second@example.com" },
+    },
+  } as never)
+  assert.deepEqual(replyToHeaders(calls[1]?.body.headers), [
+    ["Reply-To", "first@example.com"],
+  ])
+
+  await service.send({
+    to: ["staff@example.com"],
+    provider_data: {
+      subject: "S",
+      text: "t",
+      reply_to: "enquirer@example.com",
+      headers: { "reply-to": "someone.else@example.com, x@example.com" },
+    },
+  } as never)
+  assert.deepEqual(replyToHeaders(calls[2]?.body.headers), [
+    ["Reply-To", "enquirer@example.com"],
+  ])
+  assert.equal(calls[2]?.body.reply_to, "enquirer@example.com")
+  assert.deepEqual(warnings, [])
+})
+
 test("resolveRequestTimeoutMs prefers the option, then the env, then 10s, clamped to 1-60s", () => {
   const original = process.env.POSTAL_REQUEST_TIMEOUT_MS
   try {

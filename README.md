@@ -231,7 +231,7 @@ provider_data: {
 }
 ```
 
-`from_name` formats the sender as `Name <email>`. `reply_to` is forwarded to Postal as both the `reply_to` field and the `Reply-To` header when it is exactly one bare printable-ASCII address (surrounding whitespace is trimmed). Anything else (a display name, a list, CR/LF, non-ASCII or invisible characters) is dropped and a warning is logged that names no address; the message is still sent, without a reply path. This makes it safe to pass a customer-supplied address, such as a contact-form enquirer's.
+`from_name` formats the sender as `Name <email>`. `reply_to` is forwarded to Postal as both the `reply_to` field and the `Reply-To` header when it is exactly one bare printable-ASCII address (surrounding whitespace is trimmed). Anything else (a display name, a list, CR/LF, non-ASCII or invisible characters) is dropped and a warning is logged that names no address; the message is still sent, without a reply path. A `Reply-To` entry in `provider_data.headers` (in any letter case) gets the same check and is dropped the same way when it is not one plain address. When `reply_to` is valid it replaces any such header, and at most one `Reply-To` is sent. This makes it safe to pass a customer-supplied address, such as a contact-form enquirer's, either way.
 
 ### Programmatic Workflows
 
