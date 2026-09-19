@@ -293,9 +293,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     // path. The warning names no address, because the value is personal data.
     if (sender.reply_to && !isSingleEmailAddress(sender.reply_to)) {
       sender.reply_to = undefined
-      const warn = this.logger_.warn ?? this.logger_.info
-      warn.call(
-        this.logger_,
+      this.logWarning(
         `Postal notification reply_to is not a single plain email address and was dropped template=${
           notification.template || "default"
         } run_id=${providerData.workflow_run_id || "none"}`
@@ -462,6 +460,51 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     )
   }
 
+  private logWarning(message: string): void {
+    const warn = this.logger_.warn ?? this.logger_.info
+    warn.call(this.logger_, message)
+  }
+
+  /*
+    A caller can also set Reply-To through provider_data.headers, which is how
+    some stores pass a contact-form enquirer's address. That header gets the
+    same rule as reply_to: it is kept only when it is one plain address, and
+    otherwise dropped with a warning that names no address, and the send goes
+    on. A valid reply_to wins over any caller Reply-To header, and at most one
+    Reply-To is kept, whatever the letter case of the header name.
+  */
+  private checkReplyToHeaders(
+    headers: Record<string, string>,
+    replyTo: string | undefined,
+    context: string
+  ): Record<string, string> {
+    const result: Record<string, string> = {}
+    let kept = Boolean(replyTo)
+
+    for (const [name, value] of Object.entries(headers)) {
+      if (name.toLowerCase() !== "reply-to") {
+        result[name] = value
+        continue
+      }
+
+      if (kept) {
+        continue
+      }
+
+      if (isSingleEmailAddress(value)) {
+        result[name] = value
+        kept = true
+        continue
+      }
+
+      this.logWarning(
+        `Postal notification Reply-To header is not a single plain email address and was dropped ${context}`
+      )
+    }
+
+    return result
+  }
+
   private filterHeaders(
     raw: Record<string, string> | undefined
   ): Record<string, string> {
@@ -605,7 +648,13 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     const htmlBody = input.template.html || ""
     const plainBody = input.template.text || (htmlBody ? this.stripHtml(htmlBody) : "")
     const customArgHeaders = normalizePostalCustomArgs(input.providerData.custom_args)
-    const filteredInputHeaders = this.filterHeaders(input.providerData.headers)
+    const filteredInputHeaders = this.checkReplyToHeaders(
+      this.filterHeaders(input.providerData.headers),
+      input.sender.reply_to,
+      `template=${input.template.template_name || "default"} run_id=${
+        input.providerData.workflow_run_id || "none"
+      }`
+    )
     const filteredCustomArgHeaders = this.filterHeaders(customArgHeaders)
     const replyToHeader: Record<string, string> =
       input.sender.reply_to && !/[\r\n]/.test(input.sender.reply_to)
