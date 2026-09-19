@@ -327,9 +327,25 @@ export const normalizePostalWebhookPayload = (
   }
 }
 
+/**
+ * Engagement callbacks: what a recipient did with a delivered message (opened
+ * it, clicked a link), as opposed to whether it was delivered.
+ */
+export const POSTAL_ENGAGEMENT_STATUSES: ReadonlySet<PostalWebhookStatus> =
+  new Set<PostalWebhookStatus>(["clicked", "loaded"])
+
+export type RecordPostalWebhookEventOptions = {
+  /**
+   * Skip `MessageLinkClicked` and `MessageLoaded` callbacks: they are neither
+   * stored nor emitted. Plugin option `ignore_engagement_webhooks`.
+   */
+  ignoreEngagement?: boolean
+}
+
 export const recordPostalWebhookEvent = async (
   service: PostalWebhookEventService | null | undefined,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  options: RecordPostalWebhookEventOptions = {}
 ): Promise<PostalWebhookRecord | null> => {
   if (!isPostalWebhookFromPlugin(payload)) {
     return null
@@ -340,6 +356,10 @@ export const recordPostalWebhookEvent = async (
   const event = normalizePostalWebhookPayload(payload)
 
   if (event.status === "unknown") {
+    return null
+  }
+
+  if (options.ignoreEngagement && POSTAL_ENGAGEMENT_STATUSES.has(event.status)) {
     return null
   }
 

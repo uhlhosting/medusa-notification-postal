@@ -682,3 +682,55 @@ test("listPostalWebhookEvents returns an empty list when no service is available
 
   assert.deepEqual(rows, [])
 })
+
+test("recordPostalWebhookEvent drops engagement callbacks when told to ignore them", async () => {
+  const service = createFakeWebhookService()
+  const tag = "uhlhosting.medusa-notification-postal:order-placed"
+
+  for (const [event, status] of [
+    ["message.link_clicked", "clicked"],
+    ["MessageLoaded", "loaded"],
+  ]) {
+    const recorded = await recordPostalWebhookEvent(
+      service,
+      {
+        event,
+        status,
+        message: { id: `msg_${status}`, recipient: "r@example.com", tag },
+      },
+      { ignoreEngagement: true }
+    )
+    assert.equal(recorded, null, status)
+  }
+  assert.equal(service.created.length, 0)
+
+  // Delivery outcomes are still recorded with the option on.
+  const bounced = await recordPostalWebhookEvent(
+    service,
+    {
+      event: "message.bounced",
+      status: "bounced",
+      message: { id: "msg_bounce", recipient: "r@example.com", tag },
+    },
+    { ignoreEngagement: true }
+  )
+  assert.notEqual(bounced, null)
+  assert.equal(service.created.length, 1)
+})
+
+test("recordPostalWebhookEvent keeps recording engagement callbacks by default", async () => {
+  const service = createFakeWebhookService()
+
+  const recorded = await recordPostalWebhookEvent(service, {
+    event: "message.link_clicked",
+    status: "clicked",
+    message: {
+      id: "msg_click",
+      recipient: "r@example.com",
+      tag: "uhlhosting.medusa-notification-postal:order-placed",
+    },
+  })
+
+  assert.equal(recorded?.status, "clicked")
+  assert.equal(service.created.length, 1)
+})
