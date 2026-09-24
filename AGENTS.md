@@ -33,7 +33,7 @@
 
 ## Postal Plugin Invariants
 1. Provider auth mode is `smtp-api`
-2. `provider_data` must carry email content and workflow metadata such as `subject`, `html`, `text`, `workflow_event`, and `workflow_run_id`
+2. Email content (`subject`, `html`, `text`) travels in the notification's `content`; `provider_data` carries workflow metadata (`workflow_event`, `workflow_run_id`) and sender/copy options (`from`, `from_name`, `reply_to`, `cc`, `bcc`, `headers`, `custom_args`, `metadata`). The provider still accepts `subject`/`html`/`text` from `provider_data` as a fallback, but workflows must not copy bodies into `provider_data`/`data`: those are persisted on the notification row and readable through the admin API, and bodies can hold reset or invite links. A multi-recipient send is one notification per `to` recipient, with `cc`/`bcc` attached to the first only
 3. The admin settings routes (`/admin/plugin-settings/postal` for GET/POST save, `/admin/postal/send-test` for tests) are configuration visibility surfaces and must not expose secrets. Schemas must strictly reject secret fields
 4. Postal admin routes must require authenticated Medusa admin users through route-local middleware
 5. Postal debug or test sends must use the `sendPostalTestWorkflow` path so trace metadata is preserved

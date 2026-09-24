@@ -5,7 +5,7 @@ import {
   when,
   type ReturnWorkflow
 } from "@medusajs/framework/workflows-sdk"
-import { sendNotificationsStep } from "@medusajs/core-flows"
+import { sendNotificationsStep } from "@medusajs/medusa/core-flows"
 import type { PostalSettingsInput, PostalSettingsSnapshot } from "../modules/postal/settings"
 import { savePostalSettingsStep } from "./steps/save-postal-settings"
 import { getPostalSettingsStep } from "./steps/get-postal-settings"
@@ -107,7 +107,7 @@ export const sendPostalTestWorkflow: ReturnWorkflow<
       return {
         id: data.sent?.[0]?.id || null,
         to: recipients,
-        subject: (data.notifications[0]?.provider_data as Record<string, unknown>)?.subject as string || "",
+        subject: data.notifications[0]?.content?.subject || "",
         delivered_at: new Date().toISOString(),
         deliveries: data.sent.map((s: any) => ({ id: s.id || null }))
       }

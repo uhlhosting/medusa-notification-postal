@@ -462,13 +462,16 @@ const POSTAL_TEMPLATE_ORDER: PostalTemplateName[] = [
   "restock-available",
 ]
 
-const normalizeTemplateName = (template?: string): PostalTemplateName | null => {
+export const normalizeTemplateName = (
+  template?: string
+): PostalTemplateName | null => {
   if (!template) {
     return null
   }
 
   const normalized = template.trim().toLowerCase()
-  if (normalized in POSTAL_TEMPLATE_REGISTRY) {
+  // Own keys only: `in` also matches inherited names such as "constructor".
+  if (Object.prototype.hasOwnProperty.call(POSTAL_TEMPLATE_REGISTRY, normalized)) {
     return normalized as PostalTemplateName
   }
 

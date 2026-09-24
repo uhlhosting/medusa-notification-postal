@@ -1,5 +1,5 @@
 import { createWorkflow, WorkflowResponse, ReturnWorkflow, transform } from "@medusajs/framework/workflows-sdk"
-import { sendNotificationsStep } from "@medusajs/core-flows"
+import { sendNotificationsStep } from "@medusajs/medusa/core-flows"
 import {
   normalizeRecipients,
   buildPostalNotificationsStep,

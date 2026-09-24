@@ -1,5 +1,6 @@
 import {
   getPostalTemplateExample,
+  normalizeTemplateName,
   type PostalTemplateName,
 } from "../../../../providers/postal/templates"
 
@@ -63,8 +64,10 @@ export const buildPostalAdminTestProviderData = (
 ): PostalAdminTestProviderData => {
   const templateName =
     normalizeString(body.template) || "postal-admin-test"
+  // Custom or mixed-case template names keep their label but borrow the
+  // admin-test example content; an unknown key must not throw in a transform.
   const example = getPostalTemplateExample(
-    templateName as PostalTemplateName
+    normalizeTemplateName(templateName) ?? "postal-admin-test"
   )
 
   return {

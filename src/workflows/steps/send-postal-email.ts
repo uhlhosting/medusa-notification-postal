@@ -27,7 +27,8 @@ export type SendPostalEmailStepInput = {
   }
 }
 
-// sendPostalEmailStep was replaced with sendNotificationsStep from core-flows.
+// sendPostalEmailStep was replaced with sendNotificationsStep from
+// @medusajs/medusa/core-flows.
 
 export const normalizeRecipients = (value: string | string[]) => {
   const list = Array.isArray(value) ? value : [value]
@@ -116,9 +117,18 @@ export const buildPostalNotificationsStep = createStep("build-postal-notificatio
 
   const template = emailInput.template || "default"
   const providerData = buildProviderData(emailInput)
+  // One notification (one Postal send) per `to` recipient. cc/bcc ride on the
+  // first send only; attaching them to every send mailed each of them once
+  // per `to` recipient.
+  const withoutCopies = { ...providerData, cc: undefined, bcc: undefined }
 
-  const notifications = recipients.map((to) =>
-    buildPostalNotificationInput(emailInput, to, template as string, providerData)
+  const notifications = recipients.map((to, index) =>
+    buildPostalNotificationInput(
+      emailInput,
+      to,
+      template as string,
+      index === 0 ? providerData : withoutCopies
+    )
   )
 
   return new StepResponse(notifications)
