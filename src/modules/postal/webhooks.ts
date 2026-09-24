@@ -33,6 +33,7 @@ export type PostalWebhookEventService = {
   createPostalWebhookEvents: (
     data: Record<string, unknown> | Record<string, unknown>[]
   ) => Promise<unknown>
+  deletePostalWebhookEvents?: (ids: string | string[]) => Promise<void>
 }
 
 const sanitizeString = (value: unknown) =>
@@ -282,13 +283,20 @@ const inferEventTypeFromPayload = (
   return "postal.webhook"
 }
 
+// Years outside 1..9999 serialize as "+YYYYYY-..." ISO strings, which Postgres
+// rejects; an out-of-range value is dropped instead of failing the insert.
+const toBoundedIsoString = (date: Date) => {
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+  const year = date.getUTCFullYear()
+  return year >= 1 && year <= 9999 ? date.toISOString() : null
+}
+
 const normalizeOccurredAt = (value: unknown) => {
   if (typeof value === "number") {
     // Postal timestamps are float epoch seconds.
-    const parsed = new Date(value * 1000)
-    return Number.isFinite(value) && !Number.isNaN(parsed.getTime())
-      ? parsed.toISOString()
-      : null
+    return Number.isFinite(value) ? toBoundedIsoString(new Date(value * 1000)) : null
   }
 
   const normalized = sanitizeString(value)
@@ -296,12 +304,7 @@ const normalizeOccurredAt = (value: unknown) => {
     return null
   }
 
-  const parsed = new Date(normalized)
-  if (Number.isNaN(parsed.getTime())) {
-    return null
-  }
-
-  return parsed.toISOString()
+  return toBoundedIsoString(new Date(normalized))
 }
 
 export const normalizePostalWebhookPayload = (

@@ -26,11 +26,16 @@ test("recordPostalWebhookWorkflow returns the recorded webhook event", async () 
   assert.equal(recorded.status, "sent")
 })
 
-const createEmitTestContainer = () => {
-  const rows: Array<Record<string, unknown>> = []
+const createEmitTestContainer = ({ failFirstEmit = false } = {}) => {
+  let rows: Array<Record<string, unknown>> = []
   const emitted: Array<{ name: string; data: Record<string, unknown> }> = []
+  let emitCalls = 0
   const eventBus = {
     emit: async (messages: unknown) => {
+      emitCalls++
+      if (failFirstEmit && emitCalls === 1) {
+        throw new Error("READONLY You can't write against a read only replica.")
+      }
       for (const message of [messages].flat() as Array<Record<string, any>>) {
         emitted.push({ name: message.name, data: message.data })
       }
@@ -45,6 +50,10 @@ const createEmitTestContainer = () => {
       rows.push(data)
       return data
     },
+    deletePostalWebhookEvents: async (ids: string | string[]) => {
+      const drop = new Set([ids].flat())
+      rows = rows.filter((row) => !drop.has(row.id as string))
+    },
   }
   // The workflow runner rebuilds plain objects, so register on a real container.
   const container = createMedusaContainer()
@@ -52,7 +61,13 @@ const createEmitTestContainer = () => {
     [POSTAL_PLUGIN_MODULE]: asValue(service),
     [Modules.EVENT_BUS]: asValue(eventBus),
   })
-  return { container, rows, emitted }
+  return {
+    container,
+    get rows() {
+      return rows
+    },
+    emitted,
+  }
 }
 
 const postalDeliveryEnvelope = {
@@ -71,22 +86,46 @@ const postalDeliveryEnvelope = {
 }
 
 test("recordPostalWebhookWorkflow emits postal.<status> once per Postal delivery", async () => {
-  const { container, rows, emitted } = createEmitTestContainer()
+  const state = createEmitTestContainer()
+  const { container, emitted } = state
 
   const first = await recordPostalWebhookWorkflow(container as never).run({
     input: postalDeliveryEnvelope,
   })
   assert.equal(first.result?.status, "sent")
-  assert.equal(rows.length, 1)
+  assert.equal(state.rows.length, 1)
   assert.equal(emitted.length, 1)
   assert.equal(emitted[0]!.name, "postal.sent")
   assert.equal(emitted[0]!.data.message_id, "28638")
 
-  // Postal retries until it gets a 2xx; the replay must not re-fire subscribers.
+  // Postal retries a failed delivery with the same uuid; a replay must not
+  // re-fire subscribers.
   const replay = await recordPostalWebhookWorkflow(container as never).run({
     input: postalDeliveryEnvelope,
   })
   assert.equal(replay.result?.id, first.result?.id)
-  assert.equal(rows.length, 1)
+  assert.equal(state.rows.length, 1)
   assert.equal(emitted.length, 1)
+})
+
+test("recordPostalWebhookWorkflow removes the row when emitting fails so the retry emits", async () => {
+  const state = createEmitTestContainer({ failFirstEmit: true })
+
+  await assert.rejects(
+    recordPostalWebhookWorkflow(state.container as never).run({
+      input: postalDeliveryEnvelope,
+    }),
+    // The workflow runner rejects with a serialized error object.
+    (error: { message?: string }) => /READONLY/.test(error?.message ?? "")
+  )
+  // The failed run must not leave a row behind, or the retry is a "replay".
+  assert.equal(state.rows.length, 0)
+  assert.equal(state.emitted.length, 0)
+
+  const retry = await recordPostalWebhookWorkflow(state.container as never).run({
+    input: postalDeliveryEnvelope,
+  })
+  assert.equal(retry.result?.status, "sent")
+  assert.equal(state.rows.length, 1)
+  assert.equal(state.emitted.length, 1)
 })

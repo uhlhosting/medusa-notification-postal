@@ -617,6 +617,23 @@ test("normalizePostalWebhookPayload reads Postal's float epoch timestamps", () =
   assert.equal(loaded.occurred_at, new Date(1782839546500).toISOString())
 })
 
+test("normalizePostalWebhookPayload drops timestamps Postgres cannot store", () => {
+  // A millisecond epoch read as seconds lands in year ~58000, which serializes
+  // as "+058465-..." and makes the insert fail on every Postal retry.
+  const fromMs = normalizePostalWebhookPayload({
+    ...postalEnvelope("MessageSent", { ...deliveryPayload("Sent"), timestamp: 1782839545730 }),
+    timestamp: 1782839546500,
+  })
+  assert.equal(fromMs.occurred_at, null)
+
+  const farFuture = normalizePostalWebhookPayload({
+    status: "Sent",
+    occurred_at: "+058465-12-07T23:08:50.000Z",
+    message: postalMessageHash(),
+  })
+  assert.equal(farFuture.occurred_at, null)
+})
+
 test("Postal envelopes without the plugin tag are ignored", () => {
   assert.equal(
     isPostalWebhookFromPlugin(
@@ -662,7 +679,7 @@ test("recordPostalWebhookEventOutcome records a Postal delivery once and reports
   assert.equal(service.created.length, 1)
   assert.equal(service.created[0]!.message_id, "28638")
 
-  // Postal retries a delivery with the same uuid until it gets a 2xx.
+  // Postal retries a failed delivery with the same uuid (up to 5 times).
   const replay = await recordPostalWebhookEventOutcome(service, body)
   assert.equal(replay?.created, false)
   assert.equal(replay?.record.id, first?.record.id)

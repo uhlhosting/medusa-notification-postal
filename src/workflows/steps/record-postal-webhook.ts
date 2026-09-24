@@ -15,5 +15,22 @@ export const recordPostalWebhookEventStep = createStep(
     const service = resolvePostalModule<PostalWebhookEventService>(container)
     const outcome = await recordPostalWebhookEventOutcome(service, payload)
 
-    return new StepResponse(outcome)
+    // Only a row this run inserted is handed to the compensation; a replay's
+    // row belongs to an earlier, successful delivery.
+    return new StepResponse(
+      outcome,
+      outcome?.created ? outcome.record.id : undefined
+    )
+  },
+  async (insertedId, { container }) => {
+    if (!insertedId) {
+      return
+    }
+
+    // If emitting fails, remove the row so Postal's retry of the same uuid
+    // records it again and emits. Hard delete: a soft-deleted row still holds
+    // the primary key but is hidden from the replay lookup, so every retry
+    // would fail on the key.
+    const service = resolvePostalModule<PostalWebhookEventService>(container)
+    await service?.deletePostalWebhookEvents?.(insertedId)
   })
