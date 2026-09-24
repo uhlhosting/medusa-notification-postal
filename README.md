@@ -130,7 +130,11 @@ It accepts the Postal message status events documented by Postal:
 - `MessageLoaded`
 - `DomainDNSError`
 
-Incoming webhook payloads are stored as raw JSON with normalized status metadata, so you can inspect delivery state changes in the admin Postal page after Postal calls back into Medusa.
+Postal POSTs every webhook as `{ "event", "timestamp", "payload", "uuid" }`. The plugin reads the event hash from `payload`, records only messages it tagged itself, and stores the full body as raw JSON with normalized status metadata, so you can inspect delivery state changes in the admin Postal page after Postal calls back into Medusa. `DomainDNSError` and the send-limit events carry no message tag, so they are acknowledged but not recorded.
+
+Recording is idempotent per Postal delivery: Postal retries a webhook with the same `uuid` until it receives a 2xx, and a replay returns the already-recorded event without inserting a row or re-emitting. Repeated opens, clicks and delays of one message are separate deliveries and are each recorded. Every newly recorded event emits `postal.<status>` (`postal.sent`, `postal.delayed`, `postal.failed`, `postal.held`, `postal.bounced`, `postal.clicked`, `postal.loaded`) on the Medusa event bus. `message_id` is Postal's numeric per-recipient message id, the value the provider stores as the notification's `external_id`; it is unique only within one Postal mail server.
+
+Postal 3.3.7 and later refuse to deliver webhooks to private, loopback and link-local addresses unless they are listed in Postal's `allowed_request_destinations`. If the Medusa callback URL resolves to an internal address, allow it there or no webhook will arrive.
 
 The admin page also shows a webhook event log and the endpoint to configure inside Postal.
 

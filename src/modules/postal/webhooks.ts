@@ -38,6 +38,57 @@ export type PostalWebhookEventService = {
 const sanitizeString = (value: unknown) =>
   typeof value === "string" ? value.trim() : ""
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value)
+
+// Postal delivery uuids are 8-4-4-4-12 hex; anything else is not trusted as a
+// row id and falls back to a random one (no dedupe for that delivery).
+const POSTAL_DELIVERY_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+type PostalWebhookEnvelope = {
+  inner: Record<string, unknown>
+  event: string
+  uuid: string | null
+  timestamp: unknown
+}
+
+// Postal POSTs every webhook as `{ event, timestamp, payload, uuid }`, where
+// `payload` is the event hash and `uuid` identifies the delivery (it stays the
+// same across Postal's own retries). Bodies without that envelope are treated
+// as a bare event hash, as before.
+export const unwrapPostalWebhookEnvelope = (
+  body: Record<string, unknown>
+): PostalWebhookEnvelope => {
+  const event = sanitizeString(body.event)
+  if (!isRecord(body.payload) || !event) {
+    return { inner: body, event: "", uuid: null, timestamp: undefined }
+  }
+
+  const uuid = sanitizeString(body.uuid)
+  return {
+    inner: body.payload,
+    event,
+    uuid: POSTAL_DELIVERY_UUID_PATTERN.test(uuid) ? uuid.toLowerCase() : null,
+    timestamp: body.timestamp,
+  }
+}
+
+// Postal message ids are integers; accept them as well as strings.
+const pickId = (...values: unknown[]) => {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value)
+    }
+    const normalized = sanitizeString(value)
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  return ""
+}
+
 const pickString = (...values: unknown[]) => {
   for (const value of values) {
     const normalized = sanitizeString(value)
@@ -66,7 +117,9 @@ const extractPostalWebhookTag = (payload: Record<string, unknown>) =>
   )
 
 export const isPostalWebhookFromPlugin = (payload: Record<string, unknown>) =>
-  extractPostalWebhookTag(payload).startsWith(POSTAL_WEBHOOK_TAG_PREFIX)
+  extractPostalWebhookTag(unwrapPostalWebhookEnvelope(payload).inner).startsWith(
+    POSTAL_WEBHOOK_TAG_PREFIX
+  )
 
 export const isPostalSentWebhookFromPlugin = (payload: Record<string, unknown>) => {
   if (!isPostalWebhookFromPlugin(payload)) {
@@ -87,6 +140,7 @@ const normalizeStatus = (value: string): PostalWebhookStatus => {
     case "messagedelayed":
     case "message.delayed":
     case "delayed":
+    case "softfail":
       return "delayed"
     case "messagedeliveryfailed":
     case "message.delivery.failed":
@@ -94,6 +148,7 @@ const normalizeStatus = (value: string): PostalWebhookStatus => {
     case "deliveryfailed":
     case "failed":
     case "error":
+    case "hardfail":
       return "failed"
     case "messageheld":
     case "message.held":
@@ -161,9 +216,11 @@ const normalizeEventType = (value: string) => {
 
 const inferEventTypeFromPayload = (
   payload: Record<string, unknown>,
-  status: PostalWebhookStatus
+  status: PostalWebhookStatus,
+  envelopeEvent = ""
 ) => {
   const explicitEvent = pickString(
+    envelopeEvent,
     payload.event,
     payload.event_type,
     payload.type,
@@ -226,6 +283,14 @@ const inferEventTypeFromPayload = (
 }
 
 const normalizeOccurredAt = (value: unknown) => {
+  if (typeof value === "number") {
+    // Postal timestamps are float epoch seconds.
+    const parsed = new Date(value * 1000)
+    return Number.isFinite(value) && !Number.isNaN(parsed.getTime())
+      ? parsed.toISOString()
+      : null
+  }
+
   const normalized = sanitizeString(value)
   if (!normalized) {
     return null
@@ -240,8 +305,10 @@ const normalizeOccurredAt = (value: unknown) => {
 }
 
 export const normalizePostalWebhookPayload = (
-  payload: Record<string, unknown>
+  body: Record<string, unknown>
 ): PostalWebhookRecord => {
+  const envelope = unwrapPostalWebhookEnvelope(body)
+  const payload = envelope.inner
   const originalMessage = (
     payload.original_message ||
     payload.message ||
@@ -265,10 +332,11 @@ export const normalizePostalWebhookPayload = (
   )
   const eventType = inferEventTypeFromPayload(
     payload,
-    normalizeStatus(rawStatus)
+    normalizeStatus(rawStatus),
+    envelope.event
   )
   const status = normalizeStatus(rawStatus || eventType)
-  const messageId = pickString(
+  const messageId = pickId(
     originalMessage.id,
     originalMessage.message_id,
     nestedMessage.id,
@@ -291,6 +359,7 @@ export const normalizePostalWebhookPayload = (
       payload.occurred_at ||
       payload.occurredAt ||
       payload.created_at ||
+      envelope.timestamp ||
       originalMessage.timestamp ||
       originalMessage.occurred_at ||
       originalMessage.created_at ||
@@ -300,33 +369,50 @@ export const normalizePostalWebhookPayload = (
   )
 
   return {
-    id: `postal_webhook_${randomUUID()}`,
+    // A delivery's uuid is stable across Postal's retries, so deriving the row
+    // id from it lets the primary key reject replays.
+    id: `postal_webhook_${envelope.uuid || randomUUID()}`,
     event_type: eventType,
     status,
     message_id: messageId || null,
     recipient: recipient || null,
     occurred_at: occurredAt,
-    payload,
+    payload: body,
   }
 }
 
-export const recordPostalWebhookEvent = async (
+export type PostalWebhookRecordOutcome = {
+  record: PostalWebhookRecord
+  // True only when this call inserted the row; replays and unpersisted events
+  // are false, so callers emit `postal.<status>` at most once per delivery.
+  created: boolean
+}
+
+const findPostalWebhookEvent = async (
+  service: PostalWebhookEventService,
+  id: string
+) => (await service.listPostalWebhookEvents({ id }, { take: 1 }))?.[0]
+
+export const recordPostalWebhookEventOutcome = async (
   service: PostalWebhookEventService | null | undefined,
   payload: Record<string, unknown>
-): Promise<PostalWebhookRecord | null> => {
+): Promise<PostalWebhookRecordOutcome | null> => {
   if (!isPostalWebhookFromPlugin(payload)) {
     return null
   }
 
-  // Normalize once and gate on the result — `isPostalSentWebhookFromPlugin`
-  // would repeat the full normalization pass on every inbound callback.
   const event = normalizePostalWebhookPayload(payload)
 
-  // We persist all recognized lifecycle events.
-
-
   if (!service?.createPostalWebhookEvents) {
-    return event
+    return { record: event, created: false }
+  }
+
+  const replayable = Boolean(unwrapPostalWebhookEnvelope(payload).uuid)
+  if (replayable) {
+    const existing = await findPostalWebhookEvent(service, event.id)
+    if (existing) {
+      return { record: existing, created: false }
+    }
   }
 
   try {
@@ -339,26 +425,27 @@ export const recordPostalWebhookEvent = async (
       occurred_at: event.occurred_at,
       payload: event.payload,
     })
-  } catch (error: any) {
-    const msg = error?.message?.toLowerCase() || ""
-    const code = error?.code || error?.parent?.code
-    if (code === "23505" || msg.includes("unique constraint") || msg.includes("duplicate key")) {
-      if (event.message_id) {
-        const existing = await service.listPostalWebhookEvents(
-          { message_id: event.message_id, event_type: event.event_type },
-          { take: 1 }
-        )
-        if (existing?.length) {
-          return existing[0]
-        }
+  } catch (error) {
+    // A concurrent delivery of the same uuid can win the insert. Medusa maps
+    // the unique violation to a MedusaError without the pg code, so re-read by
+    // id instead of inspecting the error, and rethrow anything else.
+    if (replayable) {
+      const existing = await findPostalWebhookEvent(service, event.id)
+      if (existing) {
+        return { record: existing, created: false }
       }
-      return event
     }
     throw error
   }
 
-  return event
+  return { record: event, created: true }
 }
+
+export const recordPostalWebhookEvent = async (
+  service: PostalWebhookEventService | null | undefined,
+  payload: Record<string, unknown>
+): Promise<PostalWebhookRecord | null> =>
+  (await recordPostalWebhookEventOutcome(service, payload))?.record ?? null
 
 export const listPostalWebhookEvents = async (
   service: PostalWebhookEventService | null | undefined,

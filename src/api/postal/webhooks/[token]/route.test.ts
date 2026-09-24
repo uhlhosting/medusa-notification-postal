@@ -69,6 +69,65 @@ test("postal webhook route accepts a MessageSent payload and returns 202", async
   }
 })
 
+test("postal webhook route records Postal's real webhook envelope", async () => {
+  const previousToken = process.env.POSTAL_WEBHOOK_TOKEN
+  process.env.POSTAL_WEBHOOK_TOKEN = "token_abc"
+
+  try {
+    // The exact body Postal POSTs (webhook_delivery_service.rb generate_payload).
+    const req = {
+      params: { token: "token_abc" },
+      validatedBody: {
+        event: "MessageDeliveryFailed",
+        timestamp: 1782839546.5,
+        uuid: "0d7a1c9e-4b2f-4f6a-9c1e-2b3d4e5f6a7b",
+        payload: {
+          message: {
+            id: 28638,
+            token: "Hc2VWmOT4p1Z",
+            to: "customer@example.com",
+            tag: `${WEBHOOK_TAG_PREFIX}order-placed`,
+          },
+          status: "HardFail",
+          details: "Permanent failure",
+          timestamp: 1782839545.73,
+        },
+      },
+      scope: {},
+    } as any
+
+    const responseBody: any = {}
+    const res = {
+      status(code: number) {
+        responseBody.status = code
+        return {
+          json(payload: any) {
+            responseBody.payload = payload
+            return payload
+          },
+        }
+      },
+    } as any
+
+    await POST(req, res)
+
+    assert.equal(responseBody.status, 202)
+    assert.equal(responseBody.payload.ignored, undefined)
+    assert.equal(responseBody.payload.status, "failed")
+    assert.equal(responseBody.payload.event_type, "message.delivery_failed")
+    assert.equal(
+      responseBody.payload.id,
+      "postal_webhook_0d7a1c9e-4b2f-4f6a-9c1e-2b3d4e5f6a7b"
+    )
+  } finally {
+    if (previousToken === undefined) {
+      delete process.env.POSTAL_WEBHOOK_TOKEN
+    } else {
+      process.env.POSTAL_WEBHOOK_TOKEN = previousToken
+    }
+  }
+})
+
 test("postal webhook route acknowledges the webhook when persistence fails", async () => {
   const previousToken = process.env.POSTAL_WEBHOOK_TOKEN
   process.env.POSTAL_WEBHOOK_TOKEN = "token_abc"

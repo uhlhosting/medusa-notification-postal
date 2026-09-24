@@ -1,41 +1,19 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
-import { Modules } from "@medusajs/framework/utils"
 import { resolvePostalModule } from "../../modules/postal/constants"
 import {
-  recordPostalWebhookEvent,
+  recordPostalWebhookEventOutcome,
   type PostalWebhookEventService,
 } from "../../modules/postal/webhooks"
 
 type RecordPostalWebhookStepInput = Record<string, unknown>
 
+// Records the webhook only. The `postal.<status>` event is emitted by the
+// workflow, and only when this step inserted a new row.
 export const recordPostalWebhookEventStep = createStep(
   "record-postal-webhook-event",
   async (payload: RecordPostalWebhookStepInput, { container }) => {
     const service = resolvePostalModule<PostalWebhookEventService>(container)
-    const event = await recordPostalWebhookEvent(service, payload)
+    const outcome = await recordPostalWebhookEventOutcome(service, payload)
 
-    if (event) {
-      // Emit a delivery event so subscribers can react (e.g. postal.bounced).
-      // The event bus is optional — recording has already succeeded.
-      try {
-        const eventBus = container.resolve(Modules.EVENT_BUS) as {
-          emit: (message: { name: string; data: unknown }) => Promise<void>
-        }
-        await eventBus.emit({
-          name: `postal.${event.status}`,
-          data: {
-            id: event.id,
-            event_type: event.event_type,
-            status: event.status,
-            message_id: event.message_id,
-            recipient: event.recipient,
-            occurred_at: event.occurred_at,
-          },
-        })
-      } catch {
-        // Ignore: event emission is best-effort.
-      }
-    }
-
-    return new StepResponse(event)
+    return new StepResponse(outcome)
   })
