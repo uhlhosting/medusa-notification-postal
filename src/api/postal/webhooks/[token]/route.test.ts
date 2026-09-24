@@ -37,7 +37,7 @@ test("postal webhook route accepts a MessageSent payload and returns 202", async
       params: {
         token: "postal-webhook-token-test",
       },
-      body: payload,
+      validatedBody: payload,
       scope: {},
     } as any
 
@@ -76,7 +76,7 @@ test("postal webhook route acknowledges the webhook when persistence fails", asy
   try {
     const req = {
       params: { token: "token_abc" },
-      body: {
+      validatedBody: {
         event_type: "MessageSent",
         status: "Sent",
         message: {
@@ -129,7 +129,7 @@ test("postal webhook route ignores non-plugin webhook payloads", async () => {
   try {
     const req = {
       params: { token: "token_abc" },
-      body: {
+      validatedBody: {
         event_type: "MessageSent",
         status: "Sent",
         message: {
@@ -182,7 +182,7 @@ test("postal webhook route ignores untagged sent messages", async () => {
   try {
     const req = {
       params: { token: "token_abc" },
-      body: {
+      validatedBody: {
         event_type: "MessageSent",
         status: "Sent",
         message: {
