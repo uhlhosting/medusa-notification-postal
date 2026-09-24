@@ -32,17 +32,13 @@ The provider options above are typically wired from environment variables. The p
 | `POSTAL_FROM` | no | Default sender address (`from` option). |
 | `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. |
 | `POSTAL_API_KEY` | **yes** | Postal server API key (`api_key` option). |
-| `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path; generated if unset. |
-| `POSTAL_REQUEST_TIMEOUT_MS` | no | Outbound Postal HTTP timeout in ms (default `10000`). |
+| `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path. Required for webhooks: when unset, every callback is rejected and the admin webhook URL endpoint reports it as not configured. Use a long random value, e.g. `openssl rand -hex 32`. |
+| `POSTAL_REQUEST_TIMEOUT_MS` | no | Deadline in ms for a whole Postal API request, response body included (default `10000`, clamped to 1000–60000). |
 | `POSTAL_TEST_TO` | no | Default recipient for admin test sends. |
-| `POSTAL_TEMPLATE_REGISTRY` | no | JSON overriding the built-in template registry. |
-| `POSTAL_TEMPLATE_ORDER` | no | Comma-separated template display order. |
-| `POSTAL_WEBHOOK_TAG_PREFIX` | no | Overrides the tag prefix used to correlate webhook callbacks. |
-| `POSTAL_WEBHOOK_EVENTS_TABLE` | no | Overrides the webhook events table name. |
-| `POSTAL_PROVIDER_ID` | no | Overrides the notification provider id. |
-| `POSTAL_PLUGIN_MODULE` | no | Overrides the plugin module registration name. |
 
 Keep the secret variables out of logs and client-visible surfaces; the admin settings endpoint never returns them.
+
+The provider must be registered with the id `postal` (as in the example below): the admin health and message-inspection routes look it up by that id.
 
 ### Settings persistence
 
