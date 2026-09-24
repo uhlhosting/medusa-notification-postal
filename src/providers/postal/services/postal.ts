@@ -86,15 +86,37 @@ const resolveRequestTimeoutMs = (): number => {
   return Math.min(Math.max(raw, POSTAL_MIN_TIMEOUT_MS), POSTAL_MAX_TIMEOUT_MS)
 }
 
+type PostalConfig = {
+  authType: PostalAuthType
+  baseUrl: string
+  apiKey: string
+  from: string
+}
+
+// Invariant 11: base_url must be an absolute http(s) URL, whether it comes from
+// provider options, the environment, or persisted admin settings.
+const assertPostalBaseUrl = (baseUrl: string) => {
+  let parsedBaseUrl: URL
+  try {
+    parsedBaseUrl = new URL(baseUrl)
+  } catch {
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      "Postal 'base_url' must be a valid absolute URL"
+    )
+  }
+  if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
+    throw new MedusaError(
+      MedusaError.Types.INVALID_DATA,
+      "Postal 'base_url' must use the http or https protocol"
+    )
+  }
+}
+
 export class PostalNotificationService extends AbstractNotificationProviderService {
   static readonly identifier = "notification-postal"
 
-  protected config_: {
-    authType: PostalAuthType
-    baseUrl: string
-    apiKey: string
-    from: string
-  }
+  protected config_: PostalConfig
   protected container_: any
   protected logger_: Pick<Logger, "info">
 
@@ -116,21 +138,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
 
     if (baseUrl) {
-      let parsedBaseUrl: URL
-      try {
-        parsedBaseUrl = new URL(baseUrl)
-      } catch {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          "Postal 'base_url' must be a valid absolute URL"
-        )
-      }
-      if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          "Postal 'base_url' must use the http or https protocol"
-        )
-      }
+      assertPostalBaseUrl(baseUrl)
     }
 
     this.config_ = {
@@ -141,11 +149,11 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
   }
 
-  static validateOptions(_options: Record<string, unknown>) {
+  static validateOptions() {
     // Options can be empty if configured via the database.
   }
 
-  private async getEffectiveConfig() {
+  private async getEffectiveConfig(): Promise<PostalConfig> {
     try {
       const service = resolvePostalModule<PostalSettingService>(this.container_)
       const settings = await getPostalSettings(service)
@@ -225,7 +233,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       } run_id=${providerData.workflow_run_id || "none"}`
     )
 
-    return await this.sendViaApi(payload)
+    return await this.sendViaApi(payload, config)
   }
 
   async getMessageDetails(id: string | number) {
@@ -241,9 +249,12 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     })
   }
 
-  private async sendViaApi(payload: PostalSendPayload): Promise<{ id: string }> {
+  private async sendViaApi(
+    payload: PostalSendPayload,
+    config: PostalConfig
+  ): Promise<{ id: string }> {
     try {
-      const body = await this.fetchPostalApi("send/message", payload)
+      const body = await this.fetchPostalApi("send/message", payload, config)
       const rawMessageId = body?.message_id
       const messageId = typeof rawMessageId === "string" || typeof rawMessageId === "number" ? String(rawMessageId) : ""
       const recipientMessage = this.getFirstRecipientMessage(body?.messages)
@@ -274,31 +285,39 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
 
   private async fetchPostalApi(
     path: string,
-    payload: Record<string, unknown> | PostalSendPayload
+    payload: Record<string, unknown> | PostalSendPayload,
+    config?: PostalConfig
   ): Promise<PostalApiData> {
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), resolveRequestTimeoutMs())
+    const effective = config ?? (await this.getEffectiveConfig())
 
-    const config = await this.getEffectiveConfig()
-    
-    if (!config.baseUrl || !config.apiKey) {
+    if (!effective.baseUrl || !effective.apiKey) {
       throw new MedusaError(
         MedusaError.Types.UNEXPECTED_STATE,
         "Postal API mode requires 'base_url' and 'api_key' to be configured"
       )
     }
+    assertPostalBaseUrl(effective.baseUrl)
 
-    const response = await fetch(`${config.baseUrl}/api/v1/${path}`, {
+    // One deadline for the whole exchange: a server that sends headers and
+    // then stalls the body must not hang the send (invariant 7).
+    const signal = AbortSignal.timeout(resolveRequestTimeoutMs())
+
+    const response = await fetch(`${effective.baseUrl}/api/v1/${path}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Server-API-Key": config.apiKey,
+        "X-Server-API-Key": effective.apiKey,
       },
-      signal: controller.signal,
+      signal,
       body: JSON.stringify(payload),
-    }).finally(() => clearTimeout(timeout))
+    })
 
-    const body = (await response.json().catch(() => null)) as PostalApiResult | null
+    const body = (await response.json().catch((error: unknown) => {
+      if (signal.aborted) {
+        throw error
+      }
+      return null
+    })) as PostalApiResult | null
 
     const data =
       body?.data && typeof body.data === "object"

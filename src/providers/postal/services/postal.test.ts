@@ -511,3 +511,87 @@ test("helper methods normalize addresses, attachments, and health snapshots", ()
     mode: "api",
   })
 })
+
+const withEnv = async (
+  values: Record<string, string>,
+  run: () => Promise<void>
+) => {
+  const previous = Object.fromEntries(
+    Object.keys(values).map((key) => [key, process.env[key]])
+  )
+  Object.assign(process.env, values)
+  try {
+    await run()
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) {
+        delete process.env[key]
+      } else {
+        process.env[key] = value
+      }
+    }
+  }
+}
+
+test("send times out when Postal sends headers and then stalls the body", async () => {
+  const { createServer } = await import("node:http")
+  const server = createServer((_req, res) => {
+    res.writeHead(200, { "Content-Type": "application/json" })
+    res.write('{"status":"success","data":')
+    // Never finish the body.
+  })
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+  const { port } = server.address() as { port: number }
+  globalThis.fetch = originalFetch
+
+  try {
+    await withEnv({ POSTAL_REQUEST_TIMEOUT_MS: "1000" }, async () => {
+      const service = new PostalNotificationService(
+        { logger },
+        {
+          from: "ops@example.com",
+          base_url: `http://127.0.0.1:${port}`,
+          api_key: "secret",
+          auth_type: "smtp-api",
+        }
+      )
+      const startedAt = Date.now()
+      await assert.rejects(
+        service.send({
+          to: "customer@example.com",
+          channel: "email",
+          template: "order-placed",
+          content: { subject: "Order", text: "Thanks" },
+        } as any),
+        (error: unknown) =>
+          error instanceof MedusaError &&
+          /Failed to send email with Postal API/.test(error.message)
+      )
+      assert.ok(Date.now() - startedAt < 5000, "the body read must be bounded")
+    })
+  } finally {
+    server.closeAllConnections()
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+  }
+})
+
+test("send rejects a non-http(s) base_url sourced from the environment", async () => {
+  let called = false
+  globalThis.fetch = (async () => {
+    called = true
+    throw new Error("fetch must not be called")
+  }) as never
+
+  await withEnv({ POSTAL_BASE_URL: "file:///etc/passwd" }, async () => {
+    await assert.rejects(
+      createService().send({
+        to: "customer@example.com",
+        channel: "email",
+        template: "order-placed",
+        content: { subject: "Order", text: "Thanks" },
+      } as any),
+      /http or https/
+    )
+  })
+  assert.equal(called, false)
+})
