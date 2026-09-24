@@ -10,6 +10,7 @@
 - Report the subject of admin test sends. The test workflow read it from `provider_data`, where it is never set, so `delivery.subject` was always empty.
 - Admin test sends accept custom and mixed-case template names. An unknown name crashed the workflow while looking up example content, and inherited names such as `constructor` matched the built-in registry.
 - Import `sendNotificationsStep` through `@medusajs/medusa/core-flows`, a declared peer, instead of `@medusajs/core-flows`, which was only a devDependency and resolved only through hoisting.
+- Accept any Medusa 2.x from 2.19.0. The Medusa peers were pinned to exactly `2.19.0` (the upgrade to 2.20.1 changed only devDependencies), so npm refused to install the plugin next to Medusa 2.20.x/2.21.x with `ERESOLVE`. Peers are now `^2.19.0` (`@medusajs/ui ^4.2.1`), `@tanstack/react-query` is aligned with the `5.64.2` the dashboard ships, and the unused `zod` peer is dropped. Medusa 2.18.x hosts should stay on 0.3.x.
 - The test scripts now run the route tests under `[token]`/`[id]` directories, which the Node test runner had been skipping because each path was read as a glob.
 
 - Send-side and webhook-side now share one `POSTAL_WEBHOOK_TAG_PREFIX`. The provider declared its own copy of the literal the webhook matcher tests with `startsWith`, so a one-sided edit would have left sends working while every inbound callback was silently dropped as "not from this plugin".

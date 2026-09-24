@@ -65,6 +65,8 @@
 
 10. pnpm's supply-chain verification (`minimumReleaseAge`, default 1440 minutes since v11) must stay enabled in **every** CI job, including the npm publish job — that job holds the OIDC trusted-publishing token and must never trust the lockfile on faith. Do **not** reach for `--trust-lockfile` to work around registry throttling. The one known throttling source is `@medusajs/*`, whose packuments carry thousands of preview/snapshot versions so npmjs rate-limits requests for them (`medusajs/medusa#16294`); that is handled by the narrow `minimumReleaseAgeExclude` entry in `pnpm-workspace.yaml`, which exempts only that scope while all other dependencies keep the quarantine. GitLab additionally caches pnpm's `cache-dir` (`PNPM_CACHE_DIR`, keyed on `pnpm-lock.yaml`) so the verification result is reused across jobs. Keep the pnpm version in `.gitlab-ci.yml` (`PNPM_VERSION`) and in `npm-publish.yml` (`corepack prepare`) in sync with the `packageManager` field in `package.json`. Never add npm auth to raise a rate limit — invariant: no npm tokens in this repo.
 
+11. Peer dependencies use caret ranges whose floor is the lowest Medusa version the plugin is verified against (currently `^2.19.0`, `@medusajs/ui ^4.2.1`); devDependencies stay pinned to the exact build/test baseline. Never pin peers to one exact Medusa version — npm then refuses to install next to any other patch or minor (`ERESOLVE`). Do not declare peers the source does not import (e.g. bare `zod`; the plugin uses `@medusajs/framework/zod`).
+
 ## Validation Checklist
 1. `pnpm release:check` passes (includes admin typecheck via `typecheck:admin`)
 2. `npm pack --dry-run` includes the compiled `.medusa/server` bundle and the emitted `.d.ts` type targets
