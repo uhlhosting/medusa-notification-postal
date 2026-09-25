@@ -9,13 +9,16 @@ updates:
       - dependency-name: "esbuild"
 
       # The admin extension is bundled into @medusajs/dashboard and shares its
-      # React, Router and i18n instances at runtime, so these are declared as
-      # peerDependencies and the devDependency must mirror whatever the
-      # dashboard resolves. @medusajs/dashboard@2.18.0 depends on
-      # react ^18.3.1, react-router-dom 6.30.4 and react-i18next 13.5.0, so a
-      # major bump here would typecheck the plugin against an API that is not
-      # the one the dashboard actually loads. Raise these only when Medusa
-      # itself does.
+      # React, React Query, Router and i18n instances at runtime. Medusa's admin
+      # bundler does not dedupe them, so any other version installs, and gets
+      # bundled, as a second copy that the dashboard never initialises. The
+      # peerDependencies therefore pin the exact versions the dashboard depends
+      # on, and the devDependencies mirror them so the admin typecheck runs
+      # against the APIs the dashboard actually loads. @medusajs/dashboard
+      # 2.19-2.21 depend on react ^18.3.1, react-router-dom 7.18.2,
+      # react-i18next 13.5.0, i18next 23.7.11 and @tanstack/react-query 5.64.2.
+      # scripts/verify-release.mjs fails when the pins drift from the installed
+      # dashboard. Raise these only when Medusa itself does.
       - dependency-name: "react"
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-dom"
@@ -27,13 +30,9 @@ updates:
       - dependency-name: "react-router"
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-router-dom"
-        update-types: ["version-update:semver-major"]
       - dependency-name: "react-i18next"
-        update-types: ["version-update:semver-major"]
-      # The admin extension calls addResourceBundle on i18next's default
-      # singleton, i.e. the instance the dashboard created (i18next 23.7.11).
       - dependency-name: "i18next"
-        update-types: ["version-update:semver-major"]
+      - dependency-name: "@tanstack/react-query"
 
       # @types/node must track the *minimum* supported runtime (engines: node
       # >=20), not the newest release, otherwise the build typechecks against

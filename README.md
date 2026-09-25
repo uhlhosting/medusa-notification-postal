@@ -86,6 +86,34 @@ module.exports = defineConfig({
 })
 ```
 
+### Admin extension dependencies
+
+The Admin extension is bundled into the Medusa dashboard and has to use the
+dashboard's own copies of React Query, i18next, React i18next, React Router and
+Medusa UI. Medusa's admin bundler does not deduplicate them. If your
+`node_modules` holds a second version of any of them, that copy is bundled
+separately and the plugin's admin pages fail to render. A second i18next is
+never initialised by the dashboard (`addResourceBundle is not a function`). A
+second React Query or React Router copy cannot see the dashboard's providers
+(`No QueryClient set`, missing router context).
+
+The plugin therefore declares these peers at the exact versions the dashboard of
+the supported Medusa release depends on:
+
+| Package | Version |
+| --- | --- |
+| `@medusajs/*` | `2.20.1` (`@medusajs/ui` `4.2.3`) |
+| `@tanstack/react-query` | `5.64.2` |
+| `i18next` | `23.7.11` |
+| `react-i18next` | `13.5.0` |
+| `react-router-dom` | `7.18.2` |
+
+npm installs missing peers at these versions automatically. If your project
+declares any of them itself, use the same version. npm stops with `ERESOLVE` on
+a mismatch; fix the version rather than forcing the install. To check a project,
+run `npm ls @tanstack/react-query i18next react-i18next react-router-dom`. Every
+entry apart from the first occurrence of each package should read `deduped`.
+
 ## Workflow tracking
 
 Use Medusa notification workflows and pass workflow metadata in `provider_data`:

@@ -71,6 +71,45 @@ if (driftedMedusaPeers.length > 0) {
   )
 }
 
+// The admin extension is bundled into @medusajs/dashboard and must share its
+// React Query, i18n, router and UI instances. Medusa's admin bundler does not
+// dedupe them, so any other version installs, and gets bundled, as a second
+// copy. Peers and devDependencies therefore pin the dashboard's exact versions.
+const dashboardPkgPath = path.join(
+  cwd,
+  "node_modules/@medusajs/dashboard/package.json",
+)
+if (!fs.existsSync(dashboardPkgPath)) {
+  fail("@medusajs/dashboard must be installed as a devDependency")
+}
+const dashboardPkg = readJson(dashboardPkgPath)
+if (dashboardPkg.version !== devDeps["@medusajs/medusa"]) {
+  fail(
+    `@medusajs/dashboard ${dashboardPkg.version} must match @medusajs/medusa ${devDeps["@medusajs/medusa"]}`,
+  )
+}
+const sharedAdminLibs = [
+  "@medusajs/ui",
+  "@tanstack/react-query",
+  "i18next",
+  "react-i18next",
+  "react-router-dom",
+]
+const misalignedAdminLibs = sharedAdminLibs.filter((name) => {
+  const expected = dashboardPkg.dependencies?.[name]
+  return peers[name] !== expected || devDeps[name] !== expected
+})
+if (misalignedAdminLibs.length > 0) {
+  fail(
+    `Shared admin libraries must pin @medusajs/dashboard@${dashboardPkg.version}'s versions in peerDependencies and devDependencies: ${misalignedAdminLibs
+      .map(
+        (name) =>
+          `${name} (dashboard ${dashboardPkg.dependencies?.[name]}, peer ${peers[name]}, dev ${devDeps[name]})`,
+      )
+      .join(", ")}`,
+  )
+}
+
 const packDir = fs.mkdtempSync(path.join(os.tmpdir(), "postal-pack-"))
 let packOutput
 
