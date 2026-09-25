@@ -55,6 +55,22 @@ if (
   fail("repository.url must use a browser-safe HTTPS URL, not a git+ URL")
 }
 
+const peers = pkg.peerDependencies ?? {}
+const devDeps = pkg.devDependencies ?? {}
+
+// The Medusa peers must name the Medusa release the plugin is built and tested
+// against; a stale exact pin makes npm hosts on that release fail with ERESOLVE.
+const driftedMedusaPeers = Object.keys(peers).filter(
+  (name) => name.startsWith("@medusajs/") && peers[name] !== devDeps[name],
+)
+if (driftedMedusaPeers.length > 0) {
+  fail(
+    `@medusajs/* peerDependencies must match their devDependencies: ${driftedMedusaPeers
+      .map((name) => `${name} (peer ${peers[name]}, dev ${devDeps[name]})`)
+      .join(", ")}`,
+  )
+}
+
 const packDir = fs.mkdtempSync(path.join(os.tmpdir(), "postal-pack-"))
 let packOutput
 
