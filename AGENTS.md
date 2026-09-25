@@ -51,6 +51,7 @@
 17. Postal admin UI requests use the Medusa dashboard session through the shared JS SDK client; do not switch the plugin client to standalone JWT storage
 18. Provider-backed admin routes resolve the configured `postal` provider through Medusa's Notification module provider registry, and health must report unavailable when that provider cannot be resolved
 19. Notification creation uses Medusa's typed `CreateNotificationDTO` contract and selects the registered provider through the `email` channel; do not add the unsupported `provider_id` field to create payloads
+20. `typecheck:admin` must type-check translation keys against the real dashboard `Resources`: `@medusajs/dashboard` is a devDependency (pnpm 11 ignores `.npmrc` hoist settings, so it never resolves transitively), and the `i18next` `CustomTypeOptions` augmentation lives in `src/admin/i18next.ts` — not a `.d.ts`, which `skipLibCheck` skips, silently turning `Resources` into `any` when the import breaks.
 
 ## Publish and CI Rules
 1. Versioning and releases are automated with **semantic-release** on the default branch, per GitLab's documented example (`docs.gitlab.com/ci/examples/semantic-release/`). Commits MUST follow Conventional Commits (`fix:` → patch, `feat:` → minor, `feat!:`/`BREAKING CHANGE:` → major) — the commit type drives the version bump; never hand-edit `package.json` version.

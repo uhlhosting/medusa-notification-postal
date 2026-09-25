@@ -19,7 +19,10 @@ import {
   PluginStatusCard,
 } from "../../components/admin-ui";
 import { getPublicBackendBaseUrl, sdk } from "../../lib/client";
-import { ensurePostalAdminTranslations } from "../../lib/i18n";
+import {
+  ensurePostalAdminTranslations,
+  type PostalTranslationKey,
+} from "../../lib/i18n";
 
 type Notification = {
   id: string;
@@ -100,7 +103,7 @@ const statusFromNotification = (notification: Notification) => {
 
 type StatusPresentation = {
   color: "green" | "red" | "orange" | "blue" | "grey";
-  labelKey: string;
+  labelKey: PostalTranslationKey;
 };
 
 // Color and label always change together, so they live in one table per status
