@@ -25,7 +25,7 @@
 - Zod `.strict()` is fully supported; do not replace it as a migration fix.
 - Prefer `AuthenticatedMedusaRequest` for protected admin endpoints and enforce auth in `src/api/middlewares.ts`
 - Keep workflow composition in `src/workflows/*.ts` and import workflows statically from routes and handlers
-- Webhook token authentication MUST be performed in `src/api/middlewares.ts` using `timingSafeEqual` with byte-length validation
+- Webhook token authentication MUST be performed in `src/api/middlewares.ts` using `timingSafeEqual` with byte-length validation. The URL token stays the primary gate. Optional RSA signature verification (`verifyPostalWebhookSignature`, enabled only when `POSTAL_WEBHOOK_PUBLIC_KEY` holds a PEM, JWK or single-key JWKS) runs after the token check and before body validation. It verifies Postal's signature over the exact raw body bytes (`req.rawBody` via `bodyParser.preserveRawBody`), never over re-serialized JSON. It uses `X-Postal-Signature-256` (SHA256) and falls back to `X-Postal-Signature` (SHA1) only when the SHA256 header is absent, never after a failed SHA256 check. An unparseable key fails closed.
 - Use Medusa SDK clients where applicable instead of raw `fetch`
 - Preserve the compiled `.medusa/server` bundle as the package publish surface
 - Do not add npm tokens, automation tokens, or `.npmrc` auth entries
@@ -39,7 +39,7 @@
 5. Postal debug or test sends must use the `sendPostalTestWorkflow` path so trace metadata is preserved
 6. Secrets (`POSTAL_API_KEY`, `POSTAL_WEBHOOK_TOKEN`) are sourced from provider options/environment at boot only — never persisted by the plugin and read-only in the admin UI. Non-secret settings (`from`, `base_url`, `auth_type`, `test_to`) persist in the `postal_setting` DML model via the module service; the plugin never writes to `.env` or mutates `process.env` on a request path. A boot loader reconciles the persisted row into `process.env` in memory. That loader must build the module service from its **local container cradle**, never by resolving the module key: Medusa passes a loader the module's local container and registers the service in the outer container only after every loader has run, so `container.resolve(POSTAL_PLUGIN_MODULE)` there always throws. It must also keep catching its own errors — an uncaught loader error makes Medusa register the module as `undefined` — and must interpolate the cause into the warning, because the logger drops extra arguments.
 7. Postal HTTP calls must fail fast with a bounded timeout, configurable via `POSTAL_REQUEST_TIMEOUT_MS` and clamped to 1–60s
-8. Postal webhook callbacks must use a tokenized store route, and the exact tokenized URL should be surfaced from an admin-only view rather than the settings surface
+8. Postal webhook callbacks must use a tokenized store route, and the exact tokenized URL should be surfaced from an admin-only view rather than the settings surface. Signature verification is layered on top of the token, never a replacement for it
 9. Persistence goes through Medusa data primitives: the `postal_setting` and `postal_webhook_events` DML models + module service (no raw SQL, no PG-connection probing), with tables created by migrations (never on request paths)
 10. The admin webhook URL endpoint should return the tokenized path plus an absolute callback URL when the request origin can be resolved
 11. The provider must reject CR/LF characters in the sender address, subject, and recipients, and require an http/https `base_url`
