@@ -1,7 +1,6 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
 import { MedusaError } from "@medusajs/framework/utils"
 import type { CreateNotificationDTO } from "@medusajs/framework/types"
-import type { PostalTemplateName } from "../../providers/postal/templates"
 import { validateModeRequirements, type PostalSettingsSnapshot } from "../../modules/postal/settings"
 
 export type SendPostalEmailStepInput = {
@@ -9,7 +8,7 @@ export type SendPostalEmailStepInput = {
   from?: string
   from_name?: string
   reply_to?: string
-  template?: PostalTemplateName | (string & {})
+  template?: string
   provider_data: {
     from?: string
     from_name?: string
@@ -45,6 +44,9 @@ export const buildProviderData = (input: SendPostalEmailStepInput) => ({
   from: input.provider_data.from || input.from,
   from_name: input.provider_data.from_name || input.from_name,
   reply_to: input.provider_data.reply_to || input.reply_to,
+  subject: input.provider_data.subject,
+  html: input.provider_data.html,
+  text: input.provider_data.text,
   cc: input.provider_data.cc,
   bcc: input.provider_data.bcc,
   headers: input.provider_data.headers,
@@ -69,7 +71,7 @@ export const buildPostalNotificationInput = (
 
   return {
     to,
-    from: input.from,
+    from: providerData.from,
     channel: "email",
     template,
     ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
@@ -83,10 +85,13 @@ export const buildPostalNotificationInput = (
   } satisfies CreateNotificationDTO
 }
 
-export const validateTestRecipientStep = createStep("validate-test-recipient", async (input: { to?: string | string[] | null, test_to?: string | null, from?: string | null }) => {
-  let recipient = input.to
-  if (typeof recipient === "string") recipient = recipient.trim() || null
-  recipient = recipient || input.test_to || input.from
+export const validateTestRecipientStep = createStep("validate-test-recipient", (input: { to?: string | string[] | null, test_to?: string | null, from?: string | null }) => {
+  const requestedRecipients = input.to
+    ? normalizeRecipients(input.to)
+    : []
+  const recipient = requestedRecipients.length
+    ? requestedRecipients
+    : input.test_to || input.from
 
   if (!recipient) {
     throw new MedusaError(
@@ -97,7 +102,7 @@ export const validateTestRecipientStep = createStep("validate-test-recipient", a
   return new StepResponse(recipient)
 })
 
-export const validateModeRequirementsStep = createStep("validate-mode-requirements", async (settings: PostalSettingsSnapshot) => {
+export const validateModeRequirementsStep = createStep("validate-mode-requirements", (settings: PostalSettingsSnapshot) => {
   const error = validateModeRequirements(settings)
   if (error) {
     throw new MedusaError(MedusaError.Types.INVALID_DATA, error)
@@ -105,7 +110,7 @@ export const validateModeRequirementsStep = createStep("validate-mode-requiremen
   return new StepResponse(settings)
 })
 
-export const buildPostalNotificationsStep = createStep("build-postal-notifications", async (emailInput: SendPostalEmailStepInput) => {
+export const buildPostalNotificationsStep = createStep("build-postal-notifications", (emailInput: SendPostalEmailStepInput) => {
   const recipients = normalizeRecipients(emailInput.to)
   if (!recipients.length) {
     throw new MedusaError(
@@ -118,7 +123,7 @@ export const buildPostalNotificationsStep = createStep("build-postal-notificatio
   const providerData = buildProviderData(emailInput)
 
   const notifications = recipients.map((to) =>
-    buildPostalNotificationInput(emailInput, to, template as string, providerData)
+    buildPostalNotificationInput(emailInput, to, template, providerData)
   )
 
   return new StepResponse(notifications)

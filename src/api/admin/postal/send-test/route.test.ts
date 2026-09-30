@@ -20,7 +20,8 @@ Module.prototype.require = function (id: string) {
           mockWorkflow.lastInput = args.input
           return {
             result: {
-              delivery: mockWorkflow.returnDelivery
+              delivery: mockWorkflow.returnDelivery,
+              to: args.input.to,
             }
           }
         }
@@ -87,6 +88,7 @@ test("send test route calls workflow and returns success", async () => {
   assert.equal(output.status, 200)
   assert.equal(output.payload?.success, true)
   assert.ok((output.payload?.workflow_run_id as string).startsWith("postal-test-"))
+  assert.equal(output.payload?.to, "test@example.com")
   assert.deepEqual(output.payload?.delivery, { id: 1, message: "Message sent" })
 
   assert.deepEqual(mockWorkflow.lastInput, {

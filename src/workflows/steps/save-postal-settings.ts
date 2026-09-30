@@ -1,31 +1,95 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
-import { resolvePostalModule } from "../../modules/postal/constants"
+import { MedusaError } from "@medusajs/framework/utils"
+import {
+  POSTAL_SETTINGS_ID,
+  resolvePostalModule,
+} from "../../modules/postal/constants"
 import type {
   PostalSettingsInput,
   PostalSettingService,
-  PostalSettingsSnapshot,
+  PostalSettingRecord,
 } from "../../modules/postal/settings"
-import { persistPostalSettings, getPostalSettings } from "../../modules/postal/settings"
+import {
+  persistPostalSettings,
+  retrievePostalSettingRecord,
+} from "../../modules/postal/settings"
+
+type SavePostalSettingsCompensation = {
+  existing: PostalSettingRecord | null
+}
+
+export const restorePostalSettings = async (
+  service: PostalSettingService,
+  compensation: SavePostalSettingsCompensation
+) => {
+  if (compensation.existing) {
+    const existing = compensation.existing
+    await service.updatePostalSettings({
+      id: existing.id,
+      auth_type: existing.auth_type,
+      from_address: existing.from_address,
+      base_url: existing.base_url,
+      test_to: existing.test_to,
+      pending_restart: existing.pending_restart,
+    })
+    return
+  }
+
+  if (!service.deletePostalSettings) {
+    throw new MedusaError(
+      MedusaError.Types.UNEXPECTED_STATE,
+      "Postal module does not support settings rollback"
+    )
+  }
+
+  await service.deletePostalSettings(POSTAL_SETTINGS_ID)
+}
+
+type MutablePostalSettingService = PostalSettingService & {
+  deletePostalSettings: NonNullable<PostalSettingService["deletePostalSettings"]>
+}
+
+const requirePostalService = (
+  service: PostalSettingService | null
+): MutablePostalSettingService => {
+  if (
+    !service?.listPostalSettings ||
+    !service.createPostalSettings ||
+    !service.updatePostalSettings ||
+    !service.deletePostalSettings
+  ) {
+    throw new MedusaError(
+      MedusaError.Types.UNEXPECTED_STATE,
+      "Postal module is unavailable"
+    )
+  }
+
+  return service as MutablePostalSettingService
+}
 
 export const savePostalSettingsStep = createStep(
   "save-postal-settings",
   async (payload: PostalSettingsInput, { container }) => {
-    const service = resolvePostalModule<PostalSettingService>(container)
-    
-    const existing = await getPostalSettings(service)
-    const settings = await persistPostalSettings(service, payload)
+    const service = requirePostalService(
+      resolvePostalModule<PostalSettingService>(container)
+    )
+    const existing = await retrievePostalSettingRecord(service) || null
+    const settings = await persistPostalSettings(service, payload, existing)
 
-    return new StepResponse(settings, existing)
+    return new StepResponse(settings, { existing })
   },
-  async (existing: PostalSettingsSnapshot | undefined, { container }) => {
-    if (existing) {
-      const service = resolvePostalModule<PostalSettingService>(container)
-      await persistPostalSettings(service, {
-        auth_type: existing.auth_type,
-        from: existing.from || undefined,
-        base_url: existing.base_url || undefined,
-        test_to: existing.test_to || undefined,
-      })
+  async (
+    compensation: SavePostalSettingsCompensation | undefined,
+    { container }
+  ) => {
+    if (!compensation) {
+      return
     }
+
+    const service = requirePostalService(
+      resolvePostalModule<PostalSettingService>(container)
+    )
+
+    await restorePostalSettings(service, compensation)
   }
 )

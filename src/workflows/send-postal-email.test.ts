@@ -41,6 +41,9 @@ test("buildPostalNotificationInput creates a typed email notification", () => {
   assert.equal(notification.template, "postal-test")
   assert.equal(notification.provider_data.workflow_event, "postal.admin.test")
   assert.equal(notification.provider_data.workflow_run_id, "admin_test_1")
+  assert.equal(notification.provider_data.subject, "Postal test")
+  assert.equal(notification.provider_data.html, "<p>Postal test body</p>")
+  assert.equal(notification.provider_data.text, "Postal test body")
   assert.deepEqual(notification.data, notification.provider_data)
   // Idempotency key derived from run id + template + recipient dedupes retries.
   assert.equal(

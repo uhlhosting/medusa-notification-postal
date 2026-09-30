@@ -13,11 +13,10 @@ import {
   resolvePostalTemplate,
   resolvePostalSender,
 } from "../templates"
+import { isSingleEmailAddress } from "../address"
 // The webhook side matches this exact prefix to attribute callbacks back to the
 // plugin, so writer and reader must share one definition.
 import { POSTAL_WEBHOOK_TAG_PREFIX } from "../../../modules/postal/webhooks"
-import { getPostalSettings, type PostalSettingService } from "../../../modules/postal/settings"
-import { resolvePostalModule } from "../../../modules/postal/constants"
 
 type PostalAuthType = "smtp-api"
 
@@ -26,6 +25,11 @@ interface PostalOptions {
   base_url?: string
   api_key?: string
   from: string
+  /**
+   * Outbound Postal HTTP timeout in milliseconds, clamped to 1-60s. Falls back
+   * to POSTAL_REQUEST_TIMEOUT_MS, then 10s, when unset or not a number.
+   */
+  request_timeout_ms?: number | string
 }
 
 type PostalApiResult = {
@@ -78,12 +82,74 @@ const POSTAL_DEFAULT_TIMEOUT_MS = 10000
 const POSTAL_MIN_TIMEOUT_MS = 1000
 const POSTAL_MAX_TIMEOUT_MS = 60000
 
-const resolveRequestTimeoutMs = (): number => {
-  const raw = Number.parseInt(String(process.env.POSTAL_REQUEST_TIMEOUT_MS || ""), 10)
-  if (!Number.isFinite(raw)) {
+const parseTimeoutMs = (value: unknown): number | null => {
+  if (value === undefined || value === null || value === "") {
+    return null
+  }
+  const raw =
+    typeof value === "number" ? Math.trunc(value) : Number.parseInt(String(value), 10)
+  return Number.isFinite(raw) ? raw : null
+}
+
+/**
+ * The provider option `request_timeout_ms` wins; POSTAL_REQUEST_TIMEOUT_MS is
+ * the fallback, then 10s. Either way the value is clamped to 1-60s so a Postal
+ * call always fails fast.
+ */
+export const resolveRequestTimeoutMs = (option?: unknown): number => {
+  const raw =
+    parseTimeoutMs(option) ?? parseTimeoutMs(process.env.POSTAL_REQUEST_TIMEOUT_MS)
+  if (raw === null) {
     return POSTAL_DEFAULT_TIMEOUT_MS
   }
   return Math.min(Math.max(raw, POSTAL_MIN_TIMEOUT_MS), POSTAL_MAX_TIMEOUT_MS)
+}
+
+const TRUTHY = new Set(["1", "true", "yes", "on"])
+
+export const SANDBOX_HEADER = "X-Postal-Sandbox"
+export const SANDBOX_ORIGINAL_TO_HEADER = "X-Postal-Sandbox-To"
+export const SANDBOX_ORIGINAL_CC_HEADER = "X-Postal-Sandbox-Cc"
+export const SANDBOX_ORIGINAL_BCC_HEADER = "X-Postal-Sandbox-Bcc"
+
+export type PostalSandboxConfig = {
+  enabled: boolean
+  recipient: string
+}
+
+/**
+ * Whether this process may mail real people, and where its mail goes instead.
+ *
+ * A staging or preview deployment sends the same mail a production one does -
+ * order confirmations, quotes, contact enquiries - to the same real customers,
+ * because nothing in the provider ever looked at which environment it is.
+ * Sandbox mode closes that: every recipient is replaced by one address, and who
+ * the message was addressed to survives in headers and in the subject.
+ *
+ * POSTAL_SANDBOX is deliberately explicit, with no environment sniffing behind
+ * it. NODE_ENV cannot stand in: the platform's backend image sets
+ * NODE_ENV=production in its runtime stage, so staging, preview and production
+ * are all "production" to this process and the value carries no signal at all.
+ *
+ * Nor does it default to on when POSTAL_TEST_TO happens to be set. Production
+ * sets that too - it is the recipient of the admin's "send test email" button -
+ * so such a default would turn one forgotten variable in production into every
+ * customer's order confirmation being delivered to an internal test inbox
+ * instead. Silently swallowing real mail is a worse failure than the one this
+ * fixes, so the switch fails closed and non-production environments opt in.
+ *
+ * The recipient is POSTAL_TEST_TO, the address the admin's Postal settings
+ * already call the test recipient. The module's boot loader copies the saved
+ * setting into the environment, so this follows the admin UI without a provider
+ * having to read the database.
+ */
+export const resolvePostalSandbox = (): PostalSandboxConfig => {
+  const flag = String(process.env.POSTAL_SANDBOX || "").trim().toLowerCase()
+
+  return {
+    enabled: TRUTHY.has(flag),
+    recipient: String(process.env.POSTAL_TEST_TO || "").trim(),
+  }
 }
 
 export class PostalNotificationService extends AbstractNotificationProviderService {
@@ -94,14 +160,16 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     baseUrl: string
     apiKey: string
     from: string
+    requestTimeoutOption?: number | string
   }
-  protected container_: any
-  protected logger_: Pick<Logger, "info">
+  protected logger_: Pick<Logger, "info"> & Partial<Pick<Logger, "warn">>
 
-  constructor(container: { logger: Pick<Logger, "info"> }, options: PostalOptions) {
+  constructor(
+    container: { logger: Pick<Logger, "info"> & Partial<Pick<Logger, "warn">> },
+    options: PostalOptions
+  ) {
     super()
-    this.container_ = container
-    this.logger_ = container.logger
+    const { logger } = container
 
     const authType = (options.auth_type || "smtp-api").trim() as PostalAuthType
     const baseUrl = (options.base_url || "").trim().replace(/\/$/, "")
@@ -115,22 +183,41 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
-    if (baseUrl) {
-      let parsedBaseUrl: URL
-      try {
-        parsedBaseUrl = new URL(baseUrl)
-      } catch {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          "Postal 'base_url' must be a valid absolute URL"
-        )
-      }
-      if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
-        throw new MedusaError(
-          MedusaError.Types.INVALID_DATA,
-          "Postal 'base_url' must use the http or https protocol"
-        )
-      }
+    if (!from) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Postal notification provider requires 'from'"
+      )
+    }
+
+    if (!baseUrl) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Postal API mode requires 'base_url'"
+      )
+    }
+
+    let parsedBaseUrl: URL
+    try {
+      parsedBaseUrl = new URL(baseUrl)
+    } catch {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Postal 'base_url' must be a valid absolute URL"
+      )
+    }
+    if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Postal 'base_url' must use the http or https protocol"
+      )
+    }
+
+    if (!apiKey) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Postal API mode requires 'api_key'"
+      )
     }
 
     this.config_ = {
@@ -138,25 +225,33 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       baseUrl,
       apiKey,
       from,
+      requestTimeoutOption: options.request_timeout_ms,
     }
+    this.logger_ = logger
   }
 
-  static validateOptions(_options: Record<string, unknown>) {
-    // Options can be empty if configured via the database.
-  }
+  static validateOptions(options: Record<string, unknown>) {
+    const from = String(options?.from || "").trim()
 
-  private async getEffectiveConfig() {
-    try {
-      const service = resolvePostalModule<PostalSettingService>(this.container_)
-      const settings = await getPostalSettings(service)
-      return {
-        authType: "smtp-api" as PostalAuthType,
-        baseUrl: (settings.base_url || this.config_.baseUrl).trim().replace(/\/$/, ""),
-        apiKey: settings.api_key || this.config_.apiKey,
-        from: settings.from || this.config_.from,
-      }
-    } catch {
-      return this.config_
+    if (!from) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Option `from` is required in the provider's options."
+      )
+    }
+
+    if (!String(options?.base_url || "").trim()) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Option `base_url` is required."
+      )
+    }
+
+    if (!String(options?.api_key || "").trim()) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Option `api_key` is required."
+      )
     }
   }
 
@@ -183,16 +278,27 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
-    const config = await this.getEffectiveConfig()
-
     const sender = resolvePostalSender(
       {
         from: providerData.from || notification.from || undefined,
         from_name: providerData.from_name,
         reply_to: providerData.reply_to,
       },
-      config.from
+      this.config_.from
     )
+
+    // A Reply-To that is not one plain address is dropped, never sent and
+    // never thrown on: callers that pass a customer-supplied address (a
+    // contact form, a quote request) keep sending, just without the reply
+    // path. The warning names no address, because the value is personal data.
+    if (sender.reply_to && !isSingleEmailAddress(sender.reply_to)) {
+      sender.reply_to = undefined
+      this.logWarning(
+        `Postal notification reply_to is not a single plain email address and was dropped template=${
+          notification.template || "default"
+        } run_id=${providerData.workflow_run_id || "none"}`
+      )
+    }
 
     if (!sender.from) {
       throw new MedusaError(
@@ -207,14 +313,19 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       text: content?.text || providerData.text,
     })
 
+    const sandbox = this.applySandbox({ to, cc, bcc })
+
     const payload = this.buildSendPayload({
-      to,
-      cc,
-      bcc,
+      to: sandbox.to,
+      cc: sandbox.cc,
+      bcc: sandbox.bcc,
       sender,
-      template,
+      template: sandbox.subjectPrefix
+        ? { ...template, subject: `${sandbox.subjectPrefix} ${template.subject}` }
+        : template,
       attachments: notification.attachments,
       providerData,
+      sandboxHeaders: sandbox.headers,
     })
 
     this.logger_.info(
@@ -277,22 +388,16 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     payload: Record<string, unknown> | PostalSendPayload
   ): Promise<PostalApiData> {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), resolveRequestTimeoutMs())
+    const timeout = setTimeout(
+      () => controller.abort(),
+      resolveRequestTimeoutMs(this.config_.requestTimeoutOption)
+    )
 
-    const config = await this.getEffectiveConfig()
-    
-    if (!config.baseUrl || !config.apiKey) {
-      throw new MedusaError(
-        MedusaError.Types.UNEXPECTED_STATE,
-        "Postal API mode requires 'base_url' and 'api_key' to be configured"
-      )
-    }
-
-    const response = await fetch(`${config.baseUrl}/api/v1/${path}`, {
+    const response = await fetch(`${this.config_.baseUrl}/api/v1/${path}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Server-API-Key": config.apiKey,
+        "X-Server-API-Key": this.config_.apiKey,
       },
       signal: controller.signal,
       body: JSON.stringify(payload),
@@ -306,15 +411,18 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
         : null
 
     if (!response.ok || !body || body.status === "error" || !data) {
-      const detailsRaw =
+      const details =
         data?.message ||
         data?.error ||
         body?.status ||
         "unknown error"
-      const details = typeof detailsRaw === "string" || typeof detailsRaw === "number" ? String(detailsRaw) : JSON.stringify(detailsRaw)
       throw new MedusaError(
         MedusaError.Types.UNEXPECTED_STATE,
-        `Postal API request failed: ${response.status} - ${details}`
+        `Postal API request failed: ${response.status} - ${
+          typeof details === "string" || typeof details === "number"
+            ? String(details)
+            : "unknown error"
+        }`
       )
     }
 
@@ -352,6 +460,51 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     )
   }
 
+  private logWarning(message: string): void {
+    const warn = this.logger_.warn ?? this.logger_.info
+    warn.call(this.logger_, message)
+  }
+
+  /*
+    A caller can also set Reply-To through provider_data.headers, which is how
+    some stores pass a contact-form enquirer's address. That header gets the
+    same rule as reply_to: it is kept only when it is one plain address, and
+    otherwise dropped with a warning that names no address, and the send goes
+    on. A valid reply_to wins over any caller Reply-To header, and at most one
+    Reply-To is kept, whatever the letter case of the header name.
+  */
+  private checkReplyToHeaders(
+    headers: Record<string, string>,
+    replyTo: string | undefined,
+    context: string
+  ): Record<string, string> {
+    const result: Record<string, string> = {}
+    let kept = Boolean(replyTo)
+
+    for (const [name, value] of Object.entries(headers)) {
+      if (name.toLowerCase() !== "reply-to") {
+        result[name] = value
+        continue
+      }
+
+      if (kept) {
+        continue
+      }
+
+      if (isSingleEmailAddress(value)) {
+        result[name] = value
+        kept = true
+        continue
+      }
+
+      this.logWarning(
+        `Postal notification Reply-To header is not a single plain email address and was dropped ${context}`
+      )
+    }
+
+    return result
+  }
+
   private filterHeaders(
     raw: Record<string, string> | undefined
   ): Record<string, string> {
@@ -374,6 +527,99 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     return result
   }
 
+  /*
+    Replaces every recipient with the sandbox address when this process is not
+    allowed to mail real people.
+
+    The original addresses are not discarded: they go into X- headers, and the
+    first one into the subject. One test inbox receives mail that was addressed
+    to many different people, and the subject line is the only part of that
+    visible in a mailbox list, so it has to carry who the message was for.
+
+    The originals are checked for CR/LF here rather than relying on
+    buildSendPayload, which from this point on only ever sees the sandbox
+    address - a header or subject built from an unchecked recipient would be
+    exactly the injection that check exists to prevent.
+  */
+  private applySandbox(recipients: {
+    to: string[]
+    cc: string[]
+    bcc: string[]
+  }): {
+    to: string[]
+    cc: string[]
+    bcc: string[]
+    headers: Record<string, string>
+    subjectPrefix: string
+  } {
+    const passthrough = { ...recipients, headers: {}, subjectPrefix: "" }
+    const sandbox = resolvePostalSandbox()
+
+    if (!sandbox.enabled) {
+      return passthrough
+    }
+
+    // Enabled but unconfigured. Refusing would make every non-production
+    // deployment unable to send at all, including the ones that only ever mail
+    // their own operators, so this says so loudly and sends as addressed.
+    if (!sandbox.recipient) {
+      if (!PostalNotificationService.warnedAboutUnconfiguredSandbox) {
+        PostalNotificationService.warnedAboutUnconfiguredSandbox = true
+        this.logger_.info(
+          "Postal sandbox is on but POSTAL_TEST_TO is empty, so mail is being sent to its real recipients. Set POSTAL_TEST_TO, or set POSTAL_SANDBOX=false if this environment is meant to send real mail."
+        )
+      }
+
+      return passthrough
+    }
+
+    PostalNotificationService.assertNoHeaderInjection(
+      sandbox.recipient,
+      "sandbox recipient"
+    )
+    for (const recipient of [
+      ...recipients.to,
+      ...recipients.cc,
+      ...recipients.bcc,
+    ]) {
+      PostalNotificationService.assertNoHeaderInjection(
+        recipient,
+        "recipient address"
+      )
+    }
+
+    const headers: Record<string, string> = { [SANDBOX_HEADER]: "true" }
+    if (recipients.to.length) {
+      headers[SANDBOX_ORIGINAL_TO_HEADER] = recipients.to.join(", ")
+    }
+    if (recipients.cc.length) {
+      headers[SANDBOX_ORIGINAL_CC_HEADER] = recipients.cc.join(", ")
+    }
+    if (recipients.bcc.length) {
+      headers[SANDBOX_ORIGINAL_BCC_HEADER] = recipients.bcc.join(", ")
+    }
+
+    const addressed = [...recipients.to, ...recipients.cc, ...recipients.bcc]
+    const others = addressed.length - 1
+    const subjectPrefix = `[sandbox: ${addressed[0]}${
+      others > 0 ? ` +${others}` : ""
+    }]`
+
+    this.logger_.info(
+      `Postal sandbox redirected ${addressed.length} recipient(s) to ${sandbox.recipient}`
+    )
+
+    return {
+      to: [sandbox.recipient],
+      cc: [],
+      bcc: [],
+      headers,
+      subjectPrefix,
+    }
+  }
+
+  private static warnedAboutUnconfiguredSandbox = false
+
   private static assertNoHeaderInjection(value: string, field: string): void {
     if (/[\r\n]/.test(value)) {
       throw new MedusaError(
@@ -391,6 +637,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     template: { template_name?: string; subject: string; html?: string; text?: string }
     attachments: Attachment[] | null | undefined
     providerData: PostalNotificationProviderData
+    sandboxHeaders?: Record<string, string>
   }): PostalSendPayload {
     PostalNotificationService.assertNoHeaderInjection(input.sender.from, "sender address")
     PostalNotificationService.assertNoHeaderInjection(input.template.subject, "subject")
@@ -401,16 +648,25 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     const htmlBody = input.template.html || ""
     const plainBody = input.template.text || (htmlBody ? this.stripHtml(htmlBody) : "")
     const customArgHeaders = normalizePostalCustomArgs(input.providerData.custom_args)
-    const filteredInputHeaders = this.filterHeaders(input.providerData.headers)
+    const filteredInputHeaders = this.checkReplyToHeaders(
+      this.filterHeaders(input.providerData.headers),
+      input.sender.reply_to,
+      `template=${input.template.template_name || "default"} run_id=${
+        input.providerData.workflow_run_id || "none"
+      }`
+    )
     const filteredCustomArgHeaders = this.filterHeaders(customArgHeaders)
     const replyToHeader: Record<string, string> =
       input.sender.reply_to && !/[\r\n]/.test(input.sender.reply_to)
         ? { "Reply-To": input.sender.reply_to }
         : {}
+    // Sandbox headers are merged last: they record where the message would
+    // have gone, so nothing in the caller's own headers may overwrite them.
     const headers: Record<string, string> = {
       ...filteredInputHeaders,
       ...replyToHeader,
       ...filteredCustomArgHeaders,
+      ...this.filterHeaders(input.sandboxHeaders),
     }
 
     return {

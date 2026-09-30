@@ -1,11 +1,10 @@
 import { createWorkflow, WorkflowResponse, ReturnWorkflow, transform } from "@medusajs/framework/workflows-sdk"
-import { sendNotificationsStep } from "@medusajs/core-flows"
+import { sendNotificationsStep } from "@medusajs/medusa/core-flows"
 import {
   normalizeRecipients,
   buildPostalNotificationsStep,
   type SendPostalEmailStepInput,
 } from "./steps/send-postal-email"
-import { getPostalSettingsStep } from "./steps/get-postal-settings"
 
 export type SendPostalEmailWorkflowInput = SendPostalEmailStepInput
 
@@ -28,21 +27,7 @@ export const sendPostalEmailWorkflow: ReturnWorkflow<
 > = createWorkflow(
   "send-postal-email",
   function (input: SendPostalEmailWorkflowInput) {
-    const settings = getPostalSettingsStep()
-
-    const emailInput = transform({ input, settings }, (data) => {
-      const emailInput: SendPostalEmailStepInput = {
-        ...data.input,
-        from: data.input.from || data.settings.from || undefined,
-        provider_data: {
-          ...data.input.provider_data,
-          from: data.input.provider_data?.from || data.input.from || data.settings.from || undefined,
-        },
-      }
-      return emailInput
-    })
-
-    const notifications = buildPostalNotificationsStep(emailInput)
+    const notifications = buildPostalNotificationsStep(input)
 
     const sent = sendNotificationsStep(notifications)
 
@@ -53,7 +38,9 @@ export const sendPostalEmailWorkflow: ReturnWorkflow<
         to: recipients,
         subject: data.input.provider_data?.subject || "",
         delivered_at: new Date().toISOString(),
-        deliveries: data.sent.map((s: any) => ({ id: s.id || null }))
+        deliveries: data.sent.map((notification) => ({
+          id: notification.id || null,
+        }))
       }
     })
 

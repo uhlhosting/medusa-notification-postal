@@ -27,6 +27,7 @@ export const POST = async (
   return res.status(200).json({
     success: true,
     workflow_run_id: runId,
+    to: result.to,
     delivery: result.delivery,
   })
 }
