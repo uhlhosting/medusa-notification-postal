@@ -10,15 +10,20 @@ const MAX_HEADER_VAL = 998
 
 export const postalSendTestSchema = z
   .object({
-    to: z.union([
-      z.string().min(1).max(MAX_EMAIL),
-      z.array(z.string().min(1).max(MAX_EMAIL)).min(1).max(50),
-    ]),
+    // Optional: the workflow falls back to the saved test recipient, then to
+    // the sender address.
+    to: z
+      .union([
+        z.string().min(1).max(MAX_EMAIL),
+        z.array(z.string().min(1).max(MAX_EMAIL)).min(1).max(50),
+      ])
+      .optional(),
     from: z.string().max(MAX_EMAIL).optional(),
     from_name: z.string().max(MAX_NAME).optional(),
     reply_to: z.string().max(MAX_EMAIL).optional(),
     template: z.string().max(MAX_NAME).optional(),
-    subject: z.string().min(1).max(MAX_SUBJECT),
+    // Optional: the workflow falls back to the template's example subject.
+    subject: z.string().min(1).max(MAX_SUBJECT).optional(),
     html: z.string().max(MAX_BODY).optional(),
     text: z.string().max(MAX_BODY).optional(),
     cc: z

@@ -23,6 +23,10 @@ import {
   PluginShell,
 } from "../../../components/admin-ui";
 import { sdk } from "../../../lib/client";
+import {
+  toPostalSettingsPayload,
+  type PostalTestSendPayload,
+} from "../../../lib/postal-payloads";
 import { ensurePostalAdminTranslations } from "../../../lib/i18n";
 import {
   getPostalTemplateExample,
@@ -429,7 +433,10 @@ export const PostalSettingsPage = () => {
   }, [data]);
 
   const saveMutation = useMutation({
-    mutationFn: (payload: { action: "save"; settings: PostalSettingsForm }) =>
+    mutationFn: (payload: {
+      action: "save";
+      settings: ReturnType<typeof toPostalSettingsPayload>;
+    }) =>
       sdk.client.fetch("/admin/plugin-settings/postal", {
         method: "POST",
         body: payload,
@@ -453,29 +460,16 @@ export const PostalSettingsPage = () => {
   });
 
   const testMutation = useMutation({
-    mutationFn: (payload: {
-      action: "test";
-      to?: string;
-      cc?: string[];
-      bcc?: string[];
-      from_name?: string;
-      reply_to?: string;
-      template?: string;
-      subject?: string;
-      text?: string;
-      html?: string;
-      headers?: Record<string, string>;
-      custom_args?: Record<string, unknown>;
-      metadata?: Record<string, unknown>;
-      settings: PostalSettingsForm;
-    }) =>
+    mutationFn: (payload: PostalTestSendPayload) =>
       sdk.client.fetch("/admin/postal/send-test", {
         method: "POST",
         body: payload,
       }),
     onSuccess: (res: any) => {
       toast.success(
-        `${t("postal.toast.test_queued_prefix")} ${res?.to || t("postal.recipient_fallback")}`,
+        `${t("postal.toast.test_queued_prefix")} ${
+          res?.delivery?.to?.join(", ") || t("postal.recipient_fallback")
+        }`,
       );
       refetch();
     },
@@ -521,7 +515,6 @@ export const PostalSettingsPage = () => {
       );
 
       testMutation.mutate({
-        action: "test",
         to: testForm.to.trim() || undefined,
         template: testForm.template || undefined,
         subject: testForm.subject.trim() || undefined,
@@ -534,7 +527,7 @@ export const PostalSettingsPage = () => {
         headers,
         custom_args: customArgs,
         metadata,
-        settings: form,
+        settings: toPostalSettingsPayload(form),
       });
     } catch (error) {
       toast.error(
@@ -661,7 +654,10 @@ export const PostalSettingsPage = () => {
                 variant="primary"
                 size="small"
                 onClick={() =>
-                  saveMutation.mutate({ action: "save", settings: form })
+                  saveMutation.mutate({
+                    action: "save",
+                    settings: toPostalSettingsPayload(form),
+                  })
                 }
                 isLoading={saveMutation.isPending}
                 disabled={disabled}
