@@ -513,6 +513,8 @@ export const PostalSettingsPage = () => {
         testForm.metadata_json,
         t("postal.invalid_metadata_json"),
       );
+      const cc = parseEmailList(testForm.cc);
+      const bcc = parseEmailList(testForm.bcc);
 
       testMutation.mutate({
         to: testForm.to.trim() || undefined,
@@ -520,14 +522,13 @@ export const PostalSettingsPage = () => {
         subject: testForm.subject.trim() || undefined,
         text: testForm.text.trim() || undefined,
         html: testForm.html.trim() || undefined,
-        cc: parseEmailList(testForm.cc),
-        bcc: parseEmailList(testForm.bcc),
+        cc: cc.length ? cc : undefined,
+        bcc: bcc.length ? bcc : undefined,
         from_name: testForm.from_name.trim() || undefined,
         reply_to: testForm.reply_to.trim() || undefined,
         headers,
         custom_args: customArgs,
         metadata,
-        settings: toPostalSettingsPayload(form),
       });
     } catch (error) {
       toast.error(
@@ -952,7 +953,7 @@ export const PostalSettingsPage = () => {
       </div>
 
       <PluginSection
-        title={t("postal.template_contract")}
+        title={t("postal.template_contract" as any)}
         description="Reference payloads for built-in Postal templates, project workflows, and fallback content."
         bodyClassName="flex flex-col gap-4"
       >

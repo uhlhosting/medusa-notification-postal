@@ -22,14 +22,12 @@ test("the admin save payload is accepted by the strict settings schema", () => {
 })
 
 test("the admin test-send payload is accepted by the strict send-test schema", () => {
-  // What the page sends when only the defaults are used.
+  // What the page sends when only the defaults are used: empty cc/bcc lists
+  // are omitted, the three JSON objects are sent as `{}`.
   const minimal = postalSendTestSchema.safeParse({
-    cc: [],
-    bcc: [],
     headers: {},
     custom_args: {},
     metadata: {},
-    settings: toPostalSettingsPayload(pageForm),
   })
   assert.equal(minimal.success, true, JSON.stringify(minimal.error?.issues))
 
@@ -46,12 +44,17 @@ test("the admin test-send payload is accepted by the strict send-test schema", (
     headers: { "X-Campaign": "smoke" },
     custom_args: { order_id: "order_1" },
     metadata: { source: "admin" },
-    settings: toPostalSettingsPayload(pageForm),
   })
   assert.equal(full.success, true, JSON.stringify(full.error?.issues))
 })
 
 test("the strict schemas still reject what the page used to send", () => {
+  // A test send uses the persisted settings, so `settings` is not accepted.
+  assert.equal(
+    postalSendTestSchema.safeParse({ settings: toPostalSettingsPayload(pageForm) })
+      .success,
+    false
+  )
   assert.equal(
     postalSettingsSchema.safeParse({ action: "save", settings: pageForm }).success,
     false

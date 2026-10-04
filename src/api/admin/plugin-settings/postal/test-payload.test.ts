@@ -1,6 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
-import { buildPostalAdminTestProviderData } from "./test-payload"
+import { buildPostalAdminTestProviderData } from "../../../../workflows/postal-test-payload"
 
 test("buildPostalAdminTestProviderData uses template defaults when fields are empty", () => {
   const providerData = buildPostalAdminTestProviderData(

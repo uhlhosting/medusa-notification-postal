@@ -1,6 +1,7 @@
 // Request bodies the Postal admin page sends. The server schemas are strict and
-// reject secret fields (invariant 3), so these builders send only the
-// non-secret settings and never the page-only fields such as `api_key`.
+// reject secret fields (invariant 3), so the save builder sends only the
+// non-secret settings and never the page-only fields such as `api_key`. A test
+// send carries no settings at all: it uses the persisted ones.
 
 export type PostalSettingsPayload = {
   auth_type: "smtp-api"
@@ -29,5 +30,4 @@ export type PostalTestSendPayload = {
   headers?: Record<string, string>
   custom_args?: Record<string, unknown>
   metadata?: Record<string, unknown>
-  settings: ReturnType<typeof toPostalSettingsPayload>
 }

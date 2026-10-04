@@ -1,6 +1,5 @@
 import { AuthenticatedMedusaRequest, MedusaResponse } from "@medusajs/framework/http"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
-import { sendPostalTestWorkflow } from "../../../../workflows/send-postal-test"
 import { savePostalSettingsWorkflow } from "../../../../workflows/save-postal-settings"
 import {
   POSTAL_SETTINGS_ID,
@@ -45,58 +44,24 @@ export async function POST(
   res: MedusaResponse
 ) {
   const body = req.validatedBody
-  const action = body.action
+  const { result, errors } = await savePostalSettingsWorkflow(req.scope).run({
+    input: body.settings,
+    throwOnError: false,
+  })
 
-  if (action === "save") {
-    const { result, errors } = await savePostalSettingsWorkflow(req.scope).run({
-      input: body.settings || {},
-      throwOnError: false,
-    })
-
-    if (errors?.length) {
-      throw errors[0].error
-    }
-
-    return res.json({
-      ok: true,
-      action: "save",
-      code: "postal_settings_saved",
-      type: "postal_settings_result",
-      status: 200,
-      settings: toPublicPostalSettings(result.settings),
-      requires_restart: true,
-      ready_for_test: result.ready_for_test,
-      validation_error: result.validation_error,
-    })
+  if (errors?.length) {
+    throw errors[0].error
   }
 
-  if (action === "test") {
-    const runId = `admin_${Date.now()}`
-
-    const { result, errors } = await sendPostalTestWorkflow(req.scope).run({
-      input: {
-        to: body.to,
-        settings: body.settings,
-        run_id: runId
-      },
-      throwOnError: false,
-    })
-
-    if (errors?.length) {
-      throw errors[0].error
-    }
-
-    return res.json({
-      ok: true,
-      action: "test",
-      code: "postal_test_queued",
-      type: "postal_test_result",
-      status: 200,
-      provider_id: "postal",
-      to: result.to,
-      workflow_run_id: runId,
-      result: result.delivery,
-      settings: toPublicPostalSettings(result.settings),
-    })
-  }
+  return res.json({
+    ok: true,
+    action: "save",
+    code: "postal_settings_saved",
+    type: "postal_settings_result",
+    status: 200,
+    settings: toPublicPostalSettings(result.settings),
+    requires_restart: true,
+    ready_for_test: result.ready_for_test,
+    validation_error: result.validation_error,
+  })
 }

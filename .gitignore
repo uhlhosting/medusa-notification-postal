@@ -48,3 +48,6 @@ CLAUDE.md
 # diffs on every build. CI rebuilds it before packing (release:check ->
 # prepublishOnly), and .npmignore/package.json `files` still ship it.
 .medusa/
+*.py
+*.exp
+jules_out*.txt

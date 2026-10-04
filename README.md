@@ -12,15 +12,31 @@ A production-ready Postal notification provider for Medusa. Designed for reliabl
 
 ## Options
 
+The package has two sets of options: the **provider** options, under the Notification Module, and the **plugin** options, on the `plugins` entry. See [Usage](#usage) for where each goes.
+
+### Provider options
+
 - `auth_type` - Postal API mode
 - `from` - default sender e-mail address
-
-### Postal API settings
-
 - `base_url` - Postal base URL, for example `https://postal.example.com`
 - `api_key` - Postal server API key used in `X-Server-API-Key`
+- `request_timeout_ms` - outbound Postal HTTP timeout in ms. Optional. It takes precedence over `POSTAL_REQUEST_TIMEOUT_MS`, falls back to that variable and then to `10000`, and is clamped to 1000-60000.
 
 `auth_type` only accepts `smtp-api` (the Postal HTTP API); any other value is rejected at startup.
+
+### Plugin options
+
+Every plugin option is off unless you set it, so upgrading changes nothing for a store that does not configure them.
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| `notification_retention_days` | unset (off) | A daily job (`postal-purge-expired-notifications`, 03:30) hard-deletes **every** row in Medusa's core `notification` table created more than this many days ago, whatever its provider, channel, template, resource or status. |
+| `webhook_event_retention_days` | unset (off) | A daily job (`postal-purge-webhook-events`, 03:40) hard-deletes `postal_webhook_events` rows (recipient address and raw Postal payload) created more than this many days ago. |
+| `ignore_engagement_webhooks` | `false` | `MessageLinkClicked` and `MessageLoaded` callbacks are acknowledged but neither stored nor emitted as `postal.clicked` / `postal.loaded`. Delivery outcomes (sent, delayed, failed, held, bounced, DNS errors) are still recorded. |
+
+The retention options take a whole number of days from 1 to 7300, as a number or a numeric string. Any other value leaves that purge off, and the job logs a warning that names the option but not the value. Job schedules are fixed in the job files; the periods are read from the plugin module at run time. The jobs log counts and cutoffs only, never recipients or content.
+
+`notification_retention_days` is deliberately provider-neutral. The `notification` table is shared by every notification provider in the store, and each row is delivery metadata (recipient, template, provider message id, sometimes a Reply-To address) with no retention of its own. Before you set it, check that nothing in your store relies on old rows: a notification `idempotency_key` only deduplicates while its row exists.
 
 ### Environment variables
 
@@ -30,20 +46,33 @@ The provider options above are typically wired from environment variables. The p
 | --- | --- | --- |
 | `POSTAL_AUTH_TYPE` | no | Auth mode; only `smtp-api` is supported (default `smtp-api`). |
 | `POSTAL_FROM` | no | Default sender address (`from` option). |
-| `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. |
+| `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. `localhost` and literal loopback, private or link-local IP addresses are refused when a request is sent; use a hostname. |
 | `POSTAL_API_KEY` | **yes** | Postal server API key (`api_key` option). |
 | `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path; generated if unset. |
 | `POSTAL_WEBHOOK_PUBLIC_KEY` | no | Postal's RSA public key (PEM, JWK, or the single-key JWKS from `/.well-known/jwks.json`). When set, webhooks must also carry a valid Postal signature. |
-| `POSTAL_REQUEST_TIMEOUT_MS` | no | Outbound Postal HTTP timeout in ms (default `10000`). |
-| `POSTAL_TEST_TO` | no | Default recipient for admin test sends. |
-| `POSTAL_TEMPLATE_REGISTRY` | no | JSON overriding the built-in template registry. |
-| `POSTAL_TEMPLATE_ORDER` | no | Comma-separated template display order. |
-| `POSTAL_WEBHOOK_TAG_PREFIX` | no | Overrides the tag prefix used to correlate webhook callbacks. |
-| `POSTAL_WEBHOOK_EVENTS_TABLE` | no | Overrides the webhook events table name. |
-| `POSTAL_PROVIDER_ID` | no | Overrides the notification provider id. |
-| `POSTAL_PLUGIN_MODULE` | no | Overrides the plugin module registration name. |
+| `POSTAL_REQUEST_TIMEOUT_MS` | no | Outbound Postal HTTP timeout in ms (default `10000`, clamped to 1000-60000). The `request_timeout_ms` provider option wins when set. |
+| `POSTAL_TEST_TO` | no | Recipient for admin test sends, and the address sandbox mode redirects to. |
+| `POSTAL_SANDBOX` | no | `true` redirects every recipient to `POSTAL_TEST_TO` (see [Sandbox mode](#sandbox-mode)). Off unless set. |
+| `MEDUSA_BACKEND_URL` | no | Fallback origin for the absolute webhook callback URL shown in the admin, when the request's host cannot be used. `VITE_BACKEND_URL` is the second fallback and also the admin extension's backend URL. |
+
+No other variables are read. The template registry, the webhook tag prefix (`uhlhosting.medusa-notification-postal:`), the webhook events table (`postal_webhook_events`), the provider identifier (`notification-postal`) and the module name (`postalPlugin`) are fixed in code and cannot be overridden from the environment.
 
 Keep the secret variables out of logs and client-visible surfaces; the admin settings endpoint never returns them.
+
+### Sandbox mode
+
+A staging or preview deployment sends the same mail a production one does — order confirmations, quotes, contact enquiries — to the same real customers. Set `POSTAL_SANDBOX=true` there and every recipient is replaced by `POSTAL_TEST_TO` instead:
+
+- `to`, `cc` and `bcc` all collapse to the single sandbox address, so nobody else is written to.
+- The original addresses are preserved in `X-Postal-Sandbox-To`, `-Cc` and `-Bcc`, alongside `X-Postal-Sandbox: true`. These are applied after the caller's own headers, so a notification cannot forge or overwrite them.
+- The subject is prefixed with the address it was meant for — `[sandbox: customer@example.com +3] Ihre Bestellung` — because one inbox now receives mail addressed to many different people, and the subject is the only part of that a mailbox list shows.
+
+The switch is explicit and off by default, for two reasons:
+
+- **`NODE_ENV` cannot stand in for it.** A typical Medusa container image sets `NODE_ENV=production` in its runtime stage, so staging, preview and production are all "production" to the running process and the value carries no signal.
+- **Neither can the presence of `POSTAL_TEST_TO`.** Production sets that too — it is the recipient of the admin's *send test email* button — so defaulting to on would turn one forgotten variable in production into every customer's order confirmation landing in an internal test inbox. Silently swallowing real mail is a worse failure than the one sandbox mode prevents, so it fails closed.
+
+If sandbox mode is on but `POSTAL_TEST_TO` is empty, the provider logs the misconfiguration once and sends as addressed; refusing would leave the environment unable to send anything at all.
 
 ### Settings persistence
 
@@ -60,7 +89,12 @@ module.exports = defineConfig({
   plugins: [
     {
       resolve: "@uhlhosting/medusa-notification-postal",
-      options: {},
+      // Plugin options; all optional and off by default.
+      options: {
+        notification_retention_days: 90,
+        webhook_event_retention_days: 90,
+        ignore_engagement_webhooks: true,
+      },
     },
   ],
   modules: [
@@ -78,6 +112,7 @@ module.exports = defineConfig({
               from: process.env.POSTAL_FROM,
               base_url: process.env.POSTAL_BASE_URL,
               api_key: process.env.POSTAL_API_KEY,
+              request_timeout_ms: 10000,
             },
           },
         ],
@@ -209,7 +244,7 @@ provider_data: {
 }
 ```
 
-`from_name` formats the sender as `Name <email>`. `reply_to` is forwarded to Postal and preserved in provider data.
+`from_name` formats the sender as `Name <email>`. `reply_to` is forwarded to Postal as both the `reply_to` field and the `Reply-To` header when it is exactly one bare printable-ASCII address (surrounding whitespace is trimmed). Anything else (a display name, a list, CR/LF, non-ASCII or invisible characters) is dropped and a warning is logged that names no address; the message is still sent, without a reply path. A `Reply-To` entry in `provider_data.headers` (in any letter case) gets the same check and is dropped the same way when it is not one plain address. When `reply_to` is valid it replaces any such header, and at most one `Reply-To` is sent. This makes it safe to pass a customer-supplied address, such as a contact-form enquirer's, either way.
 
 ### Programmatic Workflows
 

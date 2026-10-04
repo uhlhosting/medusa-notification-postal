@@ -64,7 +64,7 @@ stages:
 variables:
   NODE_VERSION: "22.14.0"
   # Keep in sync with the `packageManager` field in package.json.
-  PNPM_VERSION: "11.9.0"
+  PNPM_VERSION: "11.25.0"
   PNPM_STORE_DIR: "$CI_PROJECT_DIR/.pnpm-store"
   # pnpm records the result of the supply-chain verification pass in its cache
   # dir (`lockfile-verified.jsonl`) alongside the registry metadata cache.

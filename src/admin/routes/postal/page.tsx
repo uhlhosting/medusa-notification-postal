@@ -202,7 +202,7 @@ const useColumns = () => {
           const status = statusFromNotification(row.original);
           return (
             <StatusBadge color={statusBadgeColor(status)}>
-              {t(statusLabelKey(status))}
+              {t(statusLabelKey(status) as any)}
             </StatusBadge>
           );
         },
@@ -226,7 +226,7 @@ const useWebhookColumns = () => {
         header: t("postal.webhooks.status"),
         cell: ({ getValue }) => (
           <StatusBadge color={webhookStatusBadgeColor(getValue())}>
-            {t(webhookStatusLabelKey(getValue()))}
+            {t(webhookStatusLabelKey(getValue()) as any)}
           </StatusBadge>
         ),
       }),
@@ -379,7 +379,7 @@ const PostalAdminPage = () => {
         statusLabel={
           isHealthLoading
             ? t("postal.activity.checking")
-            : t(statusLabelKey)
+            : t(statusLabelKey as any)
         }
         lastSuccessfulExecution={
           lastCheckedAt
