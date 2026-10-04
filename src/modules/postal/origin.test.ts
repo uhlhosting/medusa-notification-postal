@@ -31,7 +31,19 @@ test("toAbsoluteOrigin", async (t) => {
   await t.test("handles invalid URL strings", () => {
     assert.equal(toAbsoluteOrigin("not-a-url"), null)
     assert.equal(toAbsoluteOrigin("http//example.com"), null)
+    assert.equal(toAbsoluteOrigin("http://"), null)
     assert.equal(toAbsoluteOrigin(""), null)
     assert.equal(toAbsoluteOrigin("   "), null)
+  })
+
+  await t.test("trims surrounding whitespace before parsing", () => {
+    assert.equal(toAbsoluteOrigin("  https://example.com  "), "https://example.com")
+  })
+
+  await t.test("accepts non-string values that stringify to a valid URL", () => {
+    assert.equal(
+      toAbsoluteOrigin({ toString: () => "https://example.com/path" }),
+      "https://example.com"
+    )
   })
 })
