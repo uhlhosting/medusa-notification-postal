@@ -1,3 +1,4 @@
+import net from "net"
 import {
   AbstractNotificationProviderService,
   MedusaError,
@@ -141,8 +142,58 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
   }
 
-  static validateOptions(_options: Record<string, unknown>) {
+  static validateOptions(_options?: Record<string, unknown>) {
     // Options can be empty if configured via the database.
+  }
+
+private isValidPostalUrl(urlStr: string): boolean {
+    try {
+      const url = new URL(urlStr)
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        return false
+      }
+
+      const hostname = url.hostname.toLowerCase()
+      if (hostname === "localhost") return false
+
+      if (net.isIP(hostname)) {
+        if (net.isIPv4(hostname)) {
+          const parts = hostname.split(".").map(Number)
+          // 127.0.0.0/8 (Loopback)
+          if (parts[0] === 127) return false
+          // 10.0.0.0/8 (Private)
+          if (parts[0] === 10) return false
+          // 172.16.0.0/12 (Private)
+          if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return false
+          // 192.168.0.0/16 (Private)
+          if (parts[0] === 192 && parts[1] === 168) return false
+          // 169.254.0.0/16 (Link-local)
+          if (parts[0] === 169 && parts[1] === 254) return false
+          // 0.0.0.0/8 (Current network)
+          if (parts[0] === 0) return false
+        } else if (net.isIPv6(hostname)) {
+          // ::1 (Loopback)
+          if (hostname === "::1") return false
+          // fc00::/7 (Unique local address)
+          if (hostname.startsWith("fc") || hostname.startsWith("fd")) return false
+          // fe80::/10 (Link-local)
+          if (hostname.startsWith("fe8") || hostname.startsWith("fe9") || hostname.startsWith("fea") || hostname.startsWith("feb")) return false
+          // IPv4-mapped IPv6 addresses (::ffff:192.168.1.1)
+          if (hostname.startsWith("::ffff:")) {
+            const ipv4 = hostname.split(":").pop()
+            if (ipv4 && net.isIPv4(ipv4)) {
+               const parts = ipv4.split(".").map(Number)
+               if (parts[0] === 127 || parts[0] === 10 || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || (parts[0] === 192 && parts[1] === 168) || (parts[0] === 169 && parts[1] === 254) || parts[0] === 0) {
+                 return false;
+               }
+            }
+          }
+        }
+      }
+      return true
+    } catch {
+      return false
+    }
   }
 
   private async getEffectiveConfig() {
@@ -285,6 +336,13 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       throw new MedusaError(
         MedusaError.Types.UNEXPECTED_STATE,
         "Postal API mode requires 'base_url' and 'api_key' to be configured"
+      )
+    }
+
+    if (!this.isValidPostalUrl(config.baseUrl)) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Invalid Postal base_url: Must use http/https and cannot target local or private IP addresses."
       )
     }
 

@@ -14,6 +14,12 @@ import { timingSafeEqual } from "node:crypto"
 import { postalSettingsSchema } from "./admin/plugin-settings/postal/validators"
 import { postalSendTestSchema } from "./admin/postal/send-test/validators"
 import { postalWebhookSchema } from "./postal/webhooks/[token]/validators"
+import {
+  hasValidPostalSignature,
+  POSTAL_SIGNATURE_256_HEADER,
+  POSTAL_SIGNATURE_HEADER,
+  resolvePostalWebhookPublicKey,
+} from "../modules/postal/webhook-signature"
 
 export const postalWebhookListSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
@@ -49,6 +55,50 @@ const authenticatePostalWebhook = (
     throw new MedusaError(
       MedusaError.Types.NOT_ALLOWED,
       "Invalid Postal webhook token"
+    )
+  }
+
+  next()
+}
+
+const readHeader = (req: MedusaRequest, name: string) => {
+  const value = req.headers[name]
+  return typeof value === "string" ? value : ""
+}
+
+// Optional second gate behind the URL token: when POSTAL_WEBHOOK_PUBLIC_KEY is
+// set, the request must carry a valid Postal RSA signature over the exact raw
+// body bytes. Never verify against re-serialized JSON — Postal's Ruby `to_json`
+// output differs from `JSON.stringify`. An unparseable key throws
+// UNEXPECTED_STATE (500, logged) so a misconfiguration fails closed.
+export const verifyPostalWebhookSignature = (
+  req: MedusaRequest,
+  res: MedusaResponse,
+  next: MedusaNextFunction
+) => {
+  const configuredKey = process.env.POSTAL_WEBHOOK_PUBLIC_KEY?.trim()
+
+  if (!configuredKey) {
+    return next()
+  }
+
+  const key = resolvePostalWebhookPublicKey(configuredKey)
+  const rawBody = req.rawBody
+
+  if (
+    !Buffer.isBuffer(rawBody) ||
+    !hasValidPostalSignature(
+      rawBody,
+      {
+        signature256: readHeader(req, POSTAL_SIGNATURE_256_HEADER),
+        signature: readHeader(req, POSTAL_SIGNATURE_HEADER),
+      },
+      key
+    )
+  ) {
+    throw new MedusaError(
+      MedusaError.Types.NOT_ALLOWED,
+      "Invalid Postal webhook signature"
     )
   }
 
@@ -114,9 +164,11 @@ export default defineMiddlewares({
     {
       matcher: "/postal/webhooks/:token",
       method: "POST",
-      bodyParser: { sizeLimit: "512kb" },
+      // preserveRawBody exposes the exact bytes Postal signed as req.rawBody.
+      bodyParser: { sizeLimit: "512kb", preserveRawBody: true },
       middlewares: [
         authenticatePostalWebhook,
+        verifyPostalWebhookSignature,
         validateAndTransformBody(postalWebhookSchema)
       ],
     },
