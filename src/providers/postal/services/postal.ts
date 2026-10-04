@@ -21,6 +21,16 @@ import { POSTAL_WEBHOOK_TAG_PREFIX } from "../../../modules/postal/webhooks"
 
 const CRLF_REGEX = /[\r\n]/
 
+// The first two octets are enough to place an address in a loopback, private or
+// link-local range.
+const isNonPublicIPv4 = (a: number, b: number): boolean =>
+  a === 0 || // 0.0.0.0/8 (current network)
+  a === 10 || // 10.0.0.0/8 (private)
+  a === 127 || // 127.0.0.0/8 (loopback)
+  (a === 169 && b === 254) || // 169.254.0.0/16 (link-local)
+  (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12 (private)
+  (a === 192 && b === 168) // 192.168.0.0/16 (private)
+
 type PostalAuthType = "smtp-api"
 
 interface PostalOptions {
@@ -393,57 +403,33 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
         return false
       }
 
-      const hostname = url.hostname.toLowerCase()
+      // `URL#hostname` keeps the brackets around an IPv6 literal, which
+      // `net.isIP` does not accept.
+      const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "")
       if (hostname === "localhost") return false
 
-      if (net.isIP(hostname)) {
-        if (net.isIPv4(hostname)) {
-          const parts = hostname.split(".").map(Number)
-          // 127.0.0.0/8 (Loopback)
-          if (parts[0] === 127) return false
-          // 10.0.0.0/8 (Private)
-          if (parts[0] === 10) return false
-          // 172.16.0.0/12 (Private)
-          if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return false
-          // 192.168.0.0/16 (Private)
-          if (parts[0] === 192 && parts[1] === 168) return false
-          // 169.254.0.0/16 (Link-local)
-          if (parts[0] === 169 && parts[1] === 254) return false
-          // 0.0.0.0/8 (Current network)
-          if (parts[0] === 0) return false
-        } else if (net.isIPv6(hostname)) {
-          // ::1 (Loopback)
-          if (hostname === "::1") return false
-          // fc00::/7 (Unique local address)
-          if (hostname.startsWith("fc") || hostname.startsWith("fd")) return false
-          // fe80::/10 (Link-local)
-          if (
-            hostname.startsWith("fe8") ||
-            hostname.startsWith("fe9") ||
-            hostname.startsWith("fea") ||
-            hostname.startsWith("feb")
-          ) {
-            return false
-          }
-          // IPv4-mapped IPv6 addresses (::ffff:192.168.1.1)
-          if (hostname.startsWith("::ffff:")) {
-            const ipv4 = hostname.split(":").pop()
-            if (ipv4 && net.isIPv4(ipv4)) {
-              const parts = ipv4.split(".").map(Number)
-              if (
-                parts[0] === 127 ||
-                parts[0] === 10 ||
-                (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
-                (parts[0] === 192 && parts[1] === 168) ||
-                (parts[0] === 169 && parts[1] === 254) ||
-                parts[0] === 0
-              ) {
-                return false
-              }
-            }
-          }
+      if (net.isIPv4(hostname)) {
+        const [a, b] = hostname.split(".").map(Number)
+        return !isNonPublicIPv4(a, b)
+      }
+
+      if (net.isIPv6(hostname)) {
+        if (hostname === "::1" || hostname === "::") return false
+
+        const first = parseInt(hostname.split(":")[0] || "0", 16)
+        // fc00::/7 (Unique local address)
+        if ((first & 0xfe00) === 0xfc00) return false
+        // fe80::/10 (Link-local)
+        if ((first & 0xffc0) === 0xfe80) return false
+
+        // IPv4-mapped (::ffff:192.168.1.1); `URL` serialises it as ::ffff:c0a8:101
+        const mapped = hostname.match(/^::ffff:([0-9a-f]{1,4}):[0-9a-f]{1,4}$/)
+        if (mapped) {
+          const high = parseInt(mapped[1], 16)
+          return !isNonPublicIPv4(high >> 8, high & 0xff)
         }
       }
+
       return true
     } catch {
       return false

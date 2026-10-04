@@ -1087,6 +1087,12 @@ for (const base_url of [
   "http://192.168.1.5",
   "http://169.254.169.254",
   "http://0.0.0.0",
+  "http://[::1]",
+  "http://[::]",
+  "http://[fd00::1]",
+  "http://[fe80::1]",
+  "http://[::ffff:192.168.1.1]",
+  "http://[::ffff:127.0.0.1]",
 ]) {
   test(`fetchPostalApi refuses a local or private base_url (${base_url}) before any request`, async () => {
     let fetched = false
@@ -1105,14 +1111,22 @@ for (const base_url of [
   })
 }
 
-test("fetchPostalApi still reaches a public hostname base_url", async () => {
-  const calls: Array<{ body: any }> = []
-  globalThis.fetch = okFetch(calls)
+for (const base_url of [
+  "https://postal.example.com",
+  "http://203.0.113.10",
+  "http://[2606:4700:4700::1111]",
+  // Not unique-local or link-local: the first hextet is 0x00fd / 0x0fe8.
+  "http://[fd::1]",
+  "http://[fe8::1]",
+]) {
+  test(`fetchPostalApi still reaches a public base_url (${base_url})`, async () => {
+    const calls: Array<{ body: any }> = []
+    globalThis.fetch = okFetch(calls)
 
-  await createServiceFor("https://postal.example.com")["fetchPostalApi"](
-    "send/message",
-    { subject: "S" }
-  )
+    await createServiceFor(base_url)["fetchPostalApi"]("send/message", {
+      subject: "S",
+    })
 
-  assert.equal(calls.length, 1)
-})
+    assert.equal(calls.length, 1)
+  })
+}
