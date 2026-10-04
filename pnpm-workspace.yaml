@@ -9,7 +9,6 @@ packages:
 minimumReleaseAgeExclude:
   - "@medusajs/*"
 overrides:
-  zod: 4.4.3
   lodash: 4.18.1
   # @tanstack/react-virtual 3.14.10 currently declares an unpublished
   # @tanstack/virtual-core 3.17.8 dependency. Keep the last resolvable pair.
