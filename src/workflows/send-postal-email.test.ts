@@ -84,3 +84,11 @@ test("normalizeRecipients returns empty array for only empty strings", () => {
   const result = normalizeRecipients(["", "   "])
   assert.deepEqual(result, [])
 })
+
+test("normalizeRecipients returns empty array for a single empty string", () => {
+  assert.deepEqual(normalizeRecipients(""), [])
+})
+
+test("normalizeRecipients returns empty array for a single whitespace string", () => {
+  assert.deepEqual(normalizeRecipients("   "), [])
+})
