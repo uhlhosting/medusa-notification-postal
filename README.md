@@ -103,7 +103,7 @@ the supported Medusa release depends on:
 
 | Package | Version |
 | --- | --- |
-| `@medusajs/*` | `2.20.1` (`@medusajs/ui` `4.2.3`) |
+| `@medusajs/*` | `2.21.2` (`@medusajs/ui` `4.2.6`) |
 | `@tanstack/react-query` | `5.64.2` |
 | `i18next` | `23.7.11` |
 | `react-i18next` | `13.5.0` |
