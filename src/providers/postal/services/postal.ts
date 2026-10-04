@@ -1,3 +1,4 @@
+import net from "net"
 import {
   AbstractNotificationProviderService,
   MedusaError,
@@ -17,6 +18,18 @@ import { isSingleEmailAddress } from "../address"
 // The webhook side matches this exact prefix to attribute callbacks back to the
 // plugin, so writer and reader must share one definition.
 import { POSTAL_WEBHOOK_TAG_PREFIX } from "../../../modules/postal/webhooks"
+
+const CRLF_REGEX = /[\r\n]/
+
+// The first two octets are enough to place an address in a loopback, private or
+// link-local range.
+const isNonPublicIPv4 = (a: number, b: number): boolean =>
+  a === 0 || // 0.0.0.0/8 (current network)
+  a === 10 || // 10.0.0.0/8 (private)
+  a === 127 || // 127.0.0.0/8 (loopback)
+  (a === 169 && b === 254) || // 169.254.0.0/16 (link-local)
+  (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12 (private)
+  (a === 192 && b === 168) // 192.168.0.0/16 (private)
 
 type PostalAuthType = "smtp-api"
 
@@ -383,10 +396,57 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
   }
 
+  private isValidPostalUrl(urlStr: string): boolean {
+    try {
+      const url = new URL(urlStr)
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        return false
+      }
+
+      // `URL#hostname` keeps the brackets around an IPv6 literal, which
+      // `net.isIP` does not accept.
+      const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "")
+      if (hostname === "localhost") return false
+
+      if (net.isIPv4(hostname)) {
+        const [a, b] = hostname.split(".").map(Number)
+        return !isNonPublicIPv4(a, b)
+      }
+
+      if (net.isIPv6(hostname)) {
+        if (hostname === "::1" || hostname === "::") return false
+
+        const first = parseInt(hostname.split(":")[0] || "0", 16)
+        // fc00::/7 (Unique local address)
+        if ((first & 0xfe00) === 0xfc00) return false
+        // fe80::/10 (Link-local)
+        if ((first & 0xffc0) === 0xfe80) return false
+
+        // IPv4-mapped (::ffff:192.168.1.1); `URL` serialises it as ::ffff:c0a8:101
+        const mapped = hostname.match(/^::ffff:([0-9a-f]{1,4}):[0-9a-f]{1,4}$/)
+        if (mapped) {
+          const high = parseInt(mapped[1], 16)
+          return !isNonPublicIPv4(high >> 8, high & 0xff)
+        }
+      }
+
+      return true
+    } catch {
+      return false
+    }
+  }
+
   private async fetchPostalApi(
     path: string,
     payload: Record<string, unknown> | PostalSendPayload
   ): Promise<PostalApiData> {
+    if (!this.isValidPostalUrl(this.config_.baseUrl)) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Invalid Postal base_url: Must use http/https and cannot target local or private IP addresses."
+      )
+    }
+
     const controller = new AbortController()
     const timeout = setTimeout(
       () => controller.abort(),
@@ -516,7 +576,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       const name = String(key).trim()
       const val = String(value ?? "").trim()
       // Reject headers with CRLF injection characters in name or value
-      if (/[\r\n]/.test(name) || /[\r\n]/.test(val)) {
+      if (CRLF_REGEX.test(name) || CRLF_REGEX.test(val)) {
         continue
       }
       if (!PostalNotificationService.isAllowedHeader(name)) {
@@ -621,7 +681,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
   private static warnedAboutUnconfiguredSandbox = false
 
   private static assertNoHeaderInjection(value: string, field: string): void {
-    if (/[\r\n]/.test(value)) {
+    if (CRLF_REGEX.test(value)) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
         `Postal ${field} must not contain CR/LF characters`
@@ -657,7 +717,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     )
     const filteredCustomArgHeaders = this.filterHeaders(customArgHeaders)
     const replyToHeader: Record<string, string> =
-      input.sender.reply_to && !/[\r\n]/.test(input.sender.reply_to)
+      input.sender.reply_to && !CRLF_REGEX.test(input.sender.reply_to)
         ? { "Reply-To": input.sender.reply_to }
         : {}
     // Sandbox headers are merged last: they record where the message would

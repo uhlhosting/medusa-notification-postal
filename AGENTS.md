@@ -42,7 +42,7 @@
 8. Postal webhook callbacks must use a tokenized store route, and the exact tokenized URL should be surfaced from an admin-only view rather than the settings surface. Signature verification is layered on top of the token, never a replacement for it
 9. Persistence goes through Medusa data primitives: the `postal_setting` and `postal_webhook_events` DML models + module service (no raw SQL, no PG-connection probing), with tables created by migrations (never on request paths)
 10. The admin webhook URL endpoint should return the tokenized path plus an absolute callback URL when the request origin can be resolved
-11. The provider must reject CR/LF characters in the sender address, subject, and recipients, and require an http/https `base_url`
+11. The provider must reject CR/LF characters in the sender address, subject, and recipients, and require an http/https `base_url`, and `fetchPostalApi` must refuse a `base_url` that is `localhost` or a literal loopback, private, or link-local IP address before making any request (SSRF guard; `base_url` can be edited through the admin settings)
 12. The public webhook route must validate its body and enforce a bounded body-size cap
 13. Admin message-inspection must delegate to the resolved provider service, not a duplicated Postal HTTP client
 14. The build must emit TypeScript declarations so every `types`/`exports` target advertised in `package.json` resolves for consumers

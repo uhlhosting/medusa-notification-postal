@@ -23,6 +23,10 @@ import {
   PluginShell,
 } from "../../../components/admin-ui";
 import { sdk } from "../../../lib/client";
+import {
+  toPostalSettingsPayload,
+  type PostalTestSendPayload,
+} from "../../../lib/postal-payloads";
 import { ensurePostalAdminTranslations } from "../../../lib/i18n";
 import {
   getPostalTemplateExample,
@@ -431,7 +435,7 @@ export const PostalSettingsPage = () => {
   const saveMutation = useMutation({
     mutationFn: (payload: {
       action: "save";
-      settings: Omit<PostalSettingsForm, "api_key">;
+      settings: ReturnType<typeof toPostalSettingsPayload>;
     }) =>
       sdk.client.fetch("/admin/plugin-settings/postal", {
         method: "POST",
@@ -456,27 +460,16 @@ export const PostalSettingsPage = () => {
   });
 
   const testMutation = useMutation({
-    mutationFn: (payload: {
-      to?: string;
-      cc?: string[];
-      bcc?: string[];
-      from_name?: string;
-      reply_to?: string;
-      template?: string;
-      subject?: string;
-      text?: string;
-      html?: string;
-      headers?: Record<string, string>;
-      custom_args?: Record<string, unknown>;
-      metadata?: Record<string, unknown>;
-    }) =>
+    mutationFn: (payload: PostalTestSendPayload) =>
       sdk.client.fetch("/admin/postal/send-test", {
         method: "POST",
         body: payload,
       }),
     onSuccess: (res: any) => {
       toast.success(
-        `${t("postal.toast.test_queued_prefix")} ${res?.to || t("postal.recipient_fallback")}`,
+        `${t("postal.toast.test_queued_prefix")} ${
+          res?.delivery?.to?.join(", ") || t("postal.recipient_fallback")
+        }`,
       );
       refetch();
     },
@@ -664,12 +657,7 @@ export const PostalSettingsPage = () => {
                 onClick={() =>
                   saveMutation.mutate({
                     action: "save",
-                    settings: {
-                      auth_type: form.auth_type,
-                      from: form.from,
-                      base_url: form.base_url,
-                      test_to: form.test_to,
-                    },
+                    settings: toPostalSettingsPayload(form),
                   })
                 }
                 isLoading={saveMutation.isPending}

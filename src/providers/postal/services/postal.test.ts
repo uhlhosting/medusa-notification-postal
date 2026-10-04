@@ -1067,3 +1067,66 @@ test("send arms its abort timer with the request_timeout_ms provider option", as
     }
   }
 })
+
+const createServiceFor = (base_url: string) =>
+  new PostalNotificationService(
+    { logger },
+    {
+      from: "ops@example.com",
+      base_url,
+      api_key: "secret",
+      auth_type: "smtp-api",
+    }
+  )
+
+for (const base_url of [
+  "http://localhost:5000",
+  "http://127.0.0.1",
+  "http://10.0.0.1",
+  "http://172.16.0.1",
+  "http://192.168.1.5",
+  "http://169.254.169.254",
+  "http://0.0.0.0",
+  "http://[::1]",
+  "http://[::]",
+  "http://[fd00::1]",
+  "http://[fe80::1]",
+  "http://[::ffff:192.168.1.1]",
+  "http://[::ffff:127.0.0.1]",
+]) {
+  test(`fetchPostalApi refuses a local or private base_url (${base_url}) before any request`, async () => {
+    let fetched = false
+    globalThis.fetch = (async () => {
+      fetched = true
+      throw new Error("must not be reached")
+    }) as unknown as typeof fetch
+
+    await assert.rejects(
+      createServiceFor(base_url)["fetchPostalApi"]("send/message", {}),
+      (err: any) =>
+        err.type === MedusaError.Types.INVALID_DATA &&
+        err.message.includes("Invalid Postal base_url")
+    )
+    assert.equal(fetched, false)
+  })
+}
+
+for (const base_url of [
+  "https://postal.example.com",
+  "http://203.0.113.10",
+  "http://[2606:4700:4700::1111]",
+  // Not unique-local or link-local: the first hextet is 0x00fd / 0x0fe8.
+  "http://[fd::1]",
+  "http://[fe8::1]",
+]) {
+  test(`fetchPostalApi still reaches a public base_url (${base_url})`, async () => {
+    const calls: Array<{ body: any }> = []
+    globalThis.fetch = okFetch(calls)
+
+    await createServiceFor(base_url)["fetchPostalApi"]("send/message", {
+      subject: "S",
+    })
+
+    assert.equal(calls.length, 1)
+  })
+}

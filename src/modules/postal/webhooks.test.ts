@@ -6,6 +6,8 @@ import {
   isPostalSentWebhookFromPlugin,
   normalizePostalWebhookPayload,
   recordPostalWebhookEvent,
+  unwrapPostalWebhookEnvelope,
+  POSTAL_WEBHOOK_TAG_PREFIX,
 } from "./webhooks"
 
 test("normalizePostalWebhookPayload maps Postal message delivery events", () => {
@@ -681,6 +683,166 @@ test("listPostalWebhookEvents returns an empty list when no service is available
   const rows = await listPostalWebhookEvents(null, 25)
 
   assert.deepEqual(rows, [])
+})
+
+// Postal POSTs every webhook as { event, timestamp, payload, uuid }; the event's
+// own fields live in the inner `payload`.
+const postalEnvelope = (
+  event: string,
+  inner: Record<string, unknown>
+): Record<string, unknown> => ({
+  event,
+  timestamp: 1782839999.5,
+  payload: inner,
+  uuid: "9d1f4c1e-0000-4000-8000-000000000001",
+})
+
+const taggedMessage = {
+  id: 28638,
+  token: "abc",
+  direction: "outgoing",
+  message_id: "20260630171223.124694.63496@example.com",
+  to: "customer@example.com",
+  from: "shop@example.com",
+  subject: "Order confirmation",
+  timestamp: 1782839544.28,
+  spam_status: "NotSpam",
+  tag: `${POSTAL_WEBHOOK_TAG_PREFIX}order-placed`,
+}
+
+test("unwrapPostalWebhookEnvelope exposes the inner fields and keeps the event name", () => {
+  const unwrapped = unwrapPostalWebhookEnvelope(
+    postalEnvelope("MessageSent", { message: taggedMessage, status: "Sent" })
+  )
+
+  assert.equal(unwrapped.event, "MessageSent")
+  assert.equal(unwrapped.status, "Sent")
+  assert.deepEqual(unwrapped.message, taggedMessage)
+})
+
+test("unwrapPostalWebhookEnvelope prefers the event's own timestamp over the delivery timestamp", () => {
+  const withInner = unwrapPostalWebhookEnvelope(
+    postalEnvelope("MessageSent", { status: "Sent", timestamp: 1000.5 })
+  )
+  const withoutInner = unwrapPostalWebhookEnvelope(
+    postalEnvelope("MessageHeld", { status: "Held" })
+  )
+
+  assert.equal(withInner.timestamp, 1000.5)
+  assert.equal(withoutInner.timestamp, 1782839999.5)
+})
+
+test("unwrapPostalWebhookEnvelope leaves bare payloads and non-envelopes unchanged", () => {
+  const bare = { message: taggedMessage, status: "Sent" }
+  const payloadKeyOnly = { payload: { message: taggedMessage }, status: "Sent" }
+  const arrayPayload = { event: "MessageSent", payload: [1, 2] }
+
+  assert.equal(unwrapPostalWebhookEnvelope(bare), bare)
+  assert.equal(unwrapPostalWebhookEnvelope(payloadKeyOnly), payloadKeyOnly)
+  assert.equal(unwrapPostalWebhookEnvelope(arrayPayload), arrayPayload)
+})
+
+test("a real Postal envelope is recognised as plugin mail only when its message is tagged", () => {
+  const tagged = postalEnvelope("MessageSent", { message: taggedMessage, status: "Sent" })
+  const untagged = postalEnvelope("MessageSent", {
+    message: { ...taggedMessage, tag: "someone-elses-app" },
+    status: "Sent",
+  })
+
+  assert.equal(isPostalWebhookFromPlugin(tagged), true)
+  assert.equal(isPostalSentWebhookFromPlugin(tagged), true)
+  assert.equal(isPostalWebhookFromPlugin(untagged), false)
+})
+
+test("normalizePostalWebhookPayload reads a real MessageSent envelope and stores the full body", () => {
+  const body = postalEnvelope("MessageSent", {
+    message: taggedMessage,
+    status: "Sent",
+    details: "accepted",
+    timestamp: 1782839545.73,
+  })
+
+  const event = normalizePostalWebhookPayload(body)
+
+  assert.equal(event.event_type, "message.sent")
+  assert.equal(event.status, "sent")
+  assert.equal(event.recipient, "customer@example.com")
+  assert.equal(event.message_id, taggedMessage.message_id)
+  assert.equal(event.occurred_at, new Date(1782839545.73 * 1000).toISOString())
+  assert.equal(event.payload, body)
+})
+
+test("normalizePostalWebhookPayload maps Postal's HardFail and SoftFail statuses", () => {
+  const failed = normalizePostalWebhookPayload(
+    postalEnvelope("MessageDeliveryFailed", {
+      message: taggedMessage,
+      status: "HardFail",
+      details: "550 no such user",
+    })
+  )
+  const delayed = normalizePostalWebhookPayload(
+    postalEnvelope("MessageDelayed", {
+      message: taggedMessage,
+      status: "SoftFail",
+      details: "mailbox busy",
+    })
+  )
+
+  assert.equal(failed.event_type, "message.delivery_failed")
+  assert.equal(failed.status, "failed")
+  assert.equal(delayed.event_type, "message.delayed")
+  assert.equal(delayed.status, "delayed")
+})
+
+test("recordPostalWebhookEvent persists a real envelope instead of ignoring it", async () => {
+  const service = createFakeWebhookService()
+  const body = postalEnvelope("MessageSent", {
+    message: taggedMessage,
+    status: "Sent",
+    timestamp: 1782839545.73,
+  })
+
+  const event = await recordPostalWebhookEvent(service, body)
+
+  assert.ok(event)
+  assert.equal(service.created.length, 1)
+  assert.equal(service.created[0].status, "sent")
+  assert.equal(service.created[0].recipient, "customer@example.com")
+  assert.equal(service.created[0].message_id, taggedMessage.message_id)
+  assert.equal(service.created[0].payload, body)
+})
+
+test("recordPostalWebhookEvent still ignores a real envelope for mail this plugin did not send", async () => {
+  const service = createFakeWebhookService()
+
+  const event = await recordPostalWebhookEvent(
+    service,
+    postalEnvelope("MessageSent", {
+      message: { ...taggedMessage, tag: "someone-elses-app" },
+      status: "Sent",
+    })
+  )
+
+  assert.equal(event, null)
+  assert.equal(service.created.length, 0)
+})
+
+test("normalizePostalWebhookPayload reads Postal's float epoch seconds and drops out-of-range values", () => {
+  const seconds = normalizePostalWebhookPayload({
+    event: "MessageSent",
+    message: taggedMessage,
+    status: "Sent",
+    timestamp: 1782839545.73,
+  })
+  const milliseconds = normalizePostalWebhookPayload({
+    event: "MessageSent",
+    message: taggedMessage,
+    status: "Sent",
+    timestamp: 1782839545730,
+  })
+
+  assert.equal(seconds.occurred_at, "2026-06-30T17:12:25.730Z")
+  assert.equal(milliseconds.occurred_at, null)
 })
 
 test("recordPostalWebhookEvent drops engagement callbacks when told to ignore them", async () => {
