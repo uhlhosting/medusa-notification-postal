@@ -25,3 +25,8 @@ allowBuilds:
   protobufjs: true
   sharp: true
   unrs-resolver: true
+# Refuse to install anything whose `engines` excludes the running Node.js. Some
+# dev tooling sets a higher floor than the package's own `engines.node` (for
+# example @semantic-release/git 11 wants ^22.22.2), so CI's NODE_VERSION has to
+# satisfy the whole tree, not only this package.
+engineStrict: true

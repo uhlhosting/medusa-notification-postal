@@ -10,19 +10,21 @@ const pkgPath = path.join(cwd, "package.json")
 const pnpmExecPath = process.env.npm_execpath
 
 function runPnpm(args) {
-  if (pnpmExecPath) {
-    return execFileSync(process.execPath, [pnpmExecPath, ...args], {
-      cwd,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-    })
-  }
-
-  return execFileSync("pnpm", args, {
+  const options = {
     cwd,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
-  })
+  }
+
+  if (pnpmExecPath) {
+    // pnpm 12 runs as a native executable (@pnpm/exe); earlier releases expose
+    // a JavaScript entry point that has to be started through Node.js.
+    return /\.[cm]?js$/.test(pnpmExecPath)
+      ? execFileSync(process.execPath, [pnpmExecPath, ...args], options)
+      : execFileSync(pnpmExecPath, args, options)
+  }
+
+  return execFileSync("pnpm", args, options)
 }
 
 function readJson(filePath) {
