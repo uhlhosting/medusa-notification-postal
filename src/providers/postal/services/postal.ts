@@ -20,6 +20,29 @@ import { POSTAL_WEBHOOK_TAG_PREFIX } from "../../../modules/postal/webhooks"
 import { getPostalSettings, type PostalSettingService } from "../../../modules/postal/settings"
 import { resolvePostalModule } from "../../../modules/postal/constants"
 
+// Loopback, private, link-local and unspecified address literals. BlockList
+// also matches their IPv4-mapped IPv6 forms, e.g. ::ffff:10.0.0.1, which the
+// URL parser normalises to ::ffff:a00:1.
+const NON_PUBLIC_ADDRESSES = new net.BlockList()
+for (const [network, prefix] of [
+  ["0.0.0.0", 8],
+  ["10.0.0.0", 8],
+  ["127.0.0.0", 8],
+  ["169.254.0.0", 16],
+  ["172.16.0.0", 12],
+  ["192.168.0.0", 16],
+] as const) {
+  NON_PUBLIC_ADDRESSES.addSubnet(network, prefix, "ipv4")
+}
+for (const [network, prefix] of [
+  ["::", 128],
+  ["::1", 128],
+  ["fc00::", 7],
+  ["fe80::", 10],
+] as const) {
+  NON_PUBLIC_ADDRESSES.addSubnet(network, prefix, "ipv6")
+}
+
 type PostalAuthType = "smtp-api"
 
 interface PostalOptions {
@@ -146,51 +169,21 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     // Options can be empty if configured via the database.
   }
 
-private isValidPostalUrl(urlStr: string): boolean {
+  private isValidPostalUrl(urlStr: string): boolean {
     try {
       const url = new URL(urlStr)
       if (url.protocol !== "http:" && url.protocol !== "https:") {
         return false
       }
 
-      const hostname = url.hostname.toLowerCase()
+      // WHATWG URL keeps IPv6 literals in brackets ("[::1]"), which net.isIP
+      // does not recognise, so strip them before classifying the address.
+      const hostname = url.hostname.toLowerCase().replace(/^\[(.*)\]$/, "$1")
       if (hostname === "localhost") return false
 
-      if (net.isIP(hostname)) {
-        if (net.isIPv4(hostname)) {
-          const parts = hostname.split(".").map(Number)
-          // 127.0.0.0/8 (Loopback)
-          if (parts[0] === 127) return false
-          // 10.0.0.0/8 (Private)
-          if (parts[0] === 10) return false
-          // 172.16.0.0/12 (Private)
-          if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return false
-          // 192.168.0.0/16 (Private)
-          if (parts[0] === 192 && parts[1] === 168) return false
-          // 169.254.0.0/16 (Link-local)
-          if (parts[0] === 169 && parts[1] === 254) return false
-          // 0.0.0.0/8 (Current network)
-          if (parts[0] === 0) return false
-        } else if (net.isIPv6(hostname)) {
-          // ::1 (Loopback)
-          if (hostname === "::1") return false
-          // fc00::/7 (Unique local address)
-          if (hostname.startsWith("fc") || hostname.startsWith("fd")) return false
-          // fe80::/10 (Link-local)
-          if (hostname.startsWith("fe8") || hostname.startsWith("fe9") || hostname.startsWith("fea") || hostname.startsWith("feb")) return false
-          // IPv4-mapped IPv6 addresses (::ffff:192.168.1.1)
-          if (hostname.startsWith("::ffff:")) {
-            const ipv4 = hostname.split(":").pop()
-            if (ipv4 && net.isIPv4(ipv4)) {
-               const parts = ipv4.split(".").map(Number)
-               if (parts[0] === 127 || parts[0] === 10 || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || (parts[0] === 192 && parts[1] === 168) || (parts[0] === 169 && parts[1] === 254) || parts[0] === 0) {
-                 return false;
-               }
-            }
-          }
-        }
-      }
-      return true
+      const family = net.isIP(hostname)
+      if (family === 0) return true
+      return !NON_PUBLIC_ADDRESSES.check(hostname, family === 4 ? "ipv4" : "ipv6")
     } catch {
       return false
     }

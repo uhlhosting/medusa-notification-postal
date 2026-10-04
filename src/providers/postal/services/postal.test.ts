@@ -548,3 +548,30 @@ describe("PostalNotificationService URL Validation", () => {
   })
 
 });
+
+test("isValidPostalUrl rejects IPv6 and IPv4-mapped non-public address literals", () => {
+  const service = new PostalNotificationService({} as any, { auth_type: "smtp-api" } as any)
+  const isValid = (url: string) => (service as any).isValidPostalUrl(url)
+
+  for (const url of [
+    "http://[::1]:5000",
+    "http://[::]/",
+    "http://[fd00::1]/",
+    "http://[fe80::1]/",
+    "http://[::ffff:10.0.0.1]/",
+    "http://[::ffff:127.0.0.1]/",
+    "http://172.31.255.255/",
+    "ftp://postal.example.com/",
+  ]) {
+    assert.equal(isValid(url), false, url)
+  }
+
+  for (const url of [
+    "https://postal.example.com",
+    "https://93.184.216.34/",
+    "https://[2606:4700::1111]/",
+    "http://172.32.0.1/",
+  ]) {
+    assert.equal(isValid(url), true, url)
+  }
+})
