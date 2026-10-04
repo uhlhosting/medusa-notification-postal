@@ -30,9 +30,10 @@ The provider options above are typically wired from environment variables. The p
 | --- | --- | --- |
 | `POSTAL_AUTH_TYPE` | no | Auth mode; only `smtp-api` is supported (default `smtp-api`). |
 | `POSTAL_FROM` | no | Default sender address (`from` option). |
-| `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. |
+| `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`, and must not be a loopback, private or link-local IP literal (`localhost`, `10.x`, `127.x`, `[::1]`, `[fd00::]`…): the API key is sent to this host. Use a hostname for an internal Postal; hostnames are not resolved. |
 | `POSTAL_API_KEY` | **yes** | Postal server API key (`api_key` option). |
 | `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path. Required for webhooks: when unset, every callback is rejected and the admin webhook URL endpoint reports it as not configured. Use a long random value, e.g. `openssl rand -hex 32`. |
+| `POSTAL_WEBHOOK_PUBLIC_KEY` | no | Postal's RSA public key (PEM, JWK, or the single-key JWKS from `/.well-known/jwks.json`). When set, webhooks must also carry a valid Postal signature. |
 | `POSTAL_REQUEST_TIMEOUT_MS` | no | Deadline in ms for a whole Postal API request, response body included (default `10000`, clamped to 1000–60000). |
 | `POSTAL_TEST_TO` | no | Default recipient for admin test sends. |
 
@@ -135,6 +136,18 @@ Postal 3.3.7 and later refuse to deliver webhooks to private, loopback and link-
 The admin page also shows a webhook event log and the endpoint to configure inside Postal.
 
 Postal's HTTP payload docs are separate from webhook delivery callbacks and are mainly useful if you are also handling inbound mail by HTTP. Postal's auto-responder, bounce, wildcard, and address-tag docs are relevant when you want to route inbound mail or reason about delivery replies, but they do not change the webhook callback contract itself.
+
+### Signature verification (optional)
+
+The URL token is always required. To also verify that each webhook really came from your Postal installation, set `POSTAL_WEBHOOK_PUBLIC_KEY` to Postal's public signing key. Fetch it without authentication from `https://<postal-host>/.well-known/jwks.json` and paste the JSON as-is, or paste the key as PEM. On the Postal host, `postal default-dkim-record` also prints it: wrap the `p=` value in `-----BEGIN PUBLIC KEY-----` / `-----END PUBLIC KEY-----` lines. PEM with literal `\n` escapes (single-line env files) is accepted.
+
+When the key is set, the plugin verifies the signature over the exact raw request body:
+
+- `X-Postal-Signature-256` (RSA SHA256, Postal ≥ 3.2) is checked whenever present. A failed SHA256 check is never retried with SHA1.
+- `X-Postal-Signature` (RSA SHA1, legacy Postal 2.x) is used only when the SHA256 header is absent.
+- Requests with a missing or invalid signature are rejected with `400`. An unparseable key fails closed: every token-authenticated webhook gets a `500` and the backend log says why.
+
+Leave the variable unset to rely on the URL token alone.
 
 ### Template registry and metadata passthrough
 

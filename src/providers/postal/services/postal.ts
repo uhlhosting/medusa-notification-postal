@@ -1,3 +1,4 @@
+import net from "net"
 import {
   AbstractNotificationProviderService,
   MedusaError,
@@ -18,6 +19,8 @@ import {
 import { POSTAL_WEBHOOK_TAG_PREFIX } from "../../../modules/postal/webhooks"
 import { getPostalSettings, type PostalSettingService } from "../../../modules/postal/settings"
 import { resolvePostalModule } from "../../../modules/postal/constants"
+
+const CRLF_REGEX = /[\r\n]/
 
 type PostalAuthType = "smtp-api"
 
@@ -91,6 +94,40 @@ type PostalConfig = {
   baseUrl: string
   apiKey: string
   from: string
+}
+
+// Loopback, private, link-local and unspecified ranges. BlockList also matches
+// IPv4-mapped IPv6 forms such as ::ffff:7f00:1.
+const PRIVATE_ADDRESSES = new net.BlockList()
+for (const [address, prefix] of [
+  ["0.0.0.0", 8],
+  ["10.0.0.0", 8],
+  ["127.0.0.0", 8],
+  ["169.254.0.0", 16],
+  ["172.16.0.0", 12],
+  ["192.168.0.0", 16],
+] as const) {
+  PRIVATE_ADDRESSES.addSubnet(address, prefix, "ipv4")
+}
+for (const [address, prefix] of [
+  ["::", 128],
+  ["::1", 128],
+  ["fc00::", 7],
+  ["fe80::", 10],
+] as const) {
+  PRIVATE_ADDRESSES.addSubnet(address, prefix, "ipv6")
+}
+
+// SSRF guard for IP-literal base URLs: the API key header is sent to this
+// host. URL.hostname keeps the brackets of an IPv6 literal ("[::1]"), which
+// net.isIP does not accept, so strip them first. Hostnames are not resolved.
+const isPrivateOrLocalHost = (hostname: string) => {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "")
+  if (host === "localhost") {
+    return true
+  }
+  const family = net.isIP(host)
+  return family !== 0 && PRIVATE_ADDRESSES.check(host, family === 6 ? "ipv6" : "ipv4")
 }
 
 // Invariant 11: base_url must be an absolute http(s) URL, whether it comes from
@@ -298,6 +335,13 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
     assertPostalBaseUrl(effective.baseUrl)
 
+    if (isPrivateOrLocalHost(new URL(effective.baseUrl).hostname)) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        "Invalid Postal base_url: Must use http/https and cannot target local or private IP addresses."
+      )
+    }
+
     // One deadline for the whole exchange: a server that sends headers and
     // then stalls the body must not hang the send (invariant 7).
     const signal = AbortSignal.timeout(resolveRequestTimeoutMs())
@@ -382,7 +426,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       const name = String(key).trim()
       const val = String(value ?? "").trim()
       // Reject headers with CRLF injection characters in name or value
-      if (/[\r\n]/.test(name) || /[\r\n]/.test(val)) {
+      if (CRLF_REGEX.test(name) || CRLF_REGEX.test(val)) {
         continue
       }
       if (!PostalNotificationService.isAllowedHeader(name)) {
@@ -394,7 +438,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
   }
 
   private static assertNoHeaderInjection(value: string, field: string): void {
-    if (/[\r\n]/.test(value)) {
+    if (CRLF_REGEX.test(value)) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
         `Postal ${field} must not contain CR/LF characters`
@@ -423,7 +467,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     const filteredInputHeaders = this.filterHeaders(input.providerData.headers)
     const filteredCustomArgHeaders = this.filterHeaders(customArgHeaders)
     const replyToHeader: Record<string, string> =
-      input.sender.reply_to && !/[\r\n]/.test(input.sender.reply_to)
+      input.sender.reply_to && !CRLF_REGEX.test(input.sender.reply_to)
         ? { "Reply-To": input.sender.reply_to }
         : {}
     const headers: Record<string, string> = {

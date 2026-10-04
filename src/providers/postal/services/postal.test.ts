@@ -542,7 +542,10 @@ test("send times out when Postal sends headers and then stalls the body", async 
   })
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
   const { port } = server.address() as { port: number }
-  globalThis.fetch = originalFetch
+  // The SSRF guard rejects loopback literals, so address the local server by a
+  // public-looking name and route that name to it.
+  globalThis.fetch = ((url: string, init: RequestInit) =>
+    originalFetch(url.replace("postal.example.test", "127.0.0.1"), init)) as never
 
   try {
     await withEnv({ POSTAL_REQUEST_TIMEOUT_MS: "1000" }, async () => {
@@ -550,7 +553,7 @@ test("send times out when Postal sends headers and then stalls the body", async 
         { logger },
         {
           from: "ops@example.com",
-          base_url: `http://127.0.0.1:${port}`,
+          base_url: `http://postal.example.test:${port}`,
           api_key: "secret",
           auth_type: "smtp-api",
         }
@@ -595,3 +598,60 @@ test("send rejects a non-http(s) base_url sourced from the environment", async (
   })
   assert.equal(called, false)
 })
+
+import { describe, it } from "node:test";
+describe("PostalNotificationService URL Validation", () => {
+
+
+  it("fetchPostalApi rejects local/private URLs in config", async () => {
+    const service = new PostalNotificationService({} as any, { auth_type: "smtp-api" } as any)
+    ;(service as any).getEffectiveConfig = async () => ({ baseUrl: "http://localhost:5000", apiKey: "test" })
+
+    await assert.rejects(
+      service["fetchPostalApi"]("ping", {}),
+      (err: any) => err.type === MedusaError.Types.INVALID_DATA && err.message.includes("Invalid Postal base_url")
+    )
+  })
+
+  it("fetchPostalApi rejects private IP URLs in config", async () => {
+    const service = new PostalNotificationService({} as any, { auth_type: "smtp-api" } as any)
+    ;(service as any).getEffectiveConfig = async () => ({ baseUrl: "http://10.0.0.1", apiKey: "test" })
+
+    await assert.rejects(
+      service["fetchPostalApi"]("ping", {}),
+      (err: any) => err.type === MedusaError.Types.INVALID_DATA && err.message.includes("Invalid Postal base_url")
+    )
+  })
+
+  it("fetchPostalApi rejects bracketed IPv6 and IPv4-mapped literals", async () => {
+    // URL.hostname keeps IPv6 brackets ("[::1]"), which net.isIP rejects; the
+    // guard must still recognise these as local or private.
+    for (const baseUrl of [
+      "http://[::1]:5000",
+      "http://[fd00::1]",
+      "http://[fe80::1]",
+      "http://[::ffff:127.0.0.1]",
+      "http://[::ffff:10.0.0.1]",
+    ]) {
+      const service = new PostalNotificationService({} as any, { auth_type: "smtp-api" } as any)
+      ;(service as any).getEffectiveConfig = async () => ({ baseUrl, apiKey: "test" })
+
+      await assert.rejects(
+        service["fetchPostalApi"]("ping", {}),
+        (err: any) => err.type === MedusaError.Types.INVALID_DATA && err.message.includes("Invalid Postal base_url"),
+        baseUrl
+      )
+    }
+  })
+
+  it("fetchPostalApi rejects loopback IP URLs in config", async () => {
+    const service = new PostalNotificationService({} as any, { auth_type: "smtp-api" } as any)
+    ;(service as any).getEffectiveConfig = async () => ({ baseUrl: "http://127.0.0.1", apiKey: "test" })
+
+    await assert.rejects(
+      service["fetchPostalApi"]("ping", {}),
+      (err: any) => err.type === MedusaError.Types.INVALID_DATA && err.message.includes("Invalid Postal base_url")
+    )
+  })
+
+});
