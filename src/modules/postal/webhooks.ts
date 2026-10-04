@@ -54,8 +54,35 @@ const pickNestedTag = (value: unknown) =>
     ? pickString((value as Record<string, unknown>).tag)
     : ""
 
-const extractPostalWebhookTag = (payload: Record<string, unknown>) =>
-  pickString(
+// Postal POSTs every webhook as { event, timestamp, payload, uuid } and the
+// event's own fields (message, status, ...) live in the inner `payload`. The
+// tag check and the normalizer read those fields, so unwrap the envelope first.
+// A body without that shape (a bare event hash) is returned unchanged.
+export const unwrapPostalWebhookEnvelope = (
+  body: Record<string, unknown>
+): Record<string, unknown> => {
+  const inner = body.payload
+  if (
+    typeof body.event === "string" &&
+    inner &&
+    typeof inner === "object" &&
+    !Array.isArray(inner)
+  ) {
+    const fields = inner as Record<string, unknown>
+    return {
+      ...fields,
+      event: body.event,
+      timestamp: fields.timestamp ?? body.timestamp,
+    }
+  }
+
+  return body
+}
+
+const extractPostalWebhookTag = (body: Record<string, unknown>) => {
+  const payload = unwrapPostalWebhookEnvelope(body)
+
+  return pickString(
     payload.tag,
     pickNestedTag(payload.message),
     pickNestedTag(payload.original_message),
@@ -64,6 +91,7 @@ const extractPostalWebhookTag = (payload: Record<string, unknown>) =>
       (payload.data as Record<string, unknown> | undefined)?.message
     )
   )
+}
 
 export const isPostalWebhookFromPlugin = (payload: Record<string, unknown>) =>
   extractPostalWebhookTag(payload).startsWith(POSTAL_WEBHOOK_TAG_PREFIX)
@@ -87,12 +115,14 @@ const normalizeStatus = (value: string): PostalWebhookStatus => {
     case "messagedelayed":
     case "message.delayed":
     case "delayed":
+    case "softfail":
       return "delayed"
     case "messagedeliveryfailed":
     case "message.delivery.failed":
     case "message.deliveryfailed":
     case "deliveryfailed":
     case "failed":
+    case "hardfail":
     case "error":
       return "failed"
     case "messageheld":
@@ -225,23 +255,34 @@ const inferEventTypeFromPayload = (
   return "postal.webhook"
 }
 
+// Postgres rejects years outside 1..9999, and toISOString prints anything
+// beyond that as "+058465-..." (a millisecond epoch read as seconds, say).
+const toIsoTimestamp = (date: Date) => {
+  const year = date.getUTCFullYear()
+
+  return Number.isNaN(date.getTime()) || year < 1 || year > 9999
+    ? null
+    : date.toISOString()
+}
+
 const normalizeOccurredAt = (value: unknown) => {
+  // Postal sends timestamps as float seconds since the epoch.
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? toIsoTimestamp(new Date(value * 1000)) : null
+  }
+
   const normalized = sanitizeString(value)
   if (!normalized) {
     return null
   }
 
-  const parsed = new Date(normalized)
-  if (Number.isNaN(parsed.getTime())) {
-    return null
-  }
-
-  return parsed.toISOString()
+  return toIsoTimestamp(new Date(normalized))
 }
 
 export const normalizePostalWebhookPayload = (
-  payload: Record<string, unknown>
+  body: Record<string, unknown>
 ): PostalWebhookRecord => {
+  const payload = unwrapPostalWebhookEnvelope(body)
   const originalMessage = (
     payload.original_message ||
     payload.message ||
@@ -306,7 +347,8 @@ export const normalizePostalWebhookPayload = (
     message_id: messageId || null,
     recipient: recipient || null,
     occurred_at: occurredAt,
-    payload,
+    // Store the body exactly as Postal sent it, envelope included.
+    payload: body,
   }
 }
 
