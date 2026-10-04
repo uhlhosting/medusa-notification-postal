@@ -71,9 +71,9 @@
     "prepublishOnly": "pnpm run build",
     "release:check": "pnpm run commitlint && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && node scripts/verify-release.mjs",
     "semantic-release": "semantic-release",
-    "test": "tsx --test $(find src -name '*.test.ts' | sort)",
+    "test": "tsx --test 'src/**/*.test.ts'",
     "test:unit": "jest --runInBand --passWithNoTests",
-    "test:coverage": "c8 --reporter=text --reporter=cobertura --report-dir coverage node --test --import tsx $(find src -name '*.test.ts' | sort)",
+    "test:coverage": "c8 --reporter=text --reporter=cobertura --report-dir coverage node --test --import tsx 'src/**/*.test.ts'",
     "typecheck": "tsc --noEmit && pnpm run typecheck:admin",
     "typecheck:admin": "tsc -p src/admin/tsconfig.json --noEmit"
   },
