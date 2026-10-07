@@ -31,7 +31,7 @@ Every plugin option is off unless you set it, so upgrading changes nothing for a
 | Option | Default | Effect |
 | --- | --- | --- |
 | `notification_retention_days` | unset (off) | A daily job (`postal-purge-expired-notifications`, 03:30) hard-deletes **every** row in Medusa's core `notification` table created more than this many days ago, whatever its provider, channel, template, resource or status. |
-| `webhook_event_retention_days` | unset (off) | A daily job (`postal-purge-webhook-events`, 03:40) hard-deletes `postal_webhook_events` rows (recipient address and raw Postal payload) created more than this many days ago. |
+| `webhook_event_retention_days` | unset (off) | A daily job (`postal-purge-webhook-events`, 03:40) hard-deletes redacted `postal_webhook_events` delivery metadata created more than this many days ago. Recipient addresses and raw Postal payloads are never retained. |
 | `ignore_engagement_webhooks` | `false` | `MessageLinkClicked` and `MessageLoaded` callbacks are acknowledged but neither stored nor emitted as `postal.clicked` / `postal.loaded`. Delivery outcomes (sent, delayed, failed, held, bounced, DNS errors) are still recorded. |
 
 The retention options take a whole number of days from 1 to 7300, as a number or a numeric string. Any other value leaves that purge off, and the job logs a warning that names the option but not the value. Job schedules are fixed in the job files; the periods are read from the plugin module at run time. The jobs log counts and cutoffs only, never recipients or content.
@@ -168,7 +168,7 @@ It accepts the Postal message status events documented by Postal:
 
 Incoming webhook payloads are stored as raw JSON with normalized status metadata, so you can inspect delivery state changes in the admin Postal page after Postal calls back into Medusa.
 
-The admin page also shows a webhook event log and the endpoint to configure inside Postal.
+The admin page shows a redacted webhook activity log and the endpoint to configure inside Postal. It exposes event type, status, provider message ID, and timestamps only - never recipients or raw callbacks.
 
 Postal's HTTP payload docs are separate from webhook delivery callbacks and are mainly useful if you are also handling inbound mail by HTTP. Postal's auto-responder, bounce, wildcard, and address-tag docs are relevant when you want to route inbound mail or reason about delivery replies, but they do not change the webhook callback contract itself.
 
