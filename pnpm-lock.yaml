@@ -18,8 +18,8 @@ importers:
         specifier: 2.21.0
         version: 2.21.0
       '@medusajs/admin-shared':
-        specifier: 2.21.0
-        version: 2.21.0
+        specifier: 2.21.2
+        version: 2.21.2
       '@medusajs/cli':
         specifier: 2.21.0
         version: 2.21.0(@types/node@20.19.43)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1)
@@ -1144,6 +1144,9 @@ packages:
 
   '@medusajs/admin-shared@2.21.0':
     resolution: {integrity: sha512-xmAFBh6jCmogMv+jkRxDbVU78Y6jwA6MEGrqf8pOip7J6UZ/jlwS/cRwj432ywAUTeKtCDfbQMawQD16lCGpSg==}
+
+  '@medusajs/admin-shared@2.21.2':
+    resolution: {integrity: sha512-Kjlzq1u/EUyUQmALcsSFDUR7KIg0p3aFJZ6EamZxA6+6vtVmVv+q6kVvNPj4rIjQmYQ64LIHn+gJEUdMc+YgEw==}
 
   '@medusajs/admin-vite-plugin@2.21.0':
     resolution: {integrity: sha512-eqx3c416oz91Px9/gvaJ+z6QL2oFWpElBL59mzB3ZVmeEBqcnYyj8urbe/Y9hLJYiwQgf/rSn6sPNCUdIoHFnA==}
@@ -8993,6 +8996,8 @@ snapshots:
       zod: 4.4.3
 
   '@medusajs/admin-shared@2.21.0': {}
+
+  '@medusajs/admin-shared@2.21.2': {}
 
   '@medusajs/admin-vite-plugin@2.21.0(picomatch@4.0.5)(supports-color@8.1.1)(vite@7.3.6(@types/node@20.19.43)(jiti@1.21.7)(tsx@4.23.13)(yaml@2.9.0))':
     dependencies:

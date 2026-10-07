@@ -79,7 +79,7 @@
   },
   "devDependencies": {
     "@medusajs/admin-sdk": "2.21.0",
-    "@medusajs/admin-shared": "2.21.0",
+    "@medusajs/admin-shared": "2.21.2",
     "@medusajs/cli": "2.21.0",
     "@medusajs/core-flows": "2.21.0",
     "@medusajs/dashboard": "2.21.0",
