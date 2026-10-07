@@ -24,7 +24,6 @@ test("normalizePostalWebhookPayload maps Postal message delivery events", () => 
   assert.equal(event.event_type, "MessageDelivered")
   assert.equal(event.status, "sent")
   assert.equal(event.message_id, "msg_123")
-  assert.equal(event.recipient, "customer@example.com")
   assert.equal(event.occurred_at, "2026-06-28T10:00:00.000Z")
 })
 
@@ -101,7 +100,6 @@ test("normalizePostalWebhookPayload falls back to nested message data", () => {
   assert.equal(event.event_type, "message.held")
   assert.equal(event.status, "held")
   assert.equal(event.message_id, "msg_held")
-  assert.equal(event.recipient, "audit@example.com")
   assert.equal(event.occurred_at, "2026-06-28T11:30:00.000Z")
 })
 
@@ -128,13 +126,11 @@ test("normalizePostalWebhookPayload maps bounce and click style events", () => {
   assert.equal(bounced.event_type, "message.bounced")
   assert.equal(bounced.status, "bounced")
   assert.equal(bounced.message_id, "msg_bounced")
-  assert.equal(bounced.recipient, "bounce@example.com")
   assert.equal(bounced.occurred_at, "2026-06-28T12:15:00.000Z")
 
   assert.equal(clicked.event_type, "message.link_clicked")
   assert.equal(clicked.status, "clicked")
   assert.equal(clicked.message_id, "msg_clicked")
-  assert.equal(clicked.recipient, "click@example.com")
 })
 
 test("normalizePostalWebhookPayload handles missing values safely", () => {
@@ -143,7 +139,6 @@ test("normalizePostalWebhookPayload handles missing values safely", () => {
   assert.equal(event.event_type, "postal.webhook")
   assert.equal(event.status, "unknown")
   assert.equal(event.message_id, null)
-  assert.equal(event.recipient, null)
   assert.equal(event.occurred_at, null)
 })
 
@@ -419,7 +414,6 @@ test("normalizePostalWebhookPayload covers remaining explicit event aliases", ()
   assert.equal(clickedExact.status, "clicked")
   assert.equal(loaded.event_type, "message.loaded")
   assert.equal(loaded.status, "loaded")
-  assert.equal(loaded.recipient, "loaded-alias@example.com")
   assert.equal(dnsError.event_type, "domain.dns_error")
   assert.equal(dnsError.status, "unknown")
   assert.equal(held.event_type, "message.held")
@@ -537,7 +531,8 @@ test("recordPostalWebhookEvent persists a normalized event via the module servic
   const recorded = event as NonNullable<typeof event>
   assert.equal(recorded.status, "sent")
   assert.equal(recorded.message_id, "msg_recorded")
-  assert.equal(recorded.recipient, "recipient@example.com")
+  assert.equal("recipient" in recorded, false)
+  assert.deepEqual(service.created[0]!.payload, {})
 })
 
 test("recordPostalWebhookEvent is idempotent for a replayed message + event type", async () => {
@@ -754,7 +749,7 @@ test("a real Postal envelope is recognised as plugin mail only when its message 
   assert.equal(isPostalWebhookFromPlugin(untagged), false)
 })
 
-test("normalizePostalWebhookPayload reads a real MessageSent envelope and stores the full body", () => {
+test("normalizePostalWebhookPayload reads a real MessageSent envelope without retaining its body", () => {
   const body = postalEnvelope("MessageSent", {
     message: taggedMessage,
     status: "Sent",
@@ -766,10 +761,9 @@ test("normalizePostalWebhookPayload reads a real MessageSent envelope and stores
 
   assert.equal(event.event_type, "message.sent")
   assert.equal(event.status, "sent")
-  assert.equal(event.recipient, "customer@example.com")
   assert.equal(event.message_id, taggedMessage.message_id)
   assert.equal(event.occurred_at, new Date(1782839545.73 * 1000).toISOString())
-  assert.equal(event.payload, body)
+  assert.equal("payload" in event, false)
 })
 
 test("normalizePostalWebhookPayload maps Postal's HardFail and SoftFail statuses", () => {
@@ -807,9 +801,8 @@ test("recordPostalWebhookEvent persists a real envelope instead of ignoring it",
   assert.ok(event)
   assert.equal(service.created.length, 1)
   assert.equal(service.created[0].status, "sent")
-  assert.equal(service.created[0].recipient, "customer@example.com")
   assert.equal(service.created[0].message_id, taggedMessage.message_id)
-  assert.equal(service.created[0].payload, body)
+  assert.deepEqual(service.created[0].payload, {})
 })
 
 test("recordPostalWebhookEvent still ignores a real envelope for mail this plugin did not send", async () => {

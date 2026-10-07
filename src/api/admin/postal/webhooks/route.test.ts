@@ -47,6 +47,8 @@ test("admin webhook route returns webhook events from the module service", async
   assert.equal(lastConfig?.take, 100)
   assert.equal(responseBody.payload.events[0].id, "postal_webhook_1")
   assert.equal(responseBody.payload.events[0].status, "sent")
+  assert.equal("recipient" in responseBody.payload.events[0], false)
+  assert.equal("payload" in responseBody.payload.events[0], false)
 })
 
 test("admin webhook route returns an empty list when the module is unavailable", async () => {
