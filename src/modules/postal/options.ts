@@ -28,8 +28,9 @@ export type PostalPluginOptions = {
    */
   notification_retention_days?: number | string | null
   /**
-   * Hard-delete `postal_webhook_events` rows (recipient address and raw
-   * payload) created more than this many days ago. Unset = off.
+   * Hard-delete redacted delivery-activity rows created more than this many
+   * days ago. Rows contain no recipient address or raw provider payload.
+   * Unset = off.
    */
   webhook_event_retention_days?: number | string | null
   /**

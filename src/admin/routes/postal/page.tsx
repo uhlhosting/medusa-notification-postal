@@ -23,15 +23,12 @@ import { ensurePostalAdminTranslations } from "../../lib/i18n";
 
 type Notification = {
   id: string;
-  to: string;
   channel: string;
   template: string;
   created_at: string;
   status?: string;
   external_id?: string;
   provider_id?: string;
-  data: any;
-  provider_data?: any;
 };
 
 const columnHelper = createDataTableColumnHelper<Notification>();
@@ -42,10 +39,8 @@ type WebhookEvent = {
   event_type: string;
   status: string;
   message_id?: string | null;
-  recipient?: string | null;
   occurred_at?: string | null;
   created_at?: string;
-  payload?: any;
 };
 
 type AdminNotificationsResponse = {
@@ -66,38 +61,9 @@ type AdminPostalHealthResponse = {
 };
 
 
-const sanitizeEmailDisplay = (value?: string | null) => {
-  const email = String(value || "").trim();
-
-  if (!email) {
-    return "-";
-  }
-
-  const atIndex = email.lastIndexOf("@");
-  if (atIndex <= 0) {
-    return email;
-  }
-
-  const localPart = email.slice(0, atIndex);
-  const domain = email.slice(atIndex + 1).toLowerCase();
-
-  if (!localPart || !domain) {
-    return email;
-  }
-
-  const maskedLocal =
-    localPart.length <= 2
-      ? `${localPart[0] || ""}*`
-      : `${localPart[0]}***${localPart.slice(-1)}`
-
-  return `${maskedLocal}@${domain}`;
-};
-
 const statusFromNotification = (notification: Notification) => {
   const status = String(
     notification.status ||
-      notification.data?.status ||
-      notification.provider_data?.status ||
       "",
   ).toLowerCase();
 
@@ -178,12 +144,6 @@ const useColumns = () => {
 
   return useMemo(
     () => [
-      columnHelper.accessor("to", {
-        header: t("postal.activity.recipient"),
-        cell: ({ getValue }) => (
-          <Text size="small">{sanitizeEmailDisplay(getValue())}</Text>
-        ),
-      }),
       columnHelper.accessor("template", {
         header: t("postal.activity.template"),
         cell: ({ getValue }) => (
@@ -236,12 +196,6 @@ const useWebhookColumns = () => {
           <Text size="small">{getValue() || "-"}</Text>
         ),
       }),
-      webhookColumnHelper.accessor("recipient", {
-        header: t("postal.webhooks.recipient"),
-        cell: ({ getValue }) => (
-          <Text size="small">{sanitizeEmailDisplay(getValue())}</Text>
-        ),
-      }),
       webhookColumnHelper.accessor("created_at", {
         header: t("postal.webhooks.received_at"),
         cell: ({ getValue }) => (
@@ -280,7 +234,7 @@ const PostalAdminPage = () => {
         const response = await sdk.client.fetch<AdminNotificationsResponse>("/admin/notifications", {
           query: {
             fields:
-              "id,to,channel,template,data,provider_data,created_at,updated_at,status,external_id,provider_id,from",
+              "id,channel,template,created_at,updated_at,status,external_id,provider_id",
             limit: 50,
             channel: "email",
             q: searchValue || undefined,
@@ -296,10 +250,7 @@ const PostalAdminPage = () => {
             n?.provider_id === "notification-postal" ||
             n?.provider_id === "postal" ||
             (n?.channel === "email" && !n?.provider_id),
-        ).map((notification: Notification) => ({
-          ...notification,
-          to: sanitizeEmailDisplay(notification?.to),
-        })) as Notification[];
+        ) as Notification[];
       },
     });
 
@@ -313,12 +264,7 @@ const PostalAdminPage = () => {
           },
         });
 
-        return Array.isArray(response?.events)
-          ? response.events.map((event) => ({
-              ...event,
-              recipient: sanitizeEmailDisplay(event.recipient),
-            }))
-          : [];
+        return Array.isArray(response?.events) ? response.events : [];
       },
     });
 

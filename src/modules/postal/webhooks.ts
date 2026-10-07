@@ -17,11 +17,19 @@ export type PostalWebhookRecord = {
   event_type: string
   status: PostalWebhookStatus
   message_id: string | null
-  recipient: string | null
   occurred_at: string | null
-  payload: Record<string, unknown>
   created_at?: string
 }
+
+/**
+ * The activity API is deliberately metadata-only. Delivery callbacks often
+ * carry an email address, subject, tracking URL, and arbitrary provider data.
+ * None of those belong in an operator activity stream.
+ */
+export type PostalWebhookActivity = Pick<
+  PostalWebhookRecord,
+  "id" | "event_type" | "status" | "message_id" | "occurred_at" | "created_at"
+>
 
 export const POSTAL_WEBHOOK_TAG_PREFIX = "uhlhosting.medusa-notification-postal:"
 
@@ -335,15 +343,6 @@ export const normalizePostalWebhookPayload = (
     payload.messageId,
     payload.id
   )
-  const recipient = pickString(
-    originalMessage.recipient,
-    originalMessage.to,
-    nestedMessage.recipient,
-    nestedMessage.to,
-    payload.recipient,
-    payload.to,
-    payload.email
-  )
   const occurredAt = normalizeOccurredAt(
       payload.timestamp ||
       payload.occurred_at ||
@@ -362,10 +361,7 @@ export const normalizePostalWebhookPayload = (
     event_type: eventType,
     status,
     message_id: messageId || null,
-    recipient: recipient || null,
     occurred_at: occurredAt,
-    // Store the body exactly as Postal sent it, envelope included.
-    payload: body,
   }
 }
 
@@ -421,9 +417,10 @@ export const recordPostalWebhookEvent = async (
       event_type: event.event_type,
       status: event.status,
       message_id: event.message_id,
-      recipient: event.recipient,
       occurred_at: event.occurred_at,
-      payload: event.payload,
+      // Do not persist a recipient or the raw provider callback. Both commonly
+      // contain personal data and are not needed for delivery observability.
+      payload: {},
     })
   } catch (error: unknown) {
     if (isPostgresUniqueViolation(error) && event.message_id) {
@@ -451,10 +448,20 @@ export const listPostalWebhookEvents = async (
 
   const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 100) : 25
   try {
-    return await service.listPostalWebhookEvents(
+    const events = await service.listPostalWebhookEvents(
       {},
       { take: safeLimit, order: { created_at: "DESC" } }
     )
+    return events.map(
+      ({ id, event_type, status, message_id, occurred_at, created_at }) => ({
+        id,
+        event_type,
+        status,
+        message_id,
+        occurred_at,
+        created_at,
+      })
+    ) as PostalWebhookActivity[]
   } catch {
     return []
   }

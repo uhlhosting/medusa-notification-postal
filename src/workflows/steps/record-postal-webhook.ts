@@ -38,7 +38,6 @@ export const recordPostalWebhookEventStepHandler = async (
           event_type: event.event_type,
           status: event.status,
           message_id: event.message_id,
-          recipient: event.recipient,
           occurred_at: event.occurred_at,
         },
       })
