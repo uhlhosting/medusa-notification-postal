@@ -140,3 +140,10 @@ quiet fix leaves a live credential in a transcript nobody knows to purge.
   the actual change.
 - Run `pnpm commitlint` before pushing. It validates the local commit range;
   the release gate validates the current pipeline commit from GitLab CI.
+
+## CI release contract
+
+- `security:secrets` requires the secret-detection artifact and fails closed for missing, malformed, unsuccessful or nonempty reports. Logs contain status/count metadata only. The fixed input is `gl-secret-detection-report.json`.
+- Semantic release and the existing manual GitHub mirror explicitly require validation, tests, native integration, SAST, the secret gate, security summary, build and release verification. Automatic GitHub mirroring remains disabled.
+- Both installed semantic-release analyzer and notes generator share parser options recognizing `!` headers and breaking-change footers. Regression tests preserve the documented release rules; ordinary CI/chore changes do not publish.
+- Suppress only duplicate branch push pipelines with an open MR; retain existing MR, tag and default-branch workflow behavior.
