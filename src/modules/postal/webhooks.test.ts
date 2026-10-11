@@ -492,12 +492,13 @@ const createFakeWebhookService = (opts: FakeWebhookServiceOpts = {}): any => {
             (filter.event_type === undefined || r.event_type === filter.event_type)
         )
       }
+      if (filter.replay_key) out = out.filter(r => r.replay_key === filter.replay_key)
       const take = config?.take as number | undefined
       return (typeof take === "number" ? out.slice(0, take) : out) as any
     },
     createPostalWebhookEvents: async (data: Record<string, unknown>) => {
       if (opts.throwOnCreate) throw new Error("database unavailable")
-      const isDuplicate = rows.some((r) => r.message_id === data.message_id && r.event_type === data.event_type)
+      const isDuplicate = rows.some((r) => r.replay_key === data.replay_key)
       if (isDuplicate) {
         const err = new Error("duplicate key value violates unique constraint") as any
         err.code = "23505"
@@ -535,32 +536,14 @@ test("recordPostalWebhookEvent persists a normalized event via the module servic
   assert.deepEqual(service.created[0]!.payload, {})
 })
 
-test("recordPostalWebhookEvent is idempotent for a replayed message + event type", async () => {
-  const service = createFakeWebhookService({
-    seed: [
-      {
-        id: "postal_webhook_existing",
-        event_type: "message.sent",
-        status: "sent",
-        message_id: "msg_dup",
-        recipient: "recipient@example.com",
-      },
-    ],
-  })
-
-  const event = await recordPostalWebhookEvent(service, {
-    event: "message.sent",
-    status: "sent",
-    message: {
-      id: "msg_dup",
-      recipient: "recipient@example.com",
-      tag: "uhlhosting.medusa-notification-postal:postal-test",
-    },
-  })
-
-  // No new row created; the existing record is returned.
-  assert.equal(service.created.length, 0)
-  assert.equal((event as NonNullable<typeof event>).id, "postal_webhook_existing")
+test("recordPostalWebhookEvent deduplicates callbacks including missing message IDs", async () => {
+  const service = createFakeWebhookService()
+  const payload = { event: "message.sent", status: "sent", tag: "uhlhosting.medusa-notification-postal:postal-test" }
+  const first = await recordPostalWebhookEvent(service, payload)
+  const replay = await recordPostalWebhookEvent(service, payload)
+  assert.equal(service.created.length, 1)
+  assert.equal(replay?.id, first?.id)
+  assert.equal(replay?.duplicate, true)
 })
 
 test("recordPostalWebhookEvent ignores non-plugin messages", async () => {
@@ -761,7 +744,7 @@ test("normalizePostalWebhookPayload reads a real MessageSent envelope without re
 
   assert.equal(event.event_type, "message.sent")
   assert.equal(event.status, "sent")
-  assert.equal(event.message_id, taggedMessage.message_id)
+  assert.equal(event.message_id, String(taggedMessage.id))
   assert.equal(event.occurred_at, new Date(1782839545.73 * 1000).toISOString())
   assert.equal("payload" in event, false)
 })
@@ -801,7 +784,7 @@ test("recordPostalWebhookEvent persists a real envelope instead of ignoring it",
   assert.ok(event)
   assert.equal(service.created.length, 1)
   assert.equal(service.created[0].status, "sent")
-  assert.equal(service.created[0].message_id, taggedMessage.message_id)
+  assert.equal(service.created[0].message_id, String(taggedMessage.id))
   assert.deepEqual(service.created[0].payload, {})
 })
 

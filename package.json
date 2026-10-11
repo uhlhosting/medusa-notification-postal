@@ -21,7 +21,11 @@
     "!.medusa/server/**/*.test.d.ts",
     "!.medusa/server/**/*.test.js.map",
     "!.medusa/server/**/*.test.mjs.map",
-    "!.medusa/server/**/*.test.d.ts.map"
+    "!.medusa/server/**/*.test.d.ts.map",
+    "!.medusa/server/integration-tests",
+    "!.medusa/server/src/**/__tests__",
+    "!.medusa/server/medusa-config*",
+    "!.medusa/server/jest.config*"
   ],
   "main": "./.medusa/server/src/index.js",
   "types": "./.medusa/server/src/index.d.ts",
@@ -31,7 +35,10 @@
       "default": "./.medusa/server/src/index.js"
     },
     "./package.json": "./package.json",
-    "./workflows": "./.medusa/server/src/workflows/index.js",
+    "./workflows": {
+      "types": "./.medusa/server/src/workflows/index.d.ts",
+      "default": "./.medusa/server/src/workflows/index.js"
+    },
     "./.medusa/server/src/modules/*": "./.medusa/server/src/modules/*/index.js",
     "./.medusa/server/src/modules/postal": "./.medusa/server/src/modules/postal/index.js",
     "./modules/*": "./.medusa/server/src/modules/*/index.js",
@@ -72,24 +79,27 @@
     "release:check": "pnpm run commitlint && pnpm run lint && pnpm run typecheck && pnpm run test && pnpm run build && node scripts/verify-release.mjs",
     "semantic-release": "semantic-release",
     "test": "tsx --test 'src/**/*.test.ts'",
-    "test:unit": "jest --runInBand --passWithNoTests",
+    "test:unit": "tsx --test 'src/**/*.test.ts'",
     "test:coverage": "c8 --reporter=text --reporter=cobertura --report-dir coverage node --test --import tsx 'src/**/*.test.ts'",
     "typecheck": "tsc --noEmit && pnpm run typecheck:admin",
-    "typecheck:admin": "tsc -p src/admin/tsconfig.json --noEmit"
+    "typecheck:admin": "tsc -p src/admin/tsconfig.json --noEmit",
+    "test:integration:http": "NODE_OPTIONS=--experimental-vm-modules TEST_TYPE=integration:http jest --runInBand",
+    "test:integration:modules": "NODE_OPTIONS=--experimental-vm-modules TEST_TYPE=integration:modules jest --runInBand",
+    "security:dependencies": "node scripts/audit-dependencies.mjs"
   },
   "devDependencies": {
-    "@medusajs/admin-sdk": "2.21.0",
-    "@medusajs/admin-shared": "2.21.0",
-    "@medusajs/cli": "2.21.0",
-    "@medusajs/core-flows": "2.21.0",
-    "@medusajs/dashboard": "2.21.0",
-    "@medusajs/eslint-plugin": "2.21.0",
-    "@medusajs/framework": "2.21.0",
-    "@medusajs/icons": "2.21.0",
-    "@medusajs/js-sdk": "2.21.0",
-    "@medusajs/medusa": "2.21.0",
-    "@medusajs/test-utils": "2.21.0",
-    "@medusajs/ui": "4.2.4",
+    "@medusajs/admin-sdk": "2.21.2",
+    "@medusajs/admin-shared": "2.21.2",
+    "@medusajs/cli": "2.21.2",
+    "@medusajs/core-flows": "2.21.2",
+    "@medusajs/dashboard": "2.21.2",
+    "@medusajs/eslint-plugin": "2.21.2",
+    "@medusajs/framework": "2.21.2",
+    "@medusajs/icons": "2.21.2",
+    "@medusajs/js-sdk": "2.21.2",
+    "@medusajs/medusa": "2.21.2",
+    "@medusajs/test-utils": "2.21.2",
+    "@medusajs/ui": "4.2.6",
     "@semantic-release/git": "^11.0.1",
     "@semantic-release/gitlab": "^13.3.3",
     "@semantic-release/npm": "^13.1.5",
@@ -115,20 +125,22 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.23.13",
     "typescript": "5.9.3",
-    "zod": "4.5.4"
+    "zod": "4.5.4",
+    "vite": "^6.4.1"
   },
   "peerDependencies": {
-    "@medusajs/admin-sdk": "2.21.0",
-    "@medusajs/framework": "2.21.0",
-    "@medusajs/icons": "2.21.0",
-    "@medusajs/js-sdk": "2.21.0",
-    "@medusajs/medusa": "2.21.0",
-    "@medusajs/ui": "4.2.4",
+    "@medusajs/admin-sdk": "2.21.2",
+    "@medusajs/framework": "2.21.2",
+    "@medusajs/icons": "2.21.2",
+    "@medusajs/js-sdk": "2.21.2",
+    "@medusajs/medusa": "2.21.2",
+    "@medusajs/ui": "4.2.6",
     "@tanstack/react-query": "^5.101.2",
     "i18next": ">=23.2.3",
     "react-i18next": "^13.5.0 || ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0",
     "react-router-dom": "^7.18.2",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@medusajs/admin-shared": "2.21.2"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"

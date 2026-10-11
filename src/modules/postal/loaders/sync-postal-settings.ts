@@ -1,15 +1,13 @@
+import { asValue } from "@medusajs/framework/awilix"
 import { ContainerRegistrationKeys } from "@medusajs/framework/utils"
 import { LoaderOptions } from "@medusajs/framework/types"
 import { POSTAL_SETTINGS_ID } from "../constants"
 import type { PostalSettingService as SettingsService } from "../settings"
 import PostalPluginModuleService from "../service"
 
-// Reconciles persisted (non-secret) Postal settings with the process
-// environment at boot, so the provider — constructed from env/options — reflects
-// admin-saved values after a restart. Only in-memory `process.env` is touched;
-// nothing is written to disk. Secrets are never persisted, so they are never
-// synced here.
-
+// Capture non-secret settings once per boot in the module-local container.
+// Provider options remain the immutable operator-approved transport destination.
+// No global environment mutation or premature restart acknowledgment occurs.
 // A module loader is handed the module's LOCAL container, not the application
 // one, and the module service is registered in the outer container only AFTER
 // every loader has run (see @medusajs/modules-sdk load-internal: runLoaders is
@@ -67,23 +65,13 @@ const syncPostalSettingsLoader = async (
       { id: POSTAL_SETTINGS_ID },
       { take: 1 }
     )
-    const record = records?.[0]
+    const record = service.readBootSettings ? await service.readBootSettings() : records?.[0]
 
     if (record) {
-      if (record.auth_type) process.env.POSTAL_AUTH_TYPE = record.auth_type
-      if (record.from_address) process.env.POSTAL_FROM = record.from_address
-      if (record.base_url) process.env.POSTAL_BASE_URL = record.base_url
-      if (record.test_to) process.env.POSTAL_TEST_TO = record.test_to
-
-      if (record.pending_restart) {
-        await service.updatePostalSettings({
-          id: POSTAL_SETTINGS_ID,
-          pending_restart: false,
-        })
-      }
-
+      container.register({ postalBootSettings: asValue(Object.freeze({ ...record })) })
       return
     }
+    container.register({ postalBootSettings: asValue(null) })
 
     // No persisted row yet — seed one from any env-provided non-secret values so
     // the admin surface shows the effective configuration.
@@ -101,14 +89,9 @@ const syncPostalSettingsLoader = async (
         pending_restart: false,
       })
     }
-  } catch (err) {
-    // The cause is interpolated rather than passed as a second argument:
-    // Medusa's winston logger drops extra arguments, which is how the previous
-    // failure stayed a mystery through every boot.
-    const cause = err instanceof Error ? err.message : String(err)
-    logger.warn(
-      `[postal] Failed to sync settings from DB during boot — continuing with env-only config. Cause: ${cause}`
-    )
+  } catch {
+    container.register({ postalBootSettings: asValue({ unavailable: true }) })
+    logger.warn("[postal] Settings unavailable during boot; persisted provider configuration is blocked.")
   }
 }
 

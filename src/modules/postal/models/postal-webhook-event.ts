@@ -7,6 +7,10 @@ export const PostalWebhookEvent = model.define("postal_webhook_events", {
   event_type: model.text(),
   status: model.text(),
   message_id: model.text().nullable(),
+  replay_key: model.text().nullable(),
+  published_at: model.dateTime().nullable(),
+  publication_owner: model.text().nullable(),
+  publication_expires_at: model.dateTime().nullable(),
   // Retained for database compatibility with pre-0.7.2 installations. New
   // events always write NULL and the forward migration redacts historic rows.
   recipient: model.text().nullable(),
@@ -16,8 +20,8 @@ export const PostalWebhookEvent = model.define("postal_webhook_events", {
   payload: model.json(),
 }).indexes([
   {
-    name: "IDX_postal_webhook_message_event_unique",
-    on: ["message_id", "event_type"],
+    name: "IDX_postal_webhook_replay_unique",
+    on: ["replay_key"],
     unique: true,
   }
 ])

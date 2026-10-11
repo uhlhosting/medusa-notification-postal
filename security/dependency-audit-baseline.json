@@ -1,0 +1,18 @@
+{
+  "entries": [
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "expires": "2026-11-07",
+      "fingerprint": "dcfb7d28560ed0411333b4709231d327760c3885df89c9982e095555933737a5",
+      "reason": "No registry patch exists for braces 3.0.3."
+    },
+    {
+      "id": "GHSA-7mx3-vvmw-hjmv",
+      "package": "@graphql-tools/utils",
+      "expires": "2026-11-07",
+      "fingerprint": "24a0939b470e34a2e123e92518f2b1c28f7a3ed58a1425ea6b2a1ffe582db2bf",
+      "reason": "Medusa pins GraphQL utils 10.11.0; patched 12.0.1 is a coupled major upgrade requiring upstream coordination."
+    }
+  ]
+}

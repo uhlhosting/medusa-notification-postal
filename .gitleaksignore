@@ -1,1 +1,5 @@
 # MedusaJS Custom Gitleaks Ignore Exceptions
+# Exact historical synthetic URL-userinfo rejection fixture only. The literal
+# was removed in 8ca34d02; MR range scanning still includes fdaa52d. Future
+# commits and every other line/path/rule continue to be scanned.
+fdaa52d87a359df716605fd46fabb0d89cf11a75:src/providers/postal/services/postal.test.ts:Password in URL:1082

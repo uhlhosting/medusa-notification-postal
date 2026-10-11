@@ -55,6 +55,7 @@ const createContainer = () => {
   return {
     warnings,
     container: {
+      register: () => undefined,
       cradle: { manager: "entity-manager" },
       resolve: (key: string) => {
         if (key === "logger") {
@@ -73,8 +74,8 @@ const ENV_KEYS = [
   "POSTAL_TEST_TO",
 ] as const
 
-// Each case owns its environment: the loader's whole purpose is mutating
-// process.env, so leaking between tests would make them lie.
+// Each case owns its environment so boot seeding and environment preservation
+// are checked without state leaking between tests.
 const withCleanEnv = async (run: () => Promise<void>) => {
   const saved = ENV_KEYS.map((key) => [key, process.env[key]] as const)
   for (const key of ENV_KEYS) delete process.env[key]
@@ -114,7 +115,7 @@ test("constructs the service from the local cradle, never by module key", async 
   })
 })
 
-test("a persisted row overrides the environment", async () => {
+test("a persisted row leaves the operator environment unchanged", async () => {
   await withCleanEnv(async () => {
     const { container } = createContainer()
     const { service, updated } = createFakeService({
@@ -125,14 +126,14 @@ test("a persisted row overrides the environment", async () => {
 
     await syncPostalSettingsLoader({ container } as never, undefined, () => service)
 
-    assert.equal(process.env.POSTAL_FROM, "saved@example.test")
-    assert.equal(process.env.POSTAL_BASE_URL, "https://saved.example.test")
-    assert.equal(process.env.POSTAL_TEST_TO, "qa@example.test")
+    assert.equal(process.env.POSTAL_FROM, undefined)
+    assert.equal(process.env.POSTAL_BASE_URL, undefined)
+    assert.equal(process.env.POSTAL_TEST_TO, undefined)
     assert.equal(updated.length, 0)
   })
 })
 
-test("clears pending_restart once the restart has happened", async () => {
+test("retains pending_restart until the actual provider acknowledges its snapshot", async () => {
   await withCleanEnv(async () => {
     const { container } = createContainer()
     const { service, updated } = createFakeService({
@@ -142,8 +143,7 @@ test("clears pending_restart once the restart has happened", async () => {
 
     await syncPostalSettingsLoader({ container } as never, undefined, () => service)
 
-    assert.equal(updated.length, 1)
-    assert.equal(updated[0].pending_restart, false)
+    assert.equal(updated.length, 0)
   })
 })
 
@@ -174,7 +174,7 @@ test("writes nothing when there is neither a row nor anything to seed from", asy
   })
 })
 
-test("warns with the cause and never throws", async () => {
+test("warns without database details and blocks persisted settings", async () => {
   await withCleanEnv(async () => {
     const { container, warnings } = createContainer()
     const failing = {
@@ -196,6 +196,6 @@ test("warns with the cause and never throws", async () => {
     )
 
     assert.equal(warnings.length, 1)
-    assert.match(warnings[0], /postal_setting" does not exist/)
+    assert.match(warnings[0], /configuration is blocked/)
   })
 })

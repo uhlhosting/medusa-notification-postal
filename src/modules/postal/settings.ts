@@ -25,10 +25,13 @@ export type PostalSettingRecord = {
   base_url: string
   test_to: string
   pending_restart: boolean
+  updated_at?: Date | string
 }
 
 // Minimal shape of the generated module service methods this file relies on.
 export type PostalSettingService = {
+  persistPostalSettingsRevision?: (data: Record<string, unknown>, exists: boolean) => Promise<void>
+  readBootSettings?: () => Promise<PostalSettingRecord | null>
   listPostalSettings: (
     filter: Record<string, unknown>,
     config?: Record<string, unknown>
@@ -200,7 +203,9 @@ export const persistPostalSettings = async (
     pending_restart: true,
   }
 
-  if (existing) {
+  if (service.persistPostalSettingsRevision) {
+    await service.persistPostalSettingsRevision({ id: POSTAL_SETTINGS_ID, ...next }, Boolean(existing))
+  } else if (existing) {
     await service.updatePostalSettings({ id: POSTAL_SETTINGS_ID, ...next })
   } else {
     await service.createPostalSettings({ id: POSTAL_SETTINGS_ID, ...next })

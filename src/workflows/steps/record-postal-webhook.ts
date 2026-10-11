@@ -1,5 +1,5 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
-import { Modules } from "@medusajs/framework/utils"
+import { MedusaError, Modules } from "@medusajs/framework/utils"
 import { resolvePostalModule } from "../../modules/postal/constants"
 import {
   readPostalPluginOptions,
@@ -11,6 +11,36 @@ import {
 } from "../../modules/postal/webhooks"
 
 type RecordPostalWebhookStepInput = Record<string, unknown>
+
+type PublicationService = PostalWebhookEventService & {
+  claimWebhookPublication?: (id: string) => Promise<string | null>
+  settleWebhookPublication?: (id: string, owner: string, success: boolean) => Promise<boolean>
+}
+
+export const publishPostalWebhookEvent = async (
+  service: PublicationService,
+  event: NonNullable<Awaited<ReturnType<typeof recordPostalWebhookEvent>>>,
+  container: { resolve: (key: string) => unknown }
+) => {
+  if (!service.claimWebhookPublication || !service.settleWebhookPublication) throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, "Postal durable webhook publication service is unavailable")
+  const owner = await service.claimWebhookPublication(event.id)
+  if (!owner) return
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const eventBus = container.resolve(Modules.EVENT_BUS) as { emit: (message: { name: string; data: unknown }) => Promise<void> }
+    await Promise.race([
+      eventBus.emit({ name: `postal.${event.status}`, data: {
+        id: event.id, event_type: event.event_type, status: event.status,
+        message_id: event.message_id, occurred_at: event.occurred_at,
+      } }),
+      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error("Postal webhook publication timed out")), 15000) }),
+    ])
+    if (!await service.settleWebhookPublication(event.id, owner, true)) throw new MedusaError(MedusaError.Types.CONFLICT, "Postal webhook publication owner was lost")
+  } catch {
+    await service.settleWebhookPublication(event.id, owner, false)
+    throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, "Postal webhook publication failed; durable retry pending")
+  } finally { clearTimeout(timer) }
+}
 
 export const recordPostalWebhookEventStepHandler = async (
   payload: RecordPostalWebhookStepInput,
@@ -24,27 +54,7 @@ export const recordPostalWebhookEventStepHandler = async (
     ignoreEngagement: ignore_engagement_webhooks,
   })
 
-  if (event) {
-    // Emit a delivery event so subscribers can react (e.g. postal.bounced).
-    // The event bus is optional — recording has already succeeded.
-    try {
-      const eventBus = container.resolve(Modules.EVENT_BUS) as {
-        emit: (message: { name: string; data: unknown }) => Promise<void>
-      }
-      await eventBus.emit({
-        name: `postal.${event.status}`,
-        data: {
-          id: event.id,
-          event_type: event.event_type,
-          status: event.status,
-          message_id: event.message_id,
-          occurred_at: event.occurred_at,
-        },
-      })
-    } catch {
-      // Ignore: event emission is best-effort.
-    }
-  }
+  if (event && service) await publishPostalWebhookEvent(service, event, container)
 
   return new StepResponse(event)
 }
