@@ -14,6 +14,8 @@ import { timingSafeEqual } from "node:crypto"
 import { postalSettingsSchema } from "./admin/plugin-settings/postal/validators"
 import { postalSendTestSchema } from "./admin/postal/send-test/validators"
 import { postalWebhookSchema } from "./postal/webhooks/[token]/validators"
+import { postalActivityQuerySchema } from "./dashboard/postal/activity/validators"
+import { authenticateDashboardPostalActivity, POSTAL_ACTIVITY_MATCHER } from "../lib/dashboard-postal-capability"
 import {
   hasValidPostalSignature,
   POSTAL_SIGNATURE_256_HEADER,
@@ -112,6 +114,15 @@ const authenticateAdmin = () =>
 
 export default defineMiddlewares({
   routes: [
+    {
+      matcher: POSTAL_ACTIVITY_MATCHER,
+      middlewares: [authenticateDashboardPostalActivity],
+    },
+    {
+      matcher: POSTAL_ACTIVITY_MATCHER,
+      method: "GET",
+      middlewares: [validateAndTransformQuery(postalActivityQuerySchema, {})],
+    },
     {
       matcher: "/admin/plugin",
       method: "GET",
