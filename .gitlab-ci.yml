@@ -46,9 +46,24 @@ security:report:
       - gl-secret-detection-report.json
     expire_in: 30 days
 
+security:secrets:
+  stage: build
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  before_script: []
+  cache: []
+  needs:
+    - job: secret_detection
+      artifacts: true
+  script:
+    - node scripts/verify-secret-report.mjs
+
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never
     - if: '$CI_COMMIT_TAG'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: never
@@ -101,6 +116,7 @@ validate:
     - pnpm run lint
     - pnpm run typecheck
     - pnpm security:dependencies
+    - node --test scripts/release-contract.test.mjs scripts/verify-secret-report.test.mjs
 
 test:
   stage: test
@@ -168,6 +184,12 @@ release:verify:
 release:semantic:
   stage: deploy
   needs:
+    - validate
+    - test
+    - test:integration
+    - semgrep-sast
+    - security:secrets
+    - security:report
     - build
     - release:verify
   rules:
@@ -205,6 +227,12 @@ release:semantic:
 mirror:github:
   stage: deploy
   needs:
+    - validate
+    - test
+    - test:integration
+    - semgrep-sast
+    - security:secrets
+    - security:report
     - build
     - release:verify
   variables:
