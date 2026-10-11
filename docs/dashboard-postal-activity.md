@@ -32,8 +32,12 @@ type ReplayRedis = {
 The published package exposes `ReplayRedis` and
 `POSTAL_ACTIVITY_REPLAY_RESOURCE` through
 `@uhlhosting/medusa-notification-postal/lib/dashboard-postal-capability`.
-The host should create and manage a client using its explicitly declared Redis
-dependency and existing Redis configuration, with bounded connection/command
+The host should expose a registered custom module service named
+`dashboardPostalActivityReplayRedis` implementing this contract. Medusa exposes
+registered module services to request scopes; a module loader's local resource
+registration alone does not expose the client to those scopes. The service must
+create and manage a client using its explicitly declared Redis dependency and
+existing Redis configuration, with bounded connection/command
 timeouts, offline queue disabled and bounded retries. Register it at startup,
 share its durable server across replicas, and close the client at host shutdown.
 Never create a new client on each request, log its URL, or substitute an in-memory
@@ -66,6 +70,6 @@ The database query enforces a rolling 30-day `created_at` floor and deterministi
 descending `created_at`, `id` pagination. Physical deletion is still governed
 by the existing opt-in retention jobs; this endpoint never changes their policy.
 
-Before enabling a tenant, validate the host loader registration, plugin release,
+Before enabling a tenant, validate the host module-service registration, plugin release,
 chart server configuration, scoped dashboard network access, authenticated
 dashboard authorization and live replay rejection on the deployed backend.
