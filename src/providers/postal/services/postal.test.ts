@@ -1079,7 +1079,10 @@ const createServiceFor = (base_url: string) =>
     }
   )
 
-for (const base_url of ["https://user:password@postal.example.com", "https://postal.example.com?key=x", "https://postal.example.com#x"]) {
+const credentialUrlFixture = new URL("https://postal.example.com")
+credentialUrlFixture.username = "synthetic-user"
+credentialUrlFixture.password = "synthetic-password"
+for (const base_url of [credentialUrlFixture.href, "https://postal.example.com?key=x", "https://postal.example.com#x"]) {
   test("boot rejects URL credentials, query and fragment", () => {
     assert.throws(() => createServiceFor(base_url), MedusaError)
   })
