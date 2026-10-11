@@ -1,3 +1,4 @@
+import type PostalPluginModuleService from "../../../modules/postal/service"
 import {
   AbstractNotificationProviderService,
   MedusaError,
@@ -164,10 +165,12 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     from: string
     requestTimeoutOption?: number | string
   }
+  protected settingsService_?: PostalPluginModuleService
+  protected settingsAcknowledgment_?: Promise<boolean>
   protected logger_: Pick<Logger, "info"> & Partial<Pick<Logger, "warn">>
 
   constructor(
-    container: { logger: Pick<Logger, "info"> & Partial<Pick<Logger, "warn">> },
+    container: { logger: Pick<Logger, "info"> & Partial<Pick<Logger, "warn">>; postalPlugin?: PostalPluginModuleService },
     options: PostalOptions
   ) {
     super()
@@ -230,6 +233,28 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       requestTimeoutOption: options.request_timeout_ms,
     }
     this.logger_ = logger
+    try { this.settingsService_ = container.postalPlugin } catch {
+      throw new MedusaError(MedusaError.Types.INVALID_DATA, "Postal provider requires Notification dependencies: ['postalPlugin'] when using persisted settings")
+    }
+    const snapshot = this.settingsService_?.bootSettings
+    if (snapshot && "unavailable" in snapshot) {
+      throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, "Postal persisted settings are unavailable")
+    }
+    if (snapshot) {
+      const savedBase = snapshot.base_url.trim().replace(/\/$/, "")
+      let matches = !savedBase
+      try { matches ||= new URL(savedBase).href === parsedBaseUrl.href } catch { matches = false }
+      if (!matches) {
+        throw new MedusaError(MedusaError.Types.INVALID_DATA, "Saved Postal destination must match the operator-approved provider base_url; restart acknowledgment remains pending")
+      }
+      if (snapshot.auth_type !== "smtp-api") {
+        throw new MedusaError(MedusaError.Types.INVALID_DATA, "Saved Postal auth mode is unsupported")
+      }
+      if (snapshot.from_address && !isSingleEmailAddress(snapshot.from_address)) {
+        throw new MedusaError(MedusaError.Types.INVALID_DATA, "Saved Postal sender must be one plain ASCII email address")
+      }
+      this.config_.from = snapshot.from_address || from
+    }
   }
 
   static validateOptions(options: Record<string, unknown>) {
@@ -267,6 +292,10 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
+    if (this.settingsService_) {
+      this.settingsAcknowledgment_ ??= this.settingsService_.acknowledgeBootSettings()
+      try { await this.settingsAcknowledgment_ } catch (error) { this.settingsAcknowledgment_ = undefined; throw error }
+    }
     const providerData = this.resolveProviderData(notification)
     const content = notification.content || {}
     const to = this.normalizeEmails(notification.to)

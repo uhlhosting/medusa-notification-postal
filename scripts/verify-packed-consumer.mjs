@@ -51,10 +51,22 @@ try {
     hostManifest.type = "commonjs"
     writeFileSync(path.join(temp, "package.json"), JSON.stringify(hostManifest))
     run("pnpm", ["install", "--no-frozen-lockfile", "--prefer-offline", "--ignore-scripts"])
-    writeFileSync(path.join(temp, "medusa-config.js"), `const {defineConfig}=require("@medusajs/framework/utils");module.exports=defineConfig({projectConfig:{databaseUrl:process.env.DATABASE_URL,http:{jwtSecret:"packed-native-isolated",cookieSecret:"packed-native-isolated",storeCors:"*",adminCors:"*",authCors:"*"}},admin:{disable:true},plugins:[{resolve:${JSON.stringify(pkg.name)},options:{}}],modules:[{resolve:"@medusajs/medusa/notification",options:{providers:[{resolve:${JSON.stringify(pkg.name + "/providers/postal")},id:"postal",options:{channels:["email"],base_url:"http://postal.internal.invalid",api_key:"isolated-test-key",from:"operator@example.invalid"}}]}}]});`)
+    writeFileSync(path.join(temp, "medusa-config.js"), `const {defineConfig}=require("@medusajs/framework/utils");module.exports=defineConfig({projectConfig:{databaseUrl:process.env.DATABASE_URL,http:{jwtSecret:"packed-native-isolated",cookieSecret:"packed-native-isolated",storeCors:"*",adminCors:"*",authCors:"*"}},admin:{disable:true},plugins:[{resolve:${JSON.stringify(pkg.name)},options:{}}],modules:[{resolve:"@medusajs/medusa/notification",dependencies:["postalPlugin"],options:{providers:[{resolve:${JSON.stringify(pkg.name + "/providers/postal")},id:"postal",options:{channels:["email"],base_url:"http://postal.internal.invalid",api_key:"isolated-test-key",from:"operator@example.invalid"}}]}}]});`)
     writeFileSync(path.join(temp, "jest.config.js"), `module.exports={testEnvironment:"node",testMatch:["**/packed.spec.js"],transform:{"^.+\\.[jt]s$":["@swc/jest",{jsc:{target:"es2022"}}]}};`)
     writeFileSync(path.join(temp, "packed.spec.js"), `const {medusaIntegrationTestRunner}=require("@medusajs/test-utils");const {Modules,ContainerRegistrationKeys,generateJwtToken}=require("@medusajs/framework/utils");jest.setTimeout(120000);medusaIntegrationTestRunner({inApp:true,testSuite:({api,getContainer})=>{it("discovers installed Postal routes and actual provider registry",async()=>{const c=getContainer();const user=await c.resolve(Modules.USER).createUsers({email:"packed-admin@example.invalid"});const token=generateJwtToken({actor_id:user.id,actor_type:"user",auth_identity_id:"isolated"},{secret:c.resolve(ContainerRegistrationKeys.CONFIG_MODULE).projectConfig.http.jwtSecret,expiresIn:"1m"});const r=await api.get("/admin/postal/health",{headers:{Authorization:"Bearer "+token}});expect(r.status).toBe(200);expect(r.data.status).toBe("ok");});}});`)
     run(process.execPath, ["--experimental-vm-modules", "node_modules/jest/bin/jest.js", "--runInBand"])
+    // Test-only migration seeds a prior persisted row before real module/provider boot.
+    // The installed package runtime is unchanged; only its scratch test migrations grow.
+    const migrationDir = path.join(temp, "node_modules", pkg.name, ".medusa/server/src/modules/postal/migrations")
+    const fixtureMigration = path.join(migrationDir, "Migration20261011190000.js")
+    writeFileSync(path.join(temp, "packed.spec.js"), readFileSync(path.join(source, "scripts/fixtures/packed-settings.spec.cjs")))
+    for (const bootCase of ["matching", "mismatch", "late-save"]) {
+      const savedBase = bootCase === "mismatch" ? "http://unapproved-postal.internal.invalid" : "http://postal.internal.invalid"
+      writeFileSync(fixtureMigration, `const {Migration}=require("@medusajs/framework/mikro-orm/migrations");class Migration20261011190000 extends Migration{async up(){this.addSql(\`insert into postal_setting (id,auth_type,from_address,base_url,test_to,pending_restart) values ('postal','smtp-api','saved-sender@example.invalid','${savedBase}','saved-inbox@example.invalid',true);\`);}}exports.Migration20261011190000=Migration20261011190000;`)
+      execFileSync(process.execPath, ["--experimental-vm-modules", "node_modules/jest/bin/jest.js", "--runInBand"], { cwd: temp, stdio: "inherit", env: { ...process.env, POSTAL_BOOT_CASE: bootCase } })
+    }
+    rmSync(fixtureMigration)
+
   }
 
 } finally { rmSync(temp, { recursive: true, force: true }) }

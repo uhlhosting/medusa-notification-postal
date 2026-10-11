@@ -1136,3 +1136,9 @@ test("Postal deadline includes a stalled response body", async () => {
   assert.equal(signal?.aborted, true)
   assert.ok(Date.now() - before < 2000)
 })
+
+test("persisted boot sender rejects controls, Unicode and address lists before transport", () => {
+  for (const from of ["bad\r\n@example.invalid", "é@example.invalid", "one@example.invalid,two@example.invalid"]) {
+    assert.throws(() => new PostalNotificationService({ logger, postalPlugin: { bootSettings: { auth_type: "smtp-api", base_url: "https://postal.example.com", from_address: from } } as never }, { from: "operator@example.invalid", base_url: "https://postal.example.com", api_key: "synthetic" }), /plain ASCII email address/)
+  }
+})

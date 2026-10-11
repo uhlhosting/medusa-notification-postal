@@ -1,3 +1,4 @@
+import type { PostalSettingRecord } from "./settings"
 import { randomUUID } from "node:crypto"
 import type { EntityManager } from "@medusajs/framework/mikro-orm/knex"
 import type { Context } from "@medusajs/framework/types"
@@ -13,6 +14,7 @@ class PostalPluginModuleService extends MedusaService({
   PostalSetting,
   PostalWebhookEvent,
 }) {
+  readonly bootSettings: Readonly<PostalSettingRecord> | null | { unavailable: true }
   protected readonly pluginOptions_: ResolvedPostalPluginOptions
 
   // Medusa constructs a module service as (cradle, moduleOptions,
@@ -20,6 +22,38 @@ class PostalPluginModuleService extends MedusaService({
   constructor(...args: any[]) {
     super(...args)
     this.pluginOptions_ = resolvePostalPluginOptions(args[1])
+    try { this.bootSettings = args[0]?.postalBootSettings ?? null } catch { this.bootSettings = null }
+  }
+
+  @InjectManager()
+  async readBootSettings(@MedusaContext() context: Context<EntityManager> = {}): Promise<PostalSettingRecord | null> {
+    // Preserve PostgreSQL timestamp precision as text for exact revision fencing.
+    const rows = await context.manager!.execute(`select id, auth_type, from_address, base_url, test_to, pending_restart, updated_at::text as updated_at from "postal_setting" where id = ? and deleted_at is null`, ["postal"])
+    return (rows[0] as PostalSettingRecord | undefined) ?? null
+  }
+
+  @InjectManager()
+  async persistPostalSettingsRevision(data: Record<string, unknown>, exists: boolean, @MedusaContext() context: Context<EntityManager> = {}): Promise<void> {
+    await this.persistPostalSettingsRevision_(data, exists, context)
+  }
+  @InjectTransactionManager()
+  protected async persistPostalSettingsRevision_(data: Record<string, unknown>, exists: boolean, @MedusaContext() context: Context<EntityManager> = {}): Promise<void> {
+    if (exists) await this.updatePostalSettings(data as never, context)
+    else await this.createPostalSettings(data as never, context)
+    // Every accepted admin save has a distinct revision, including same-value saves.
+    await context.transactionManager!.execute(`update "postal_setting" set pending_restart = true, updated_at = greatest(clock_timestamp(), updated_at + interval '1 microsecond') where id = ? and deleted_at is null`, ["postal"])
+  }
+
+  @InjectManager()
+  async acknowledgeBootSettings(@MedusaContext() context: Context<EntityManager> = {}): Promise<boolean> {
+    return this.acknowledgeBootSettings_(context)
+  }
+  @InjectTransactionManager()
+  protected async acknowledgeBootSettings_(@MedusaContext() context: Context<EntityManager> = {}): Promise<boolean> {
+    const snapshot = this.bootSettings
+    if (!snapshot || "unavailable" in snapshot || !snapshot.updated_at) return false
+    const rows = await context.transactionManager!.execute(`update "postal_setting" set pending_restart = false, updated_at = now() where id = ? and updated_at = ? and auth_type = ? and from_address = ? and base_url = ? and test_to = ? and deleted_at is null returning id`, [snapshot.id, snapshot.updated_at, snapshot.auth_type, snapshot.from_address, snapshot.base_url, snapshot.test_to])
+    return Boolean(rows.length)
   }
 
   @InjectManager()

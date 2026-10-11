@@ -76,7 +76,7 @@ If sandbox mode is on but `POSTAL_TEST_TO` is empty, the provider logs the misco
 
 ### Settings persistence
 
-Non-secret settings edited in the admin (`from`, `base_url`, `test_to`) persist in the `postal_setting` table via the plugin module — run `medusa db:migrate` after installing. Secrets (`POSTAL_API_KEY`, `POSTAL_WEBHOOK_TOKEN`) are sourced from the environment/provider options only, are read-only in the admin UI, and are never written to disk. Changes that affect the constructed provider take effect after a backend restart.
+Non-secret settings edited in the admin (`from`, `base_url`, `test_to`) persist in the `postal_setting` table via the plugin module — run `medusa db:migrate` after installing. Secrets (`POSTAL_API_KEY`, `POSTAL_WEBHOOK_TOKEN`) are sourced from the environment/provider options only, are read-only in the admin UI, and are never written to disk. Changes that affect the constructed provider take effect after a backend restart. Configure Notification `dependencies: ["postalPlugin"]` as below. The module captures an immutable boot snapshot and applies the saved sender only when the saved destination exactly matches the operator-approved provider URL. Changing destinations requires updating host configuration and restarting; a mismatch blocks the provider before any request and retains the pending flag. The first provider send acknowledges only the exact saved revision applied, so later admin edits remain pending until another restart. No global environment variables are changed. Using the provider alone without the Postal plugin is an environment/options-only configuration and has no persisted settings contract.
 
 ## Usage
 
@@ -100,6 +100,7 @@ module.exports = defineConfig({
   modules: [
     {
       resolve: "@medusajs/medusa/notification",
+      dependencies: ["postalPlugin"],
       options: {
         providers: [
           {

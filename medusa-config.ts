@@ -7,6 +7,6 @@ export default defineConfig({
   admin: { disable: true },
   modules: [
     { resolve: "./src/modules/postal" },
-    { resolve: "@medusajs/medusa/notification", options: { providers: [{ resolve: "./src/providers/postal", id: "postal", options: { channels: ["email"], from: "operator@example.invalid", base_url: "http://postal.internal.invalid", api_key: "isolated-test-api-key" } }] } },
+    { resolve: "@medusajs/medusa/notification", dependencies: ["postalPlugin"], options: { providers: [{ resolve: "./src/providers/postal", id: "postal", options: { channels: ["email"], from: "operator@example.invalid", base_url: "http://postal.internal.invalid", api_key: "isolated-test-api-key" } }] } },
   ],
 })
