@@ -268,7 +268,7 @@ test("wraps Postal API failures that only expose an error field", async () => {
 
   await assert.rejects(
     () => service.getMessageDeliveries("123"),
-    /Postal API request failed: 422 - bad payload/
+    /Postal API request failed \(HTTP 422\)/
   )
 })
 
@@ -286,7 +286,7 @@ test("wraps Postal API failures that only expose a status string", async () => {
 
   await assert.rejects(
     () => service.getMessageDetails("123"),
-    /Postal API request failed: 503 - error/
+    /Postal API request failed \(HTTP 503\)/
   )
 })
 
@@ -302,7 +302,7 @@ test("wraps Postal API responses that do not parse cleanly", async () => {
 
   await assert.rejects(
     () => service.getMessageDetails("123"),
-    /Postal API request failed: undefined - unknown error/
+    /Postal API request failed/
   )
 })
 
@@ -335,7 +335,7 @@ test("send validates notification shape and wraps unexpected fetch errors", asyn
       } as never),
     (error: unknown) =>
       error instanceof MedusaError &&
-      /Failed to send email with Postal API: socket closed/.test(error.message)
+      /Postal API request failed/.test(error.message)
   )
 })
 
@@ -380,7 +380,7 @@ test("send rethrows Postal API Medusa errors and supports empty provider data", 
       } as never),
     (error: unknown) =>
       error instanceof MedusaError &&
-      /Postal API request failed: 400 - bad request/.test(error.message)
+      /Postal API request failed \(HTTP 400\)/.test(error.message)
   )
 })
 
@@ -1079,40 +1079,16 @@ const createServiceFor = (base_url: string) =>
     }
   )
 
-for (const base_url of [
-  "http://localhost:5000",
-  "http://127.0.0.1",
-  "http://10.0.0.1",
-  "http://172.16.0.1",
-  "http://192.168.1.5",
-  "http://169.254.169.254",
-  "http://0.0.0.0",
-  "http://[::1]",
-  "http://[::]",
-  "http://[fd00::1]",
-  "http://[fe80::1]",
-  "http://[::ffff:192.168.1.1]",
-  "http://[::ffff:127.0.0.1]",
-]) {
-  test(`fetchPostalApi refuses a local or private base_url (${base_url}) before any request`, async () => {
-    let fetched = false
-    globalThis.fetch = (async () => {
-      fetched = true
-      throw new Error("must not be reached")
-    }) as unknown as typeof fetch
-
-    await assert.rejects(
-      createServiceFor(base_url)["fetchPostalApi"]("send/message", {}),
-      (err: any) =>
-        err.type === MedusaError.Types.INVALID_DATA &&
-        err.message.includes("Invalid Postal base_url")
-    )
-    assert.equal(fetched, false)
+for (const base_url of ["https://user:password@postal.example.com", "https://postal.example.com?key=x", "https://postal.example.com#x"]) {
+  test("boot rejects URL credentials, query and fragment", () => {
+    assert.throws(() => createServiceFor(base_url), MedusaError)
   })
 }
 
 for (const base_url of [
   "https://postal.example.com",
+  "http://localhost:5000",
+  "http://10.0.0.1",
   "http://203.0.113.10",
   "http://[2606:4700:4700::1111]",
   // Not unique-local or link-local: the first hextet is 0x00fd / 0x0fe8.
@@ -1130,3 +1106,30 @@ for (const base_url of [
     assert.equal(calls.length, 1)
   })
 }
+
+
+test("Postal requests forbid redirects and redact provider errors", async () => {
+  globalThis.fetch = (async (_url, init) => {
+    assert.equal(init?.redirect, "error")
+    return new Response(JSON.stringify({ status: "error", data: { message: "secret-user@example.invalid" } }), { status: 400 })
+  }) as typeof fetch
+  await assert.rejects(() => createService().getMessageDetails("1"), (error: Error) => !error.message.includes("secret-user") && error.message.includes("HTTP 400"))
+})
+
+test("Postal bounds the response body to 1 MiB", async () => {
+  globalThis.fetch = (async () => new Response("x".repeat(1024 * 1024 + 1))) as typeof fetch
+  await assert.rejects(() => createService().getMessageDetails("1"), /exceeded 1 MiB/)
+})
+
+test("Postal deadline includes a stalled response body", async () => {
+  let signal: AbortSignal | undefined
+  globalThis.fetch = (async (_url, init) => {
+    signal = init?.signal as AbortSignal
+    return new Response(new ReadableStream({ start(controller) { signal?.addEventListener("abort", () => controller.error(new Error("aborted"))) } }))
+  }) as typeof fetch
+  const service = new PostalNotificationService({ logger }, { from: "operator@example.invalid", base_url: "http://postal.internal.invalid", api_key: "fixture-key", request_timeout_ms: 1000 })
+  const before = Date.now()
+  await assert.rejects(() => service.getMessageDetails("1"), /timed out/)
+  assert.equal(signal?.aborted, true)
+  assert.ok(Date.now() - before < 2000)
+})

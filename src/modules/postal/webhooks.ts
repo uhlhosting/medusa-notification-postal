@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { MedusaError } from "@medusajs/framework/utils"
 
 export type PostalWebhookStatus =
@@ -19,6 +19,8 @@ export type PostalWebhookRecord = {
   message_id: string | null
   occurred_at: string | null
   created_at?: string
+  replay_key?: string
+  duplicate?: boolean
 }
 
 /**
@@ -40,7 +42,7 @@ const isPostgresUniqueViolation = (error: unknown): boolean => {
   while (current && typeof current === "object" && !visited.has(current)) {
     visited.add(current)
     const record = current as Record<string, unknown>
-    if (record.code === "23505") {
+    if (record.code === "23505" || (record.type === MedusaError.Types.INVALID_DATA && typeof record.message === "string" && /^Postal webhook events with replay_key: [a-f0-9]{64}, already exists\.$/.test(record.message))) {
       return true
     }
     current = record.cause || record.driverException || record.parent
@@ -72,6 +74,17 @@ const pickString = (...values: unknown[]) => {
   }
 
   return ""
+}
+
+const pickIdentifier = (...values: unknown[]) => pickString(...values.map(value =>
+  typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? String(value) : value))
+
+// Stable across JSON property order and callback retries. Only the digest is
+// stored; addresses, click URLs and other callback content remain redacted.
+const canonicalJson = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`
+  if (value && typeof value === "object") return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`).join(",")}}`
+  return JSON.stringify(value) ?? "null"
 }
 
 const pickNestedTag = (value: unknown) =>
@@ -334,7 +347,7 @@ export const normalizePostalWebhookPayload = (
     normalizeStatus(rawStatus)
   )
   const status = normalizeStatus(rawStatus || eventType)
-  const messageId = pickString(
+  const messageId = pickIdentifier(
     originalMessage.id,
     originalMessage.message_id,
     nestedMessage.id,
@@ -362,6 +375,7 @@ export const normalizePostalWebhookPayload = (
     status,
     message_id: messageId || null,
     occurred_at: occurredAt,
+    replay_key: createHash("sha256").update(typeof body.uuid === "string" && body.uuid.trim() && body.uuid.length <= 200 ? canonicalJson({ uuid: body.uuid, event: eventType }) : canonicalJson(body)).digest("hex"),
   }
 }
 
@@ -418,18 +432,19 @@ export const recordPostalWebhookEvent = async (
       status: event.status,
       message_id: event.message_id,
       occurred_at: event.occurred_at,
+      replay_key: event.replay_key,
       // Do not persist a recipient or the raw provider callback. Both commonly
       // contain personal data and are not needed for delivery observability.
       payload: {},
     })
   } catch (error: unknown) {
-    if (isPostgresUniqueViolation(error) && event.message_id) {
+    if (isPostgresUniqueViolation(error)) {
       const existing = await service.listPostalWebhookEvents(
-        { message_id: event.message_id, event_type: event.event_type },
+        { replay_key: event.replay_key },
         { take: 1 }
       )
       if (existing?.length) {
-        return existing[0]
+        return { ...existing[0], duplicate: true }
       }
     }
     throw error

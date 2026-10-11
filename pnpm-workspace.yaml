@@ -11,6 +11,22 @@ minimumReleaseAgeExclude:
 overrides:
   zod: 4.4.3
   lodash: 4.18.1
+  handlebars: 4.7.10
+  proxy-addr: 2.0.8
+  "axios@^1": 1.20.0
+  "@grpc/grpc-js@^1": 1.14.6
+  "figlet@^1": 1.11.3
+  "http-cache-semantics@^4": 4.3.0
+  "source-map-js@^1": 1.2.2
+  "compression@^1": 1.8.2
+  "ajv@^8": 8.18.0
+  "protobufjs@^7": 7.6.5
+  "qs@^6": 6.16.0
+  "postcss-selector-parser@^7": 7.1.6
+  "undici@^6": 6.29.0
+  "undici@^7": 7.30.0
+  "js-yaml@^3": 3.15.2
+  "js-yaml@^4": 4.3.2
   # @tanstack/react-virtual 3.14.10 currently declares an unpublished
   # @tanstack/virtual-core 3.17.8 dependency. Keep the last resolvable pair.
   "@tanstack/react-virtual": 3.14.9

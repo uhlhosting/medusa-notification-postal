@@ -62,7 +62,7 @@ stages:
   - mirror
 
 variables:
-  NODE_VERSION: "22.14.0"
+  NODE_VERSION: "24.21.0"
   # Keep in sync with the `packageManager` field in package.json.
   PNPM_VERSION: "11.25.0"
   PNPM_STORE_DIR: "$CI_PROJECT_DIR/.pnpm-store"
@@ -100,6 +100,7 @@ validate:
   script:
     - pnpm run lint
     - pnpm run typecheck
+    - pnpm security:dependencies
 
 test:
   stage: test
@@ -116,13 +117,35 @@ test:
       - coverage/
     expire_in: 1 week
 
+test:integration:
+  stage: test
+  services:
+    - name: postgres:16-alpine
+      alias: postal-postgres-localhost
+  variables:
+    POSTGRES_USER: medusa_test
+    POSTGRES_DB: postgres
+    POSTGRES_HOST_AUTH_METHOD: trust
+    DB_HOST: postal-postgres-localhost
+    DB_PORT: "5432"
+    DB_USERNAME: medusa_test
+    DB_PASSWORD: ""
+    DATABASE_URL: postgres://medusa_test@postal-postgres-localhost:5432/postgres
+  script:
+    - pnpm test:integration:modules
+    - pnpm test:integration:http
+    - pnpm build
+    - node scripts/verify-packed-consumer.mjs
+
 build:
   stage: build
   script:
     - pnpm run build
+    - node scripts/verify-packed-consumer.mjs
   artifacts:
     paths:
       - .medusa/
+      - reports/
     expire_in: 1 hour
 
 release:verify:
@@ -180,33 +203,33 @@ release:semantic:
     - NPM_CONFIG_REGISTRY="${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/npm/" pnpm exec semantic-release
 
 mirror:github:
-  stage: mirror
+  stage: deploy
   needs:
-    - job: release:semantic
-      optional: true
+    - build
+    - release:verify
+  variables:
+    GIT_DEPTH: "0"
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
       when: manual
       allow_failure: true
-    - if: '$CI_COMMIT_TAG'
-      when: manual
-      allow_failure: true
+    - when: never
   before_script: []
+  cache: []
   script:
-    # Configure this as a masked, protected GitLab CI/CD variable with write access to the GitHub mirror.
-    - test -n "$GITHUB_MIRROR_TOKEN"
-    - git config user.name "GitLab Mirror Bot"
-    - git config user.email "mirror-bot@uhlhost.net"
-    - git remote remove github 2>/dev/null || true
-    - git remote add github "https://x-access-token:${GITHUB_MIRROR_TOKEN}@github.com/uhlhosting/medusa-notification-postal.git"
+    - test -n "$GITHUB_MIRROR_SSH_PRIVATE_KEY" && test -n "$GITHUB_MIRROR_KNOWN_HOSTS"
     - |
-      if [ -n "$CI_COMMIT_TAG" ]; then
-        tag_target="$(git rev-parse "refs/tags/${CI_COMMIT_TAG}^{}")"
-        if [ "$tag_target" != "$CI_COMMIT_SHA" ]; then
-          echo "Refusing to mirror ${CI_COMMIT_TAG}: tag resolves to ${tag_target}, but pipeline verified ${CI_COMMIT_SHA}." >&2
-          exit 1
-        fi
-        git push github "refs/tags/${CI_COMMIT_TAG}:refs/tags/${CI_COMMIT_TAG}"
-      else
-        git push github "HEAD:refs/heads/main"
-      fi
+      TASK_MIRROR_DIR=$(mktemp -d)
+      trap 'rm -rf "$TASK_MIRROR_DIR"' EXIT
+      chmod 700 "$TASK_MIRROR_DIR"
+      printf '%s\n' "$GITHUB_MIRROR_SSH_PRIVATE_KEY" > "$TASK_MIRROR_DIR/key"
+      printf '%s\n' "$GITHUB_MIRROR_KNOWN_HOSTS" > "$TASK_MIRROR_DIR/known_hosts"
+      chmod 600 "$TASK_MIRROR_DIR/key" "$TASK_MIRROR_DIR/known_hosts"
+      export GIT_SSH_COMMAND="ssh -i '$TASK_MIRROR_DIR/key' -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile='$TASK_MIRROR_DIR/known_hosts'"
+      git fetch origin "$CI_DEFAULT_BRANCH" --tags
+      test "$CI_COMMIT_SHA" = "$(git rev-parse "origin/$CI_DEFAULT_BRANCH")"
+      set -- "refs/remotes/origin/$CI_DEFAULT_BRANCH:refs/heads/main"
+      for TASK_RELEASE_TAG in $(git tag --merged "$CI_COMMIT_SHA" --list 'v[0-9]*'); do
+        set -- "$@" "refs/tags/$TASK_RELEASE_TAG:refs/tags/$TASK_RELEASE_TAG"
+      done
+      git push --atomic git@github.com:uhlhosting/medusa-notification-postal.git "$@"

@@ -1,4 +1,3 @@
-import net from "net"
 import {
   AbstractNotificationProviderService,
   MedusaError,
@@ -20,16 +19,6 @@ import { isSingleEmailAddress } from "../address"
 import { POSTAL_WEBHOOK_TAG_PREFIX } from "../../../modules/postal/webhooks"
 
 const CRLF_REGEX = /[\r\n]/
-
-// The first two octets are enough to place an address in a loopback, private or
-// link-local range.
-const isNonPublicIPv4 = (a: number, b: number): boolean =>
-  a === 0 || // 0.0.0.0/8 (current network)
-  a === 10 || // 10.0.0.0/8 (private)
-  a === 127 || // 127.0.0.0/8 (loopback)
-  (a === 169 && b === 254) || // 169.254.0.0/16 (link-local)
-  (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12 (private)
-  (a === 192 && b === 168) // 192.168.0.0/16 (private)
 
 type PostalAuthType = "smtp-api"
 
@@ -219,10 +208,10 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
         "Postal 'base_url' must be a valid absolute URL"
       )
     }
-    if (parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") {
+    if ((parsedBaseUrl.protocol !== "http:" && parsedBaseUrl.protocol !== "https:") || parsedBaseUrl.username || parsedBaseUrl.password || parsedBaseUrl.search || parsedBaseUrl.hash) {
       throw new MedusaError(
         MedusaError.Types.INVALID_DATA,
-        "Postal 'base_url' must use the http or https protocol"
+        "Postal 'base_url' must use http/https without credentials, query or fragment"
       )
     }
 
@@ -396,97 +385,71 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     }
   }
 
-  private isValidPostalUrl(urlStr: string): boolean {
-    try {
-      const url = new URL(urlStr)
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
-        return false
-      }
-
-      // `URL#hostname` keeps the brackets around an IPv6 literal, which
-      // `net.isIP` does not accept.
-      const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "")
-      if (hostname === "localhost") return false
-
-      if (net.isIPv4(hostname)) {
-        const [a, b] = hostname.split(".").map(Number)
-        return !isNonPublicIPv4(a, b)
-      }
-
-      if (net.isIPv6(hostname)) {
-        if (hostname === "::1" || hostname === "::") return false
-
-        const first = parseInt(hostname.split(":")[0] || "0", 16)
-        // fc00::/7 (Unique local address)
-        if ((first & 0xfe00) === 0xfc00) return false
-        // fe80::/10 (Link-local)
-        if ((first & 0xffc0) === 0xfe80) return false
-
-        // IPv4-mapped (::ffff:192.168.1.1); `URL` serialises it as ::ffff:c0a8:101
-        const mapped = hostname.match(/^::ffff:([0-9a-f]{1,4}):[0-9a-f]{1,4}$/)
-        if (mapped) {
-          const high = parseInt(mapped[1], 16)
-          return !isNonPublicIPv4(high >> 8, high & 0xff)
-        }
-      }
-
-      return true
-    } catch {
-      return false
-    }
-  }
-
   private async fetchPostalApi(
     path: string,
     payload: Record<string, unknown> | PostalSendPayload
   ): Promise<PostalApiData> {
-    if (!this.isValidPostalUrl(this.config_.baseUrl)) {
-      throw new MedusaError(
-        MedusaError.Types.INVALID_DATA,
-        "Invalid Postal base_url: Must use http/https and cannot target local or private IP addresses."
-      )
-    }
-
+    // The origin is trusted operator configuration captured at provider boot.
+    // Internal self-hosted Postal origins are supported; callbacks and request
+    // bodies cannot supply destinations. Redirects must never forward the key.
     const controller = new AbortController()
-    const timeout = setTimeout(
-      () => controller.abort(),
-      resolveRequestTimeoutMs(this.config_.requestTimeoutOption)
-    )
-
-    const response = await fetch(`${this.config_.baseUrl}/api/v1/${path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Server-API-Key": this.config_.apiKey,
-      },
-      signal: controller.signal,
-      body: JSON.stringify(payload),
-    }).finally(() => clearTimeout(timeout))
-
-    const body = (await response.json().catch(() => null)) as PostalApiResult | null
-
-    const data =
-      body?.data && typeof body.data === "object"
-        ? (body.data as PostalApiData)
-        : null
-
-    if (!response.ok || !body || body.status === "error" || !data) {
-      const details =
-        data?.message ||
-        data?.error ||
-        body?.status ||
-        "unknown error"
-      throw new MedusaError(
-        MedusaError.Types.UNEXPECTED_STATE,
-        `Postal API request failed: ${response.status} - ${
-          typeof details === "string" || typeof details === "number"
-            ? String(details)
-            : "unknown error"
-        }`
-      )
+    let timer: ReturnType<typeof setTimeout>
+    const expired = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        controller.abort()
+        reject(new MedusaError(MedusaError.Types.UNEXPECTED_STATE, "Postal API request timed out"))
+      }, resolveRequestTimeoutMs(this.config_.requestTimeoutOption))
+    })
+    try {
+      return await Promise.race([expired, (async () => {
+        const response = await fetch(`${this.config_.baseUrl}/api/v1/${path}`, {
+          method: "POST",
+          redirect: "error",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Server-API-Key": this.config_.apiKey,
+          },
+          signal: controller.signal,
+          body: JSON.stringify(payload),
+        })
+        const reader = response.body?.getReader()
+        let body: PostalApiResult | null
+        if (reader) {
+          const chunks: Uint8Array[] = []
+          let bytes = 0
+          try {
+            while (true) {
+              const chunk = await reader.read()
+              if (chunk.done) break
+              bytes += chunk.value.byteLength
+              if (bytes > 1024 * 1024) {
+                controller.abort()
+                throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, "Postal API response exceeded 1 MiB")
+              }
+              chunks.push(chunk.value)
+            }
+            body = JSON.parse(Buffer.concat(chunks).toString("utf8")) as PostalApiResult
+          } finally {
+            if (controller.signal.aborted) void reader.cancel().catch(() => undefined)
+            reader.releaseLock()
+          }
+        } else {
+          body = await response.json() as PostalApiResult
+        }
+        const data = body?.data && typeof body.data === "object" && !Array.isArray(body.data)
+          ? body.data as PostalApiData : null
+        if (!response.ok || body?.status === "error" || !data) {
+          throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, `Postal API request failed (HTTP ${response.status})`)
+        }
+        return data
+      })()])
+    } catch (error) {
+      if (error instanceof MedusaError) throw error
+      // Provider bodies, URLs and transport errors may contain addresses or keys.
+      throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, "Postal API request failed")
+    } finally {
+      clearTimeout(timer!)
     }
-
-    return data
   }
 
   private resolveProviderData(

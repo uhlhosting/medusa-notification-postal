@@ -67,7 +67,7 @@ for (const { label, file } of REPORTS) {
       ? `${loc.file}${loc.start_line ? `:${loc.start_line}` : ""}`
       : "(no location)"
     console.log(
-      `    [${normalizeSeverity(v.severity)}] ${v.name || v.message || "finding"} — ${where}`
+      `    [${normalizeSeverity(v.severity)}] ${v.identifiers?.[0]?.type || "finding"} — ${where}`
     )
   }
   if (sorted.length > 20) {

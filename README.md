@@ -46,11 +46,11 @@ The provider options above are typically wired from environment variables. The p
 | --- | --- | --- |
 | `POSTAL_AUTH_TYPE` | no | Auth mode; only `smtp-api` is supported (default `smtp-api`). |
 | `POSTAL_FROM` | no | Default sender address (`from` option). |
-| `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. `localhost` and literal loopback, private or link-local IP addresses are refused when a request is sent; use a hostname. |
+| `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. Trusted operator-only boot configuration, including internal self-hosted origins. Credentials/query/fragment and redirects are forbidden; restrict configuration access and egress. |
 | `POSTAL_API_KEY` | **yes** | Postal server API key (`api_key` option). |
 | `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path; generated if unset. |
 | `POSTAL_WEBHOOK_PUBLIC_KEY` | no | Postal's RSA public key (PEM, JWK, or the single-key JWKS from `/.well-known/jwks.json`). When set, webhooks must also carry a valid Postal signature. |
-| `POSTAL_REQUEST_TIMEOUT_MS` | no | Outbound Postal HTTP timeout in ms (default `10000`, clamped to 1000-60000). The `request_timeout_ms` provider option wins when set. |
+| `POSTAL_REQUEST_TIMEOUT_MS` | no | Outbound Postal HTTP timeout in ms (default `10000`, clamped to 1000-60000). The `request_timeout_ms` provider option wins when set. The deadline includes body consumption and responses are capped at 1 MiB. |
 | `POSTAL_TEST_TO` | no | Recipient for admin test sends, and the address sandbox mode redirects to. |
 | `POSTAL_SANDBOX` | no | `true` redirects every recipient to `POSTAL_TEST_TO` (see [Sandbox mode](#sandbox-mode)). Off unless set. |
 | `MEDUSA_BACKEND_URL` | no | Fallback origin for the absolute webhook callback URL shown in the admin, when the request's host cannot be used. `VITE_BACKEND_URL` is the second fallback and also the admin extension's backend URL. |
@@ -272,3 +272,7 @@ const { result } = await sendPostalEmailWorkflow(req.scope).run({
 // Result returns the delivery info:
 // { success: true, delivery: { message_id: "123", ... } }
 ```
+
+## Production migration
+
+Medusa 2.21.2/UI 4.2.6 and the callback replay/publication migration are required. See [migration and deployment gates](docs/production-readiness-migration.md) before upgrading server/worker processes.

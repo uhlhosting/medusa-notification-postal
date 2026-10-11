@@ -20,6 +20,8 @@ const makeWebhookContainer = (ignoreEngagement: boolean | undefined) => {
       created.push(data)
     },
     listPostalWebhookEvents: async () => [],
+    claimWebhookPublication: async () => "isolated-owner",
+    settleWebhookPublication: async () => true,
     ...(ignoreEngagement === undefined
       ? {}
       : {

@@ -135,6 +135,7 @@ const deprecated = []
 async function getDeprecationMessage(name, version) {
   const response = await fetch(
     `https://registry.npmjs.org/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
+    { redirect: "error", signal: AbortSignal.timeout(10_000) },
   )
 
   if (!response.ok) {
