@@ -5,7 +5,7 @@ import { postalDeleteExpiredWebhookEventsStepHandler } from "./postal-delete-exp
 
 const NOW = "2026-09-14T03:40:00.000Z"
 
-test("deletes stored webhook events created before the cutoff", async () => {
+test("selects only published unleased webhook events created before the cutoff", async () => {
   const listCalls: unknown[] = []
   const deleteCalls: string[][] = []
   const queue = [[{ id: "postal_webhook_1" }, { id: "postal_webhook_2" }]]
@@ -19,9 +19,9 @@ test("deletes stored webhook events created before the cutoff", async () => {
         },
         deletePostalWebhookEvents: async (ids: string[]) => {
           deleteCalls.push(ids)
-        },
+        }
       }
-    },
+    }
   }
 
   const response = await postalDeleteExpiredWebhookEventsStepHandler(
@@ -31,14 +31,19 @@ test("deletes stored webhook events created before the cutoff", async () => {
 
   assert.deepEqual(listCalls, [
     [
-      { created_at: { $lt: new Date("2026-08-15T03:40:00.000Z") } },
-      { select: ["id"], take: 500 },
-    ],
+      {
+        created_at: { $lt: new Date("2026-08-15T03:40:00.000Z") },
+        published_at: { $ne: null },
+        publication_owner: null,
+        publication_expires_at: null
+      },
+      { select: ["id"], take: 500 }
+    ]
   ])
   assert.deepEqual(deleteCalls, [["postal_webhook_1", "postal_webhook_2"]])
   assert.deepEqual(response.output, {
     deleted: 2,
-    cutoff: "2026-08-15T03:40:00.000Z",
+    cutoff: "2026-08-15T03:40:00.000Z"
   })
 })
 
@@ -46,7 +51,7 @@ test("does nothing where the plugin module is not registered", async () => {
   const container = {
     resolve: () => {
       throw new Error("not registered")
-    },
+    }
   }
 
   const response = await postalDeleteExpiredWebhookEventsStepHandler(
@@ -65,4 +70,26 @@ test("rejects a period it cannot measure from", async () => {
     ),
     /retention_days must be a positive whole number/
   )
+})
+
+test("propagates inventory failure without deleting receipts", async () => {
+  let deletes = 0
+  const container = {
+    resolve: () => ({
+      listPostalWebhookEvents: async () => {
+        throw new Error("inventory unavailable")
+      },
+      deletePostalWebhookEvents: async () => {
+        deletes += 1
+      }
+    })
+  }
+  await assert.rejects(
+    postalDeleteExpiredWebhookEventsStepHandler(
+      { now: NOW, retention_days: 30 },
+      { container }
+    ),
+    /inventory unavailable/
+  )
+  assert.equal(deletes, 0)
 })

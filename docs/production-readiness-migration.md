@@ -1,5 +1,7 @@
 # Production readiness migration
 
+Pending source correction: callback retention only purges published, unleased rows older than the configured creation-time cutoff. Unpublished receipts and rows carrying any publication owner/expiry survive regardless of age. This does not change notification retention or the published-metadata age policy. Investigate unresolved receipts operationally rather than deleting them to meet an age target. No schema migration is required for this filter correction; source preparation is not live activation.
+
 Requires Medusa 2.21.2 and UI 4.2.6. Stop callback handling/publication workers, back up the database, apply the module migration and upgrade every server/worker before resuming. No live migrations were performed during development.
 
 The callback contract now preserves numeric Postal per-recipient IDs and recurring delay/engagement events. Retry identity is the provider UUID plus event type when present; legacy callbacks without UUID use canonical JSON SHA256, including callbacks lacking message IDs. Only the digest and redacted lifecycle metadata are stored. Historical rows keep NULL digests and are treated as previously published, avoiding unsafe historical replay. Rollback cannot automatically discard durable publication/replay receipts.

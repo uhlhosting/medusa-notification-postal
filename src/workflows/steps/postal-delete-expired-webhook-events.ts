@@ -4,7 +4,7 @@ import {
   deleteCreatedBefore,
   resolveRetentionCutoff,
   type RetentionStepInput,
-  type RetentionStepResult,
+  type RetentionStepResult
 } from "./retention"
 
 type PostalWebhookEventRecords = {
@@ -16,8 +16,10 @@ type PostalWebhookEventRecords = {
 }
 
 /**
- * Hard-deletes `postal_webhook_events` rows created before the cutoff. Each
- * row holds a recipient address and the raw Postal callback payload.
+ * Hard-deletes published, unleased callback metadata created before the cutoff.
+ * Unpublished receipts remain durable work, regardless of age. Preserve any
+ * lease metadata conservatively; publication claims only accept unpublished
+ * rows, so an eligible published row cannot acquire a new publisher lease.
  *
  * Does nothing where the plugin module is not registered. No compensation: a
  * retention delete is not rolled back.
@@ -38,7 +40,16 @@ export const postalDeleteExpiredWebhookEventsStepHandler = async (
 
   const deleted = await deleteCreatedBefore(
     cutoff,
-    (filters, config) => service.listPostalWebhookEvents(filters, config),
+    (filters, config) =>
+      service.listPostalWebhookEvents(
+        {
+          ...filters,
+          published_at: { $ne: null },
+          publication_owner: null,
+          publication_expires_at: null
+        },
+        config
+      ),
     (ids) => service.deletePostalWebhookEvents(ids)
   )
 

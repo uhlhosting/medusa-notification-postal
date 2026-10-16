@@ -36,6 +36,8 @@ Every plugin option is off unless you set it, so upgrading changes nothing for a
 
 The retention options take a whole number of days from 1 to 7300, as a number or a numeric string. Any other value leaves that purge off, and the job logs a warning that names the option but not the value. Job schedules are fixed in the job files; the periods are read from the plugin module at run time. The jobs log counts and cutoffs only, never recipients or content.
 
+Webhook purge additionally requires a published receipt with no publication owner or lease expiry. Unpublished work and any lease metadata survive regardless of age, including expired or inconsistent leases, so retention cannot discard recoverable delivery work. Investigate unresolved receipts rather than deleting them to force progress. Published, unleased metadata retains the configured creation-time cutoff; notification retention is unchanged. Approve the replay horizon before enabling callback retention.
+
 `notification_retention_days` is deliberately provider-neutral. The `notification` table is shared by every notification provider in the store, and each row is delivery metadata (recipient, template, provider message id, sometimes a Reply-To address) with no retention of its own. Before you set it, check that nothing in your store relies on old rows: a notification `idempotency_key` only deduplicates while its row exists.
 
 ### Environment variables
