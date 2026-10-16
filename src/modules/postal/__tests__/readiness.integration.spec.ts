@@ -3,11 +3,13 @@ import PostalPluginModuleService from "../service"
 import PostalSetting from "../models/postal-setting"
 import PostalWebhookEvent from "../models/postal-webhook-event"
 import { recordPostalWebhookEvent } from "../webhooks"
+import { registerRetentionCases } from "./retention-cases"
 jest.setTimeout(60_000)
 moduleIntegrationTestRunner<PostalPluginModuleService>({
   pathToMigrations: "./src/modules/postal/migrations", moduleName: "postalPlugin",
   moduleModels: [PostalSetting, PostalWebhookEvent], resolve: "./src/modules/postal", dbName: "postal_readiness_native",
   testSuite: ({ service }) => {
+    registerRetentionCases(service)
     const payload = { event: "MessageDelayed", timestamp: 1730000000, payload: { status: "Delayed", message: { id: 28638, tag: "uhlhosting.medusa-notification-postal:native" } }, uuid: "native-callback-1" }
     it("deduplicates concurrent callbacks using a database unique index", async () => {
       const results = await Promise.all(Array.from({ length: 8 }, () => recordPostalWebhookEvent(service as any, payload)))

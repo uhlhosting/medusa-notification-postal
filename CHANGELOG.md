@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Preserve unpublished callback receipts and rows with publication lease metadata during webhook retention purge. Published, unleased rows keep the configured creation-time cutoff; notification retention is unchanged.
+
 - Send-side and webhook-side now share one `POSTAL_WEBHOOK_TAG_PREFIX`. The provider declared its own copy of the literal the webhook matcher tests with `startsWith`, so a one-sided edit would have left sends working while every inbound callback was silently dropped as "not from this plugin".
 - Saving settings costs one database round trip instead of four. `persistPostalSettings` read the settings, re-read the row for an existence check, wrote, then re-read to build its return value; the returned snapshot is now built from the values just written plus the environment secrets. A "save + test" admin request drops from five reads to one, since the test path reuses the workflow's returned snapshot.
 - Inbound webhooks normalize their payload once instead of twice — the `sent`-and-from-this-plugin gate ran the full ~20-key normalization pass, then `recordPostalWebhookEvent` ran it again.
