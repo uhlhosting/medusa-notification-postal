@@ -69,3 +69,46 @@ test("postal settings GET returns public settings without secrets", async () => 
     }
   }
 })
+
+const callGet = async (rows: Array<Record<string, unknown>>) => {
+  const responseBody: any = {}
+  const req = {
+    scope: {
+      resolve: (name: string) =>
+        name === "query" ? { graph: async () => ({ data: rows }) } : null,
+    },
+  } as any
+  const res = {
+    json(payload: any) {
+      responseBody.payload = payload
+      return payload
+    },
+  } as any
+
+  await GET(req, res)
+
+  return responseBody.payload
+}
+
+test("postal settings GET reports no pending restart when nothing was saved", async () => {
+  assert.equal((await callGet([])).pending_restart, false)
+})
+
+test("postal settings GET reports a pending restart until the boot loader clears it", async () => {
+  const saved = {
+    id: "postal",
+    auth_type: "smtp-api",
+    from_address: "saved@example.com",
+    base_url: "https://saved.example.com",
+    test_to: "",
+  }
+
+  assert.equal(
+    (await callGet([{ ...saved, pending_restart: true }])).pending_restart,
+    true
+  )
+  assert.equal(
+    (await callGet([{ ...saved, pending_restart: false }])).pending_restart,
+    false
+  )
+})

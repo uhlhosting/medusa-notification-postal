@@ -183,23 +183,19 @@ export const persistPostalSettings = async (
     ? await retrievePostalSettingRecord(service)
     : existingRecord || undefined
 
+  // A field left out of the payload keeps its stored value. A field sent empty
+  // clears the stored override, so the environment value applies again — the
+  // effective value is always `row || env` (see getEffectivePostalSettings).
+  // Treating "" as "not provided" made a cleared field silently snap back to its
+  // old value after a save that reported success.
+  const resolveField = (provided: string | undefined, stored: string | undefined) =>
+    provided === undefined ? stored ?? "" : sanitizeValue(provided)
+
   const next = {
     auth_type: "smtp-api" as const,
-    from_address:
-      sanitizeValue(payload.from) ||
-      existing?.from_address ||
-      process.env.POSTAL_FROM ||
-      "",
-    base_url:
-      sanitizeValue(payload.base_url) ||
-      existing?.base_url ||
-      process.env.POSTAL_BASE_URL ||
-      "",
-    test_to:
-      sanitizeValue(payload.test_to) ||
-      existing?.test_to ||
-      process.env.POSTAL_TEST_TO ||
-      "",
+    from_address: resolveField(payload.from, existing?.from_address),
+    base_url: resolveField(payload.base_url, existing?.base_url),
+    test_to: resolveField(payload.test_to, existing?.test_to),
     pending_restart: true,
   }
 
@@ -212,12 +208,12 @@ export const persistPostalSettings = async (
   }
 
   // Secrets live only in the environment, so the saved row plus the env
-  // secrets is exactly what a re-read would produce.
+  // values is exactly what a re-read would produce.
   return buildSnapshot({
     auth_type: "smtp-api",
-    from: next.from_address,
-    base_url: next.base_url,
-    test_to: next.test_to,
+    from: next.from_address || process.env.POSTAL_FROM || "",
+    base_url: next.base_url || process.env.POSTAL_BASE_URL || "",
+    test_to: next.test_to || process.env.POSTAL_TEST_TO || "",
     api_key: process.env.POSTAL_API_KEY || "",
     webhook_token: process.env.POSTAL_WEBHOOK_TOKEN || "",
   })

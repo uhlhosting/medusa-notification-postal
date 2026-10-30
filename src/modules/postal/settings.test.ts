@@ -253,3 +253,64 @@ test("validateModeRequirements enforces from, base_url, and api_key", async () =
     )
   })
 })
+
+test("persistPostalSettings clears a stored override when a field is sent empty", async () => {
+  await withEnv(
+    {
+      POSTAL_FROM: "env-from@example.com",
+      POSTAL_BASE_URL: undefined,
+      POSTAL_TEST_TO: "env-test@example.com",
+    },
+    async () => {
+      const service = createFakeService({
+        from_address: "old@example.com",
+        base_url: "https://old.example.com",
+        test_to: "old-test@example.com",
+      })
+
+      // `from` is left out (keeps its value); `test_to` is cleared; `base_url`
+      // is whitespace only, which counts as cleared too.
+      const result = await persistPostalSettings(service, {
+        test_to: "",
+        base_url: "   ",
+      })
+
+      const stored = service.rows.get(POSTAL_SETTINGS_ID)
+      assert.equal(stored?.from_address, "old@example.com")
+      assert.equal(stored?.test_to, "")
+      assert.equal(stored?.base_url, "")
+
+      // The returned snapshot is the effective value a re-read would produce:
+      // the cleared fields fall back to the environment, not to the old row.
+      assert.equal(result.from, "old@example.com")
+      assert.equal(result.test_to, "env-test@example.com")
+      assert.equal(result.base_url, null)
+    }
+  )
+})
+
+test("persistPostalSettings keeps environment values out of a newly created row", async () => {
+  await withEnv(
+    {
+      POSTAL_FROM: "env-from@example.com",
+      POSTAL_BASE_URL: "https://env.example.com",
+      POSTAL_TEST_TO: undefined,
+    },
+    async () => {
+      const service = createFakeService()
+
+      const result = await persistPostalSettings(service, {
+        test_to: "qa@example.com",
+      })
+
+      // Only what the operator saved is stored; the environment is applied on
+      // read, so a later change to it is not shadowed by a stale copy.
+      const stored = service.rows.get(POSTAL_SETTINGS_ID)
+      assert.equal(stored?.from_address, "")
+      assert.equal(stored?.base_url, "")
+      assert.equal(stored?.test_to, "qa@example.com")
+      assert.equal(result.from, "env-from@example.com")
+      assert.equal(result.base_url, "https://env.example.com")
+    }
+  )
+})
