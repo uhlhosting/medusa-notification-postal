@@ -1,17 +1,29 @@
 import { defineRouteConfig } from "@medusajs/admin-sdk";
 import {
+  Bolt,
+  CheckCircle,
+  Envelope,
+  ExclamationCircle,
+  ServerStack,
+  SquareTwoStack,
+} from "@medusajs/icons";
+import {
+  Alert,
+  Badge,
+  Button,
   Code,
+  Copy,
   DataTable,
   InlineTip,
   StatusBadge,
   Text,
   createDataTableColumnHelper,
   useDataTable,
+  type DataTablePaginationState,
 } from "@medusajs/ui";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Envelope, CheckCircle, XCircle } from "@medusajs/icons";
 import {
   PluginHeader,
   PluginSection,
@@ -20,50 +32,89 @@ import {
 } from "../../components/admin-ui";
 import { getPublicBackendBaseUrl, sdk } from "../../lib/client";
 import { ensurePostalAdminTranslations } from "../../lib/i18n";
+import {
+  postalHealthKey,
+  type PostalWebhookUrlResponse,
+} from "../../lib/postal-queries";
 
 type Notification = {
   id: string;
+  to: string;
   channel: string;
   template: string;
   created_at: string;
   status?: string;
   external_id?: string;
   provider_id?: string;
+  data?: { status?: string } | null;
+  provider_data?: { status?: string } | null;
 };
-
-const columnHelper = createDataTableColumnHelper<Notification>();
-const webhookColumnHelper = createDataTableColumnHelper<WebhookEvent>();
 
 type WebhookEvent = {
   id: string;
   event_type: string;
   status: string;
   message_id?: string | null;
+  recipient?: string | null;
   occurred_at?: string | null;
   created_at?: string;
 };
 
-type AdminNotificationsResponse = {
-  notifications: Notification[];
+type StatusPresentation = {
+  color: "green" | "red" | "orange" | "blue" | "grey";
+  labelKey: string;
 };
 
-type AdminPostalWebhooksResponse = {
-  events: WebhookEvent[];
+const PAGE_SIZE = 10;
+// The notifications endpoint is filtered by provider client-side, so fetch a
+// window large enough to page through rather than a single small page.
+const NOTIFICATION_WINDOW = 100;
+const WEBHOOK_WINDOW = 25;
+const POSTAL_PROVIDER_IDS = ["postal", "notification-postal"];
+const PROBLEM_STATUSES = ["failed", "bounced", "dns_error"];
+
+const columnHelper = createDataTableColumnHelper<Notification>();
+const webhookColumnHelper = createDataTableColumnHelper<WebhookEvent>();
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "-"
+    : new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date);
 };
 
-type AdminPostalWebhookUrlResponse = {
-  token?: string;
-  callback_url?: string;
-};
+const maskEmail = (value?: string | null) => {
+  const email = String(value || "").trim();
+  const atIndex = email.lastIndexOf("@");
 
-type AdminPostalHealthResponse = {
-  status?: string;
-};
+  if (!email) {
+    return "-";
+  }
 
+  if (atIndex <= 0) {
+    return email;
+  }
+
+  const local = email.slice(0, atIndex);
+  const domain = email.slice(atIndex + 1).toLowerCase();
+  const masked =
+    local.length <= 2 ? `${local[0] || ""}*` : `${local[0]}***${local.slice(-1)}`;
+
+  return `${masked}@${domain}`;
+};
 
 const statusFromNotification = (notification: Notification) => {
   const status = String(
     notification.status ||
+      notification.data?.status ||
+      notification.provider_data?.status ||
       "",
   ).toLowerCase();
 
@@ -75,20 +126,11 @@ const statusFromNotification = (notification: Notification) => {
     return "failed";
   }
 
-  if (notification.external_id) {
-    return "sent";
-  }
-
-  return "pending";
-};
-
-type StatusPresentation = {
-  color: "green" | "red" | "orange" | "blue" | "grey";
-  labelKey: string;
+  return notification.external_id ? "sent" : "pending";
 };
 
 // Color and label always change together, so they live in one table per status
-// vocabulary rather than in four parallel if-chains.
+// vocabulary rather than in parallel if-chains.
 const ACTIVITY_STATUS: Record<string, StatusPresentation> = {
   accepted: { color: "green", labelKey: "postal.activity.accepted" },
   failed: { color: "red", labelKey: "postal.activity.failed" },
@@ -115,166 +157,95 @@ const WEBHOOK_STATUS_FALLBACK: StatusPresentation = {
   labelKey: "postal.webhooks.unknown",
 };
 
-const statusBadgeColor = (status: string) =>
-  (ACTIVITY_STATUS[status] || ACTIVITY_STATUS_FALLBACK).color;
-
-const statusLabelKey = (status: string) =>
-  (ACTIVITY_STATUS[status] || ACTIVITY_STATUS_FALLBACK).labelKey;
-
-const webhookStatusBadgeColor = (status: string) =>
-  (WEBHOOK_STATUS[status] || WEBHOOK_STATUS_FALLBACK).color;
-
-const webhookStatusLabelKey = (status: string) =>
-  (WEBHOOK_STATUS[status] || WEBHOOK_STATUS_FALLBACK).labelKey;
-
 const buildPostalCallbackUrl = (token: string) => {
   const path = `/postal/webhooks/${token}`;
-  const base = getPublicBackendBaseUrl();
 
   try {
-    return new URL(path, base).toString();
+    return new URL(path, getPublicBackendBaseUrl()).toString();
   } catch {
     return path;
   }
-};
-
-const useColumns = () => {
-  ensurePostalAdminTranslations();
-  const { t } = useTranslation();
-
-  return useMemo(
-    () => [
-      columnHelper.accessor("template", {
-        header: t("postal.activity.template"),
-        cell: ({ getValue }) => (
-          <StatusBadge color="grey">{getValue()}</StatusBadge>
-        ),
-      }),
-      columnHelper.accessor("created_at", {
-        header: t("postal.activity.accepted_at"),
-        cell: ({ getValue }) => (
-          <Text size="small">{new Date(getValue()).toLocaleString()}</Text>
-        ),
-      }),
-      columnHelper.accessor("id", {
-        header: t("postal.activity.status"),
-        cell: ({ row }) => {
-          const status = statusFromNotification(row.original);
-          return (
-            <StatusBadge color={statusBadgeColor(status)}>
-              {t(statusLabelKey(status) as any)}
-            </StatusBadge>
-          );
-        },
-      }),
-    ],
-    [t],
-  );
-};
-
-const useWebhookColumns = () => {
-  ensurePostalAdminTranslations();
-  const { t } = useTranslation();
-
-  return useMemo(
-    () => [
-      webhookColumnHelper.accessor("event_type", {
-        header: t("postal.webhooks.event"),
-        cell: ({ getValue }) => <Text size="small">{getValue()}</Text>,
-      }),
-      webhookColumnHelper.accessor("status", {
-        header: t("postal.webhooks.status"),
-        cell: ({ getValue }) => (
-          <StatusBadge color={webhookStatusBadgeColor(getValue())}>
-            {t(webhookStatusLabelKey(getValue()) as any)}
-          </StatusBadge>
-        ),
-      }),
-      webhookColumnHelper.accessor("message_id", {
-        header: t("postal.webhooks.message_id"),
-        cell: ({ getValue }) => (
-          <Text size="small">{getValue() || "-"}</Text>
-        ),
-      }),
-      webhookColumnHelper.accessor("created_at", {
-        header: t("postal.webhooks.received_at"),
-        cell: ({ getValue }) => (
-          <Text size="small">
-            {getValue() ? new Date(getValue() as string).toLocaleString() : "-"}
-          </Text>
-        ),
-      }),
-    ],
-    [t],
-  );
 };
 
 const PostalAdminPage = () => {
   ensurePostalAdminTranslations();
   const { t } = useTranslation();
   const [searchValue, setSearchValue] = useState("");
-  const columns = useColumns();
-  const webhookCallbackPath = "/postal/webhooks";
-
-  // Health check query
-  const { data: health, isLoading: isHealthLoading, dataUpdatedAt: healthUpdatedAt } = useQuery({
-    queryKey: ["postal-health"],
-    queryFn: () => sdk.client.fetch<AdminPostalHealthResponse>("/admin/postal/health"),
-    refetchInterval: 30000, // Refetch every 30s
+  const [pagination, setPagination] = useState<DataTablePaginationState>({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
   });
-  const lastCheckedAt = healthUpdatedAt
-    ? new Date(healthUpdatedAt).toLocaleString()
-    : undefined;
 
-  // Notifications query
-  const { data: notificationsData, isLoading: isNotificationsLoading } =
-    useQuery({
-      queryKey: ["postal-notifications", searchValue],
-      queryFn: async () => {
-        const response = await sdk.client.fetch<AdminNotificationsResponse>("/admin/notifications", {
+  // Reports whether the provider is registered, not whether Postal is
+  // reachable, so the badge says "active" rather than "connected".
+  const {
+    data: health,
+    isLoading: isHealthLoading,
+    isError: isHealthError,
+    dataUpdatedAt: healthUpdatedAt,
+  } = useQuery({
+    queryKey: postalHealthKey,
+    queryFn: () =>
+      sdk.client.fetch<{ status?: string }>("/admin/postal/health"),
+    refetchInterval: 30_000,
+    retry: false,
+  });
+  const isProviderActive = !isHealthError && health?.status === "ok";
+
+  const {
+    data: notifications = [],
+    isLoading: isNotificationsLoading,
+    isError: isNotificationsError,
+  } = useQuery({
+    queryKey: ["postal-notifications", searchValue],
+    queryFn: async () => {
+      const response = await sdk.client.fetch<{ notifications?: Notification[] }>(
+        "/admin/notifications",
+        {
           query: {
             fields:
-              "id,channel,template,created_at,updated_at,status,external_id,provider_id",
-            limit: 50,
+              "id,to,channel,template,data,provider_data,created_at,status,external_id,provider_id",
+            limit: NOTIFICATION_WINDOW,
             channel: "email",
+            order: "-created_at",
             q: searchValue || undefined,
           },
-        });
-        const notifications = Array.isArray(response?.notifications)
-          ? response.notifications
-          : [];
+        },
+      );
 
-        // Keep compatibility with both provider ids seen in this repo.
-        return notifications.filter(
-          (n: Notification) =>
-            n?.provider_id === "notification-postal" ||
-            n?.provider_id === "postal" ||
-            (n?.channel === "email" && !n?.provider_id),
-        ) as Notification[];
-      },
-    });
+      return (response.notifications ?? []).filter(
+        (notification) =>
+          POSTAL_PROVIDER_IDS.includes(notification.provider_id ?? "") ||
+          !notification.provider_id,
+      );
+    },
+  });
 
-  const { data: webhookEventsData, isLoading: isWebhookEventsLoading } =
-    useQuery({
-      queryKey: ["postal-webhook-events"],
-      queryFn: async () => {
-        const response = await sdk.client.fetch<AdminPostalWebhooksResponse>("/admin/postal/webhooks", {
-          query: {
-            limit: 25,
-          },
-        });
+  const {
+    data: webhookEvents = [],
+    isLoading: isWebhookEventsLoading,
+    isError: isWebhookEventsError,
+  } = useQuery({
+    queryKey: ["postal-webhook-events"],
+    queryFn: async () => {
+      const response = await sdk.client.fetch<{ events?: WebhookEvent[] }>(
+        "/admin/postal/webhooks",
+        { query: { limit: WEBHOOK_WINDOW } },
+      );
 
-        return Array.isArray(response?.events) ? response.events : [];
-      },
-    });
+      return response.events ?? [];
+    },
+  });
 
   const { data: webhookUrlData } = useQuery({
     queryKey: ["postal-webhook-url"],
     queryFn: async () => {
       try {
-        const response = await sdk.client.fetch<AdminPostalWebhookUrlResponse>("/admin/postal/webhook-url");
-        return response || {};
+        return await sdk.client.fetch<PostalWebhookUrlResponse>(
+          "/admin/postal/webhook-url",
+        );
       } catch {
+        // No token configured yet: the page explains how to set one.
         return null;
       }
     },
@@ -285,55 +256,173 @@ const PostalAdminPage = () => {
     String(webhookUrlData?.callback_url || "").trim() ||
     (webhookToken ? buildPostalCallbackUrl(webhookToken) : "");
 
-  const acceptedCount = useMemo(() => {
-    return (notificationsData || []).filter(
-      (n) => statusFromNotification(n) === "accepted",
-    ).length;
-  }, [notificationsData]);
+  const acceptedCount = useMemo(
+    () =>
+      notifications.filter(
+        (notification) => statusFromNotification(notification) === "accepted",
+      ).length,
+    [notifications],
+  );
+  const problemCount = useMemo(
+    () =>
+      webhookEvents.filter((event) => PROBLEM_STATUSES.includes(event.status))
+        .length,
+    [webhookEvents],
+  );
 
-  const webhookEventColumns = useWebhookColumns();
-  const webhookTable = useDataTable({
-    data: webhookEventsData || [],
-    columns: webhookEventColumns,
-    getRowId: (event) => event.id,
-    rowCount: webhookEventsData?.length || 0,
-    isLoading: isWebhookEventsLoading,
-  });
+  const columns = useMemo(
+    () => [
+      columnHelper.accessor("to", {
+        header: t("postal.activity.recipient"),
+        cell: ({ getValue }) => (
+          <Text size="small" leading="compact">
+            {maskEmail(getValue())}
+          </Text>
+        ),
+      }),
+      columnHelper.accessor("template", {
+        header: t("postal.activity.template"),
+        cell: ({ getValue }) => (
+          <Badge size="2xsmall" color="grey">
+            {getValue()}
+          </Badge>
+        ),
+      }),
+      columnHelper.accessor("created_at", {
+        header: t("postal.activity.accepted_at"),
+        cell: ({ getValue }) => (
+          <Text size="small" leading="compact">
+            {formatDateTime(getValue())}
+          </Text>
+        ),
+      }),
+      columnHelper.display({
+        id: "status",
+        header: t("postal.activity.status"),
+        cell: ({ row }) => {
+          const presentation =
+            ACTIVITY_STATUS[statusFromNotification(row.original)] ??
+            ACTIVITY_STATUS_FALLBACK;
+
+          return (
+            <StatusBadge color={presentation.color}>
+              {t(presentation.labelKey as never)}
+            </StatusBadge>
+          );
+        },
+      }),
+    ],
+    [t],
+  );
+
+  const webhookColumns = useMemo(
+    () => [
+      webhookColumnHelper.accessor("event_type", {
+        header: t("postal.webhooks.event"),
+        cell: ({ getValue }) => (
+          <Text size="small" leading="compact">
+            {getValue()}
+          </Text>
+        ),
+      }),
+      webhookColumnHelper.accessor("status", {
+        header: t("postal.webhooks.status"),
+        cell: ({ getValue }) => {
+          const presentation =
+            WEBHOOK_STATUS[getValue()] ?? WEBHOOK_STATUS_FALLBACK;
+
+          return (
+            <StatusBadge color={presentation.color}>
+              {t(presentation.labelKey as never)}
+            </StatusBadge>
+          );
+        },
+      }),
+      webhookColumnHelper.accessor("message_id", {
+        header: t("postal.webhooks.message_id"),
+        cell: ({ getValue }) => (
+          <Text size="small" leading="compact">
+            {getValue() || "-"}
+          </Text>
+        ),
+      }),
+      webhookColumnHelper.accessor("recipient", {
+        header: t("postal.webhooks.recipient"),
+        cell: ({ getValue }) => (
+          <Text size="small" leading="compact">
+            {maskEmail(getValue())}
+          </Text>
+        ),
+      }),
+      webhookColumnHelper.accessor("created_at", {
+        header: t("postal.webhooks.received_at"),
+        cell: ({ getValue }) => (
+          <Text size="small" leading="compact">
+            {formatDateTime(getValue())}
+          </Text>
+        ),
+      }),
+    ],
+    [t],
+  );
+
+  const pageRows = useMemo(
+    () =>
+      notifications.slice(
+        pagination.pageIndex * pagination.pageSize,
+        (pagination.pageIndex + 1) * pagination.pageSize,
+      ),
+    [notifications, pagination],
+  );
 
   const table = useDataTable({
-    data: notificationsData || [],
+    data: pageRows,
     columns,
-    getRowId: (n) => n.id,
-    rowCount: notificationsData?.length || 0,
+    getRowId: (notification) => notification.id,
+    rowCount: notifications.length,
     isLoading: isNotificationsLoading,
+    pagination: { state: pagination, onPaginationChange: setPagination },
     search: {
       state: searchValue,
-      onSearchChange: setSearchValue,
+      onSearchChange: (value) => {
+        setSearchValue(value);
+        setPagination((previous) => ({ ...previous, pageIndex: 0 }));
+      },
+      debounce: 300,
     },
   });
 
-  const statusLabelKey = health?.status === "ok"
-    ? "postal.activity.connected"
-    : "postal.activity.disconnected"
+  const webhookTable = useDataTable({
+    data: webhookEvents,
+    columns: webhookColumns,
+    getRowId: (event) => event.id,
+    rowCount: webhookEvents.length,
+    isLoading: isWebhookEventsLoading,
+  });
+
+  const lastCheckedAt = healthUpdatedAt
+    ? new Date(healthUpdatedAt).toLocaleString()
+    : undefined;
 
   return (
     <PluginShell>
       <PluginHeader
         title={t("postal.title")}
-          description={t("postal.activity.subtitle")}
-        statusColor={health?.status === "ok" ? "green" : "red"}
+        description={t("postal.activity.subtitle")}
+        statusColor={isHealthLoading ? "grey" : isProviderActive ? "green" : "red"}
         statusLabel={
           isHealthLoading
             ? t("postal.activity.checking")
-            : t(statusLabelKey as any)
+            : isProviderActive
+              ? t("postal.activity.connected")
+              : t("postal.activity.disconnected")
         }
         lastSuccessfulExecution={
           lastCheckedAt
-            ? t("postal.activity.last_checked", {
-                time: lastCheckedAt,
-              })
+            ? t("postal.activity.last_checked", { time: lastCheckedAt })
             : undefined
         }
+        helpMenuLabel={t("postal.help_menu")}
         helpLinks={[
           {
             label: t("postal.activity.help_postal"),
@@ -358,12 +447,12 @@ const PostalAdminPage = () => {
         ]}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <PluginStatusCard
           title={t("postal.activity.auth_mode")}
-          value="API only"
+          value={t("postal.activity.transport_value")}
           description={t("postal.activity.configured_transport")}
-          icon={Envelope}
+          icon={ServerStack}
           color="grey"
         />
         <PluginStatusCard
@@ -372,47 +461,112 @@ const PostalAdminPage = () => {
           description={t("postal.activity.accepted_help")}
           icon={CheckCircle}
           color="green"
-        />
-
-        <PluginStatusCard
-          title={t("postal.activity.total_events")}
-          value={notificationsData?.length || 0}
-          description={t("postal.activity.records_shown")}
-          icon={XCircle}
-          color="orange"
+          isLoading={isNotificationsLoading}
         />
         <PluginStatusCard
           title={t("postal.webhooks.total_events")}
-          value={webhookEventsData?.length || 0}
+          value={webhookEvents.length}
           description={t("postal.webhooks.records_shown")}
-          icon={XCircle}
+          icon={Bolt}
           color="blue"
+          isLoading={isWebhookEventsLoading}
+        />
+        <PluginStatusCard
+          title={t("postal.activity.problems")}
+          value={problemCount}
+          description={t("postal.activity.problems_help")}
+          icon={ExclamationCircle}
+          color={problemCount > 0 ? "red" : "grey"}
+          isLoading={isWebhookEventsLoading}
         />
       </div>
 
       <PluginSection
         title={t("postal.activity.recent_activity")}
-        bodyClassName="p-0"
+        flush
       >
+        {isNotificationsError && (
+          <div className="px-6 py-4">
+            <Alert variant="error">{t("postal.activity.load_failed")}</Alert>
+          </div>
+        )}
         <DataTable instance={table}>
           <DataTable.Toolbar>
-            <div className="flex gap-2">
+            <div className="flex w-full items-center justify-end">
               <DataTable.Search
                 placeholder={t("postal.activity.search_placeholder")}
               />
             </div>
           </DataTable.Toolbar>
-          <DataTable.Table />
+          <DataTable.Table
+            emptyState={{
+              empty: {
+                heading: t("postal.activity.empty_heading"),
+                description: t("postal.activity.empty_description"),
+              },
+              filtered: {
+                heading: t("postal.activity.filtered_heading"),
+                description: t("postal.activity.filtered_description"),
+              },
+            }}
+          />
+          {notifications.length > PAGE_SIZE && (
+            <DataTable.Pagination
+              translations={{
+                of: t("postal.pagination.of"),
+                results: t("postal.pagination.results"),
+                pages: t("postal.pagination.pages"),
+                prev: t("postal.pagination.prev"),
+                next: t("postal.pagination.next"),
+              }}
+            />
+          )}
         </DataTable>
       </PluginSection>
 
       <PluginSection
         title={t("postal.webhooks.recent_events")}
-        bodyClassName="p-0"
+        flush
       >
+        {isWebhookEventsError && (
+          <div className="px-6 py-4">
+            <Alert variant="error">{t("postal.webhooks.load_failed")}</Alert>
+          </div>
+        )}
         <DataTable instance={webhookTable}>
-          <DataTable.Table />
+          <DataTable.Table
+            emptyState={{
+              empty: {
+                heading: t("postal.webhooks.empty_heading"),
+                description: t("postal.webhooks.empty_description"),
+              },
+            }}
+          />
         </DataTable>
+      </PluginSection>
+
+      <PluginSection
+        title={t("postal.webhooks.endpoint")}
+        description={t("postal.webhooks.endpoint_hint")}
+        bodyClassName="flex flex-col gap-y-3"
+      >
+        {webhookCallbackUrl ? (
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+            <Code className="block min-w-0 flex-1 whitespace-normal break-all">
+              {webhookCallbackUrl}
+            </Code>
+            <Copy content={webhookCallbackUrl} asChild>
+              <Button size="small" variant="secondary">
+                <SquareTwoStack />
+                {t("postal.copy_callback_url")}
+              </Button>
+            </Copy>
+          </div>
+        ) : (
+          <Alert variant="warning">
+            {t("postal.webhooks.callback_url_missing")}
+          </Alert>
+        )}
       </PluginSection>
 
       <InlineTip label={t("postal.activity.workflow_metadata")}>
@@ -422,54 +576,13 @@ const PostalAdminPage = () => {
         <Code>provider_data.workflow_run_id</Code>{" "}
         {t("postal.activity.workflow_hint_suffix")}
       </InlineTip>
-
-      <InlineTip label={t("postal.webhooks.endpoint")}>
-        {t("postal.webhooks.endpoint_hint_prefix")}{" "}
-        <Code>{webhookCallbackPath}</Code>{" "}
-        {t("postal.webhooks.endpoint_hint_suffix")}
-      </InlineTip>
-
-      <InlineTip label={t("postal.webhooks.callback_url")}>
-        {webhookCallbackUrl ? (
-          <>
-            {t("postal.webhooks.callback_url_hint_prefix")}{" "}
-            <Code>{webhookCallbackUrl}</Code>{" "}
-            {t("postal.webhooks.callback_url_hint_suffix")}
-          </>
-        ) : (
-          <>
-            {t("postal.webhooks.callback_url_missing_prefix")}{" "}
-            <Code>{webhookCallbackPath}</Code>{" "}
-            {t("postal.webhooks.callback_url_missing_suffix")}
-          </>
-        )}
-      </InlineTip>
     </PluginShell>
   );
 };
 
 export const config = defineRouteConfig({
   label: "Postal",
-  icon: function PostalRouteIcon() {
-    return (
-      <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="15" height="15" fill="#F43F5E" />
-        <rect width="15" height="15" fill="url(#postal-admin-icon-gradient)" fillOpacity="0.2" />
-        <g transform="translate(2 2) scale(0.7)" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5">
-          <path d="M11.829 4.398a2.82 2.82 0 0 1 1.511 2.498v4.028c0 .444-.36.805-.805.805H6.493M4.48 4.077h4.832" />
-          <path d="M4.48 4.077a2.82 2.82 0 0 1 2.819 2.82v4.027c0 .444-.361.805-.806.805H2.465a.806.806 0 0 1-.805-.805V6.896a2.82 2.82 0 0 1 2.82-2.82M7.299 11.528v1.812M4.48 6.896v1.208" />
-          <path fill="white" d="M11.73.854H9.311v1.209h2.417z" />
-          <path d="M9.313 5.285V1.86" />
-        </g>
-        <defs>
-          <linearGradient id="postal-admin-icon-gradient" x1="7.5" y1="0" x2="7.5" y2="15" gradientUnits="userSpaceOnUse">
-            <stop stopColor="white" />
-            <stop offset="1" stopColor="white" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-      </svg>
-    )
-  },
+  icon: Envelope,
 });
 
 export default PostalAdminPage;
