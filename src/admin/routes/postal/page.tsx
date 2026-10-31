@@ -31,7 +31,7 @@ import {
   PluginStatusCard,
 } from "../../components/admin-ui";
 import { PostalMessageDrawer } from "../../components/postal/message-drawer";
-import { getPublicBackendBaseUrl, sdk } from "../../lib/client";
+import { sdk } from "../../lib/client";
 import { formatDateTime } from "../../lib/format";
 import { ensurePostalAdminTranslations } from "../../lib/i18n";
 import {
@@ -119,15 +119,14 @@ const WEBHOOK_STATUS_FALLBACK: StatusPresentation = {
   labelKey: "postal.webhooks.unknown",
 };
 
-const buildPostalCallbackUrl = (token: string) => {
-  const path = `/postal/webhooks/${token}`;
-
-  try {
-    return new URL(path, getPublicBackendBaseUrl()).toString();
-  } catch {
-    return path;
-  }
-};
+// Fallback for when the server could not resolve an absolute callback URL: the
+// backend the dashboard talks to, or the page's own origin when it is served
+// from the same host.
+const buildPostalCallbackUrl = (token: string) =>
+  new URL(
+    `/postal/webhooks/${token}`,
+    new URL(import.meta.env.VITE_BACKEND_URL || "/", window.location.origin),
+  ).toString();
 
 const PostalAdminPage = () => {
   ensurePostalAdminTranslations();
