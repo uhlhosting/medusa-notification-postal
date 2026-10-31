@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormField, PluginSection } from "../admin-ui";
 import { sdk } from "../../lib/client";
+import { toPostalSettingsPayload } from "../../lib/postal-payloads";
 import { postalSettingsKey, usePostalSettings } from "../../lib/postal-queries";
 
 type EditableKey = "from" | "base_url" | "test_to";
@@ -32,12 +33,12 @@ export const PostalSettingsCard = () => {
         // environment and are never accepted from the admin UI.
         body: {
           action: "save",
-          settings: {
+          settings: toPostalSettingsPayload({
             auth_type: "smtp-api",
             from: valueOf("from"),
             base_url: valueOf("base_url"),
             test_to: valueOf("test_to"),
-          },
+          }),
         },
       }),
     onSuccess: async () => {

@@ -30,24 +30,26 @@ import {
   PluginShell,
   PluginStatusCard,
 } from "../../components/admin-ui";
+import { PostalMessageDrawer } from "../../components/postal/message-drawer";
 import { getPublicBackendBaseUrl, sdk } from "../../lib/client";
+import { formatDateTime } from "../../lib/format";
 import { ensurePostalAdminTranslations } from "../../lib/i18n";
 import {
   postalHealthKey,
+  toPostalMessageId,
   type PostalWebhookUrlResponse,
 } from "../../lib/postal-queries";
 
+// Recipients and payloads are deliberately not requested: the activity views
+// show delivery state only, and a single message is inspected on demand.
 type Notification = {
   id: string;
-  to: string;
   channel: string;
   template: string;
   created_at: string;
   status?: string;
-  external_id?: string;
+  external_id?: string | null;
   provider_id?: string;
-  data?: { status?: string } | null;
-  provider_data?: { status?: string } | null;
 };
 
 type WebhookEvent = {
@@ -55,7 +57,6 @@ type WebhookEvent = {
   event_type: string;
   status: string;
   message_id?: string | null;
-  recipient?: string | null;
   occurred_at?: string | null;
   created_at?: string;
 };
@@ -76,47 +77,8 @@ const PROBLEM_STATUSES = ["failed", "bounced", "dns_error"];
 const columnHelper = createDataTableColumnHelper<Notification>();
 const webhookColumnHelper = createDataTableColumnHelper<WebhookEvent>();
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) {
-    return "-";
-  }
-
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "-"
-    : new Intl.DateTimeFormat(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(date);
-};
-
-const maskEmail = (value?: string | null) => {
-  const email = String(value || "").trim();
-  const atIndex = email.lastIndexOf("@");
-
-  if (!email) {
-    return "-";
-  }
-
-  if (atIndex <= 0) {
-    return email;
-  }
-
-  const local = email.slice(0, atIndex);
-  const domain = email.slice(atIndex + 1).toLowerCase();
-  const masked =
-    local.length <= 2 ? `${local[0] || ""}*` : `${local[0]}***${local.slice(-1)}`;
-
-  return `${masked}@${domain}`;
-};
-
 const statusFromNotification = (notification: Notification) => {
-  const status = String(
-    notification.status ||
-      notification.data?.status ||
-      notification.provider_data?.status ||
-      "",
-  ).toLowerCase();
+  const status = String(notification.status || "").toLowerCase();
 
   if (["success", "sent", "delivered"].includes(status)) {
     return "accepted";
@@ -171,6 +133,9 @@ const PostalAdminPage = () => {
   ensurePostalAdminTranslations();
   const { t } = useTranslation();
   const [searchValue, setSearchValue] = useState("");
+  const [inspectedMessageId, setInspectedMessageId] = useState<string | null>(
+    null,
+  );
   const [pagination, setPagination] = useState<DataTablePaginationState>({
     pageIndex: 0,
     pageSize: PAGE_SIZE,
@@ -204,7 +169,7 @@ const PostalAdminPage = () => {
         {
           query: {
             fields:
-              "id,to,channel,template,data,provider_data,created_at,status,external_id,provider_id",
+              "id,channel,template,created_at,status,external_id,provider_id",
             limit: NOTIFICATION_WINDOW,
             channel: "email",
             order: "-created_at",
@@ -272,14 +237,6 @@ const PostalAdminPage = () => {
 
   const columns = useMemo(
     () => [
-      columnHelper.accessor("to", {
-        header: t("postal.activity.recipient"),
-        cell: ({ getValue }) => (
-          <Text size="small" leading="compact">
-            {maskEmail(getValue())}
-          </Text>
-        ),
-      }),
       columnHelper.accessor("template", {
         header: t("postal.activity.template"),
         cell: ({ getValue }) => (
@@ -309,6 +266,23 @@ const PostalAdminPage = () => {
               {t(presentation.labelKey as never)}
             </StatusBadge>
           );
+        },
+      }),
+      columnHelper.display({
+        id: "inspect",
+        header: "",
+        cell: ({ row }) => {
+          const messageId = toPostalMessageId(row.original.external_id);
+
+          return messageId ? (
+            <Button
+              size="small"
+              variant="transparent"
+              onClick={() => setInspectedMessageId(messageId)}
+            >
+              {t("postal.activity.view_message")}
+            </Button>
+          ) : null;
         },
       }),
     ],
@@ -346,14 +320,6 @@ const PostalAdminPage = () => {
           </Text>
         ),
       }),
-      webhookColumnHelper.accessor("recipient", {
-        header: t("postal.webhooks.recipient"),
-        cell: ({ getValue }) => (
-          <Text size="small" leading="compact">
-            {maskEmail(getValue())}
-          </Text>
-        ),
-      }),
       webhookColumnHelper.accessor("created_at", {
         header: t("postal.webhooks.received_at"),
         cell: ({ getValue }) => (
@@ -361,6 +327,23 @@ const PostalAdminPage = () => {
             {formatDateTime(getValue())}
           </Text>
         ),
+      }),
+      webhookColumnHelper.display({
+        id: "inspect",
+        header: "",
+        cell: ({ row }) => {
+          const messageId = toPostalMessageId(row.original.message_id);
+
+          return messageId ? (
+            <Button
+              size="small"
+              variant="transparent"
+              onClick={() => setInspectedMessageId(messageId)}
+            >
+              {t("postal.activity.view_message")}
+            </Button>
+          ) : null;
+        },
       }),
     ],
     [t],
@@ -576,6 +559,11 @@ const PostalAdminPage = () => {
         <Code>provider_data.workflow_run_id</Code>{" "}
         {t("postal.activity.workflow_hint_suffix")}
       </InlineTip>
+
+      <PostalMessageDrawer
+        messageId={inspectedMessageId}
+        onClose={() => setInspectedMessageId(null)}
+      />
     </PluginShell>
   );
 };

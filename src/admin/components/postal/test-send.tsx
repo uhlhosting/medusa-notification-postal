@@ -13,7 +13,11 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormField, PluginSection } from "../admin-ui";
 import { sdk } from "../../lib/client";
-import { usePostalSettings } from "../../lib/postal-queries";
+import type { PostalTestSendPayload } from "../../lib/postal-payloads";
+import {
+  usePostalSettings,
+  type PostalTestSendResponse,
+} from "../../lib/postal-queries";
 import {
   getPostalTemplateExample,
   getPostalTemplateOptions,
@@ -68,6 +72,15 @@ const parseJsonObject = (value: string): Record<string, unknown> | null => {
   }
 };
 
+// Header values are sent as strings; the route rejects any other type.
+const parseHeaders = (value: string): Record<string, string> | null => {
+  const parsed = parseJsonObject(value);
+
+  return parsed && Object.values(parsed).every((v) => typeof v === "string")
+    ? (parsed as Record<string, string>)
+    : null;
+};
+
 const parseEmailList = (value: string) =>
   value
     .split(",")
@@ -107,7 +120,12 @@ export const PostalTestSend = ({ template }: PostalTestSendProps) => {
     return (Object.keys(labels) as JsonField[]).reduce<
       Partial<Record<JsonField, string>>
     >((errors, key) => {
-      if (parseJsonObject(form[key]) === null) {
+      const parsed =
+        key === "headers_json"
+          ? parseHeaders(form[key])
+          : parseJsonObject(form[key]);
+
+      if (parsed === null) {
         errors[key] = labels[key];
       }
       return errors;
@@ -132,9 +150,7 @@ export const PostalTestSend = ({ template }: PostalTestSendProps) => {
       const cc = parseEmailList(form.cc);
       const bcc = parseEmailList(form.bcc);
 
-      return sdk.client.fetch<{ to?: string }>("/admin/postal/send-test", {
-        method: "POST",
-        body: {
+      const body: PostalTestSendPayload = {
           to: to.trim() || undefined,
           template,
           subject: form.subject.trim() || undefined,
@@ -144,16 +160,23 @@ export const PostalTestSend = ({ template }: PostalTestSendProps) => {
           bcc: bcc.length ? bcc : undefined,
           from_name: form.from_name.trim() || undefined,
           reply_to: form.reply_to.trim() || undefined,
-          headers: parseJsonObject(form.headers_json) ?? {},
+          headers: parseHeaders(form.headers_json) ?? {},
           custom_args: parseJsonObject(form.custom_args_json) ?? {},
           metadata: parseJsonObject(form.metadata_json) ?? {},
-        },
-      });
+      };
+
+      return sdk.client.fetch<PostalTestSendResponse>(
+        "/admin/postal/send-test",
+        { method: "POST", body },
+      );
     },
     onSuccess: async (response) => {
       toast.success(
         t("postal.toast.test_sent", {
-          to: response?.to || to || t("postal.recipient_fallback"),
+          to:
+            response.delivery.to.join(", ") ||
+            to ||
+            t("postal.recipient_fallback"),
         }),
       );
       await queryClient.invalidateQueries({
