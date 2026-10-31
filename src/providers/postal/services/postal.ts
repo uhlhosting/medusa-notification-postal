@@ -42,6 +42,15 @@ type PostalApiResult = {
 
 type PostalApiData = Record<string, unknown>
 
+// Postal answers most endpoints with an object in `data`, but
+// `messages/deliveries` answers with an array (an empty one while a message has
+// no delivery attempts yet), so each caller states the shape it expects.
+const isPostalApiObject = (value: unknown): value is PostalApiData =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value)
+
+const isPostalApiList = (value: unknown): value is PostalApiData[] =>
+  Array.isArray(value)
+
 type PostalRecipientMessage = {
   id?: unknown
   token?: unknown
@@ -378,9 +387,9 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
   }
 
   async getMessageDeliveries(id: string | number) {
-    return await this.fetchPostalApi("messages/deliveries", {
+    return await this.requestPostalApi("messages/deliveries", {
       id: this.normalizePostalLookupId(id),
-    })
+    }, isPostalApiList)
   }
 
   private async sendViaApi(payload: PostalSendPayload): Promise<{ id: string }> {
@@ -418,6 +427,14 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     path: string,
     payload: Record<string, unknown> | PostalSendPayload
   ): Promise<PostalApiData> {
+    return await this.requestPostalApi(path, payload, isPostalApiObject)
+  }
+
+  private async requestPostalApi<T>(
+    path: string,
+    payload: Record<string, unknown> | PostalSendPayload,
+    accepts: (data: unknown) => data is T
+  ): Promise<T> {
     // The origin is trusted operator configuration captured at provider boot.
     // Internal self-hosted Postal origins are supported; callbacks and request
     // bodies cannot supply destinations. Redirects must never forward the key.
@@ -465,9 +482,8 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
         } else {
           body = await response.json() as PostalApiResult
         }
-        const data = body?.data && typeof body.data === "object" && !Array.isArray(body.data)
-          ? body.data as PostalApiData : null
-        if (!response.ok || body?.status === "error" || !data) {
+        const data = body?.data
+        if (!response.ok || body?.status === "error" || !accepts(data)) {
           throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, `Postal API request failed (HTTP ${response.status})`)
         }
         return data
