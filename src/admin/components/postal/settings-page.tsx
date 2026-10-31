@@ -5,7 +5,6 @@ import {
   PluginShell,
   TwoColumnLayout,
 } from "../admin-ui";
-import { ensurePostalAdminTranslations } from "../../lib/i18n";
 import { isPostalConfigured, usePostalSettings } from "../../lib/postal-queries";
 import type { PostalTemplateName } from "../../../providers/postal/templates";
 import { PostalSettingsCard } from "./settings-card";
@@ -15,7 +14,6 @@ import { PostalTestSend } from "./test-send";
 import { PostalWebhookCard } from "./webhook-card";
 
 export const PostalSettingsPage = () => {
-  ensurePostalAdminTranslations();
   const { t } = useTranslation();
   const { data, isLoading } = usePostalSettings();
   const [template, setTemplate] = useState<PostalTemplateName>("postal-admin-test");

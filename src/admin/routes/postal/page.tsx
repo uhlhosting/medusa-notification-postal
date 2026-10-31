@@ -33,7 +33,6 @@ import {
 import { PostalMessageDrawer } from "../../components/postal/message-drawer";
 import { sdk } from "../../lib/client";
 import { formatDateTime } from "../../lib/format";
-import { ensurePostalAdminTranslations } from "../../lib/i18n";
 import {
   postalHealthKey,
   toPostalMessageId,
@@ -129,7 +128,6 @@ const buildPostalCallbackUrl = (token: string) =>
   ).toString();
 
 const PostalAdminPage = () => {
-  ensurePostalAdminTranslations();
   const { t } = useTranslation();
   const [searchValue, setSearchValue] = useState("");
   const [inspectedMessageId, setInspectedMessageId] = useState<string | null>(

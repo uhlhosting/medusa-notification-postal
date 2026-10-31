@@ -150,15 +150,22 @@ installed copy** the dashboard uses.
        - react-router-dom
      ```
 
-  2. Check there is a single copy of `@tanstack/react-query`. The plugin's peer
-     range includes the version the dashboard pins, so pnpm normally reuses the
-     dashboard's copy. If `pnpm why @tanstack/react-query` lists two versions
-     (for example after the dashboard's pin moved), install the dashboard's
-     version directly so pnpm stops adding a second one:
+  2. Pin the four shared packages to the versions the dashboard ships. pnpm
+     installs a plugin's peer dependencies at the newest version in range, which
+     is not the dashboard's, so without direct pins the plugin gets its own copy
+     of each: `react-router-dom` breaks the "Open activity page" link
+     (`Cannot destructure property 'basename'`), `@tanstack/react-query`
+     breaks every page (`No QueryClient set`), and `i18next`/`react-i18next`
+     leave labels showing raw translation keys. Print the dashboard's versions,
+     then add them as direct dependencies:
 
      ```bash
-     pnpm add @tanstack/react-query@<dashboard version>
+     node -e "const m=require.resolve('@medusajs/medusa/package.json');const d=require(require.resolve('@medusajs/dashboard/package.json',{paths:[m]}));console.log(['@tanstack/react-query','react-router-dom','i18next','react-i18next'].map(n=>n+'@'+d.dependencies[n]).join(' '))"
+     pnpm add @tanstack/react-query@<v> react-router-dom@<v> i18next@<v> react-i18next@<v>
      ```
+
+     `pnpm list react-router-dom` should then show a single version. Repeat
+     after every Medusa upgrade.
 
 ## Workflow tracking
 
