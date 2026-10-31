@@ -97,5 +97,3 @@ export const PluginHeader = ({
     </Container>
   );
 };
-
-export const Header = PluginHeader;

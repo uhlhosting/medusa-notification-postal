@@ -1,7 +1,3 @@
-export const classNames = (
-  ...values: Array<string | false | null | undefined>
-) => values.filter(Boolean).join(" ");
-
 export const statusColorClass = (color?: string) => {
   if (color === "green") return "text-ui-fg-success";
   if (color === "red") return "text-ui-fg-error";

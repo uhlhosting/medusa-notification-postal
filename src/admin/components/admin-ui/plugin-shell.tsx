@@ -17,8 +17,6 @@ export const PluginShell = ({ children, className }: PluginShellProps) => {
   );
 };
 
-export const SingleColumnLayout = PluginShell;
-
 type TwoColumnLayoutProps = {
   firstCol?: ReactNode;
   secondCol?: ReactNode;

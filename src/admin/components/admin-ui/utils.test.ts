@@ -1,29 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { classNames, statusColorClass } from "./utils";
+import { statusColorClass } from "./utils";
 
 describe("admin-ui utils", () => {
-  describe("classNames", () => {
-    it("should join valid string classes with a space", () => {
-      assert.equal(classNames("class1", "class2", "class3"), "class1 class2 class3");
-    });
-
-    it("should ignore false, null, and undefined values", () => {
-      assert.equal(
-        classNames("class1", false, "class2", null, "class3", undefined),
-        "class1 class2 class3"
-      );
-    });
-
-    it("should ignore empty strings", () => {
-      assert.equal(classNames("class1", "", "class2"), "class1 class2");
-    });
-
-    it("should return an empty string if all values are falsy", () => {
-      assert.equal(classNames(false, null, undefined, ""), "");
-    });
-  });
-
   describe("statusColorClass", () => {
     it("should return the correct class for mapped colors", () => {
       assert.equal(statusColorClass("green"), "text-ui-fg-success");
