@@ -163,5 +163,6 @@
   "postal.message.message_id": "Message-ID",
   "postal.message.deliveries": "Delivery attempts",
   "postal.message.no_deliveries": "Postal has not recorded a delivery attempt yet.",
-  "postal.message.close": "Close"
+  "postal.message.close": "Close",
+  "postal.base_url_hint": "Must match the base_url provider option. A different saved value blocks the provider at the next restart."
 }

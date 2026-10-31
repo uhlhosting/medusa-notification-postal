@@ -95,7 +95,11 @@ export const PostalSettingsCard = () => {
             disabled={save.isPending}
           />
         </FormField>
-        <FormField id="postal-base-url" label={t("postal.base_url")}>
+        <FormField
+          id="postal-base-url"
+          label={t("postal.base_url")}
+          hint={t("postal.base_url_hint")}
+        >
           <Input
             id="postal-base-url"
             placeholder={t("postal.placeholder.base_url")}

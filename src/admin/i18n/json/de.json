@@ -163,5 +163,6 @@
   "postal.message.message_id": "Message-ID",
   "postal.message.deliveries": "Zustellversuche",
   "postal.message.no_deliveries": "Postal hat noch keinen Zustellversuch aufgezeichnet.",
-  "postal.message.close": "Schließen"
+  "postal.message.close": "Schließen",
+  "postal.base_url_hint": "Muss der Provider-Option base_url entsprechen. Ein abweichender gespeicherter Wert blockiert den Provider beim nächsten Neustart."
 }
