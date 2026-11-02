@@ -11,8 +11,15 @@
       "id": "GHSA-7mx3-vvmw-hjmv",
       "package": "@graphql-tools/utils",
       "expires": "2026-11-07",
-      "fingerprint": "24a0939b470e34a2e123e92518f2b1c28f7a3ed58a1425ea6b2a1ffe582db2bf",
+      "fingerprint": "34b61dfaf2e7ba21816b52dccf92070d0a28cab3124a21e97352b8ce11b0cb68",
       "reason": "Medusa pins GraphQL utils 10.11.0; patched 12.0.1 is a coupled major upgrade requiring upstream coordination."
+    },
+    {
+      "id": "GHSA-c4qx-w738-7hr3",
+      "package": "@graphql-tools/utils",
+      "expires": "2026-11-07",
+      "fingerprint": "34b61dfaf2e7ba21816b52dccf92070d0a28cab3124a21e97352b8ce11b0cb68",
+      "reason": "Same 10.11.0 path as GHSA-7mx3: Medusa reaches it through @graphql-codegen/core 4.x (^10) in 2.21.2 and 2.22.2; patched 12.0.2 is a coupled major upgrade requiring upstream coordination. Development toolchain only."
     }
   ]
 }
