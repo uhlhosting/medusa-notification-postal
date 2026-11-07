@@ -11,11 +11,11 @@ updates:
       # The admin extension is bundled into @medusajs/dashboard and shares its
       # React, Router and i18n instances at runtime, so these are declared as
       # peerDependencies and the devDependency must mirror whatever the
-      # dashboard resolves. @medusajs/dashboard@2.18.0 depends on
-      # react ^18.3.1, react-router-dom 6.30.4 and react-i18next 13.5.0, so a
-      # major bump here would typecheck the plugin against an API that is not
-      # the one the dashboard actually loads. Raise these only when Medusa
-      # itself does.
+      # dashboard resolves. @medusajs/dashboard@2.21.0 depends on
+      # react ^18.3.1, react-router-dom 7.18.2, react-i18next 13.5.0 and
+      # @tanstack/react-query 5.64.2, so a bump here would typecheck the plugin
+      # against an API that is not the one the dashboard actually loads. Raise
+      # these only when Medusa itself does.
       - dependency-name: "react"
         update-types: ["version-update:semver-major"]
       - dependency-name: "react-dom"
@@ -34,6 +34,11 @@ updates:
       # singleton, i.e. the instance the dashboard created (i18next 23.7.11).
       - dependency-name: "i18next"
         update-types: ["version-update:semver-major"]
+      # Every dashboard from 2.19 to 2.22 pins react-query 5.64.2 exactly, and
+      # the plugin uses the dashboard's QueryClientProvider, so the peer is
+      # ~5.64.2 and the devDependency stays on that exact version.
+      - dependency-name: "@tanstack/react-query"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
 
       # @types/node must track the *minimum* supported runtime (engines: node
       # >=20), not the newest release, otherwise the build typechecks against

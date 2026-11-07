@@ -9,6 +9,9 @@ A production-ready Postal notification provider for Medusa. Designed for reliabl
 - Current package version: [![npm version](https://img.shields.io/npm/v/@uhlhosting/medusa-notification-postal.svg)](https://www.npmjs.com/package/@uhlhosting/medusa-notification-postal)
 - License: `MIT`
 - Changelog: [`CHANGELOG.md`](./CHANGELOG.md)
+- Compatibility: Medusa `^2.21.0` (peer ranges; the build and tests run against 2.21.0).
+
+The Admin extension runs inside `@medusajs/dashboard` and must share the dashboard's copies of `@medusajs/ui` and `@tanstack/react-query` (the dashboard's toaster and `QueryClientProvider` live in them). The react-query peer is `~5.64.2`, the version every dashboard from 2.19 to 2.22 pins. If npm installs a second `@medusajs/ui` next to the dashboard's (check with `npm ls @medusajs/ui`), add the dashboard's exact version to your project's dependencies so npm dedupes it.
 
 ## Options
 

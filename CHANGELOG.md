@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Accept any Medusa 2.x from 2.21.0. The Medusa peers were pinned to exactly `2.21.0` (`@medusajs/ui` to `4.2.4`), so npm raised `ERESOLVE` next to Medusa 2.21.1+ or 2.22.x. They are now `^2.21.0` / `^4.2.4`.
+- The `@tanstack/react-query` peer is now `~5.64.2`, the version every dashboard from 2.19 to 2.22 pins. `^5.101.2` excluded it, so npm installed a second copy next to the dashboard's and the plugin's admin hooks could not see the dashboard's `QueryClientProvider`.
+- Declare the `@medusajs/dashboard` and `react` peers the admin bundle imports at runtime, and drop the unused `zod` peer (the plugin uses `@medusajs/framework/zod`).
+
 - The admin webhook-URL view percent-encodes the token as one path segment. A token containing `/`, `?`, `#` or `%` (about half of `openssl rand -base64 32` values contain `/`) produced a callback URL that could never authenticate (`404`, `400` or `500`).
 - `GET /dashboard/postal/activity`: replay-ledger entries now live for the assertion's lifetime plus 60 s instead of only its remaining validity on the consuming replica, so a replica with a lagging clock can no longer accept a replayed assertion after its key expired.
 - The retention jobs log a warning (counts only) when a run stops at its per-run limit of 100,000 rows, instead of a line that reads like a complete purge while expired rows remain.
