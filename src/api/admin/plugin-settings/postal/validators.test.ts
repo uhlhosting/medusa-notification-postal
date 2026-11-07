@@ -42,3 +42,30 @@ test("postal settings schema validates persisted URL and email formats", () => {
     false
   )
 })
+
+test("postal settings schema refuses a base_url the provider's SSRF guard would refuse", () => {
+  const save = (base_url: string) =>
+    postalSettingsSchema.safeParse({ action: "save", settings: { base_url } })
+
+  for (const base_url of [
+    "http://localhost:5000",
+    "http://127.0.0.1",
+    "http://10.0.0.5",
+    "http://100.64.0.1",
+    "http://169.254.169.254",
+    "http://[::1]",
+    "http://[::ffff:192.168.1.1]",
+  ]) {
+    const result = save(base_url)
+    assert.equal(result.success, false, base_url)
+    assert.match(
+      JSON.stringify(result.error?.issues),
+      /non-public IP address/,
+      base_url
+    )
+  }
+
+  for (const base_url of ["https://postal.example.com", "http://1.1.1.1", ""]) {
+    assert.equal(save(base_url).success, true, base_url)
+  }
+})

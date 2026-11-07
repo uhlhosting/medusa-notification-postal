@@ -1178,6 +1178,11 @@ for (const base_url of [
   "http://[fe80::1]",
   "http://[::ffff:192.168.1.1]",
   "http://[::ffff:127.0.0.1]",
+  "http://100.64.0.1",
+  "http://198.18.0.1",
+  "http://[::127.0.0.1]",
+  "http://[64:ff9b::a00:1]",
+  "http://[fec0::1]",
 ]) {
   test(`fetchPostalApi refuses a local or private base_url (${base_url}) before any request`, async () => {
     let fetched = false
@@ -1200,7 +1205,8 @@ for (const base_url of [
   "https://postal.example.com",
   // Only a whole "localhost" label is local.
   "https://localhost.example.com",
-  "http://203.0.113.10",
+  "http://1.1.1.1",
+  "http://100.128.0.1",
   "http://[2606:4700:4700::1111]",
   // Not unique-local or link-local: the first hextet is 0x00fd / 0x0fe8.
   "http://[fd::1]",
