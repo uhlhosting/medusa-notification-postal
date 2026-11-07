@@ -44,7 +44,9 @@ Never create a new client on each request, log its URL, or substitute an in-memo
 ledger. This plugin introduces no undeclared/transitive Redis dependency.
 
 The plugin executes one atomic Lua operation that rejects reuse of either `jti`
-or `nonce` and writes SHA-256 identifiers with the assertion's remaining TTL.
+or `nonce` and writes SHA-256 identifiers for the assertion's full lifetime plus a
+60-second margin (at most 120 seconds), so a replica whose clock lags cannot accept
+a replay after the key expired; acceptance itself grants no clock-skew grace.
 Keys use the dedicated `postal-activity` prefix and a tenant-bound Redis Cluster
 hash tag. Redis failure, absent `eval`, and non-numeric success fail closed.
 

@@ -45,7 +45,7 @@ const ledger = (): ReplayRedis => {
     const [jti, nonce, ttl] = args
     assert.match(String(jti), /^postal-activity:\{[a-f0-9]{64}\}:jti:[a-f0-9]{64}$/)
     assert.match(String(nonce), /^postal-activity:\{[a-f0-9]{64}\}:nonce:[a-f0-9]{64}$/)
-    assert.ok(Number(ttl) > 0 && Number(ttl) <= 60)
+    assert.ok(Number(ttl) > 0 && Number(ttl) <= 120)
     if (keys.has(String(jti)) || keys.has(String(nonce))) return 0
     keys.add(String(jti)); keys.add(String(nonce))
     return 1
@@ -62,6 +62,32 @@ test("accepts exact Ed25519 capability and rejects replay of either identifier a
   const next = token(claims())
   const race = await Promise.allSettled(Array.from({ length: 10 }, () => consumePostalActivityCapability(next, shared, env, 1000)))
   assert.equal(race.filter((result) => result.status === "fulfilled").length, 1)
+})
+
+test("keeps replay identifiers past expiry so a replica with a lagging clock rejects a replay", async () => {
+  // A ledger that honours TTLs against one shared wall clock.
+  let wallClock = 1000
+  const expiries = new Map<string, number>()
+  const skewAware: ReplayRedis = { async eval(_script, _numberOfKeys, ...args) {
+    const [jti, nonce, ttl] = args.map(String)
+    const live = (key: string) => (expiries.get(key) ?? -Infinity) > wallClock
+    if (live(jti) || live(nonce)) return 0
+    expiries.set(jti, wallClock + Number(ttl))
+    expiries.set(nonce, wallClock + Number(ttl))
+    return 1
+  } }
+
+  const used = claims(1000)
+  await consumePostalActivityCapability(token(used), skewAware, env, 1000)
+
+  // 62 s later the old `exp - now` TTL (60 s) has run out; a replica whose
+  // clock is 3 s behind still sees the assertion as unexpired.
+  wallClock = 1062
+  await assert.rejects(
+    consumePostalActivityCapability(token(used), skewAware, env, 1059),
+    /capability required/
+  )
+  await consumePostalActivityCapability(token(claims(1059)), skewAware, env, 1059)
 })
 
 test("rejects every mismatched tenant binding and invalid timing/identifier claim", async () => {

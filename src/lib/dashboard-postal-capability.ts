@@ -30,6 +30,12 @@ const canonicalOrigin = (value: string) => {
   return url.protocol === "https:" && !url.username && !url.password && url.origin === value
 }
 
+// Replay identifiers outlive the assertion by this margin. Acceptance uses the
+// receiving replica's clock, so a key that expired after only `exp - now` on
+// the consuming replica could let a lagging replica accept a replay. Expiry
+// checks themselves get no grace.
+const REPLAY_SKEW_MARGIN_SECONDS = 60
+
 export async function consumePostalActivityCapability(
   assertion: unknown,
   redis: ReplayRedis,
@@ -58,7 +64,7 @@ export async function consumePostalActivityCapability(
     if (![claims.jti, claims.nonce].every((value) => typeof value === "string" && /^[A-Za-z0-9_-]{16,128}$/.test(value))) throw deny()
     const digest = (value: string) => createHash("sha256").update(value).digest("hex")
     const prefix = `postal-activity:{${digest(`${issuer}:${project}:${environment}:${origin}`)}}:`
-    const accepted = await redis.eval(POSTAL_ACTIVITY_REPLAY_SCRIPT, 2, `${prefix}jti:${digest(claims.jti)}`, `${prefix}nonce:${digest(claims.nonce)}`, claims.exp - now)
+    const accepted = await redis.eval(POSTAL_ACTIVITY_REPLAY_SCRIPT, 2, `${prefix}jti:${digest(claims.jti)}`, `${prefix}nonce:${digest(claims.nonce)}`, claims.exp - claims.iat + REPLAY_SKEW_MARGIN_SECONDS)
     if (accepted !== 1) throw deny()
   } catch {
     // No signature, claims, provider data, or Redis errors reach logs/clients.
