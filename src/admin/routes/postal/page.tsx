@@ -128,7 +128,7 @@ const webhookStatusLabelKey = (status: string) =>
   (WEBHOOK_STATUS[status] || WEBHOOK_STATUS_FALLBACK).labelKey;
 
 const buildPostalCallbackUrl = (token: string) => {
-  const path = `/postal/webhooks/${token}`;
+  const path = `/postal/webhooks/${encodeURIComponent(token)}`;
   const base = getPublicBackendBaseUrl();
 
   try {

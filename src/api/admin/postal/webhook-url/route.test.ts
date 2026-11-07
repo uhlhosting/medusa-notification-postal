@@ -184,3 +184,21 @@ test("admin webhook url route fails when the token is missing", async () => {
     }
   }
 })
+
+test("admin webhook url route percent-encodes a token with URL-reserved characters", async () => {
+  const token = "a/b?c#d%e+f="
+  const body = await invokeGet({
+    token,
+    headers: { host: "api.example.com", "x-forwarded-proto": "https" },
+  })
+
+  assert.equal(body.payload.token, token)
+  assert.equal(body.payload.path, "/postal/webhooks/a%2Fb%3Fc%23d%25e%2Bf%3D")
+  const url = new URL(body.payload.callback_url)
+  assert.equal(url.search, "")
+  assert.equal(url.hash, "")
+  const segments = url.pathname.split("/").filter(Boolean)
+  assert.deepEqual(segments.slice(0, 2), ["postal", "webhooks"])
+  assert.equal(segments.length, 3)
+  assert.equal(decodeURIComponent(segments[2]!), token)
+})

@@ -61,11 +61,15 @@ export const GET = async (req: AuthenticatedMedusaRequest, res: MedusaResponse) 
     )
   }
 
+  // One encoded path segment: a token holding "/", "?", "#" or "%" (common in
+  // base64 secrets) would otherwise split the path, cut the token short or
+  // fail to decode, and every callback to the copied URL would be rejected.
+  // Express decodes the segment back into req.params.token.
+  const path = `/postal/webhooks/${encodeURIComponent(token)}`
+
   return res.status(200).json({
     token,
-    path: `/postal/webhooks/${token}`,
-    callback_url: origin
-      ? new URL(`/postal/webhooks/${token}`, origin).toString()
-      : null,
+    path,
+    callback_url: origin ? new URL(path, origin).toString() : null,
   })
 }
