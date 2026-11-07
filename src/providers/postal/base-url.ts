@@ -10,6 +10,14 @@ import net from "node:net"
   documentation and protocol-assignment ranges. Postal is reached by hostname
   in practice, so refusing these literals costs nothing legitimate.
 
+  192.0.0.0/24 and 2001::/23 are refused whole. IANA lists a few anycast
+  service addresses inside them as globally reachable (192.0.0.9, 192.0.0.10,
+  2001:1::1-3, AMT 2001:3::/32, AS112 2001:4:112::/48, ORCHIDv2 and DRIP
+  identifiers); none can host Postal, so the over-block is deliberate.
+
+  The guard checks only the configured base_url. fetchPostalApi must keep
+  refusing to follow redirects, or a Location header would reach any host.
+
   Hostnames are not resolved here: names that resolve to internal addresses
   (DNS rebinding, split-horizon DNS) stay out of scope, because resolving in
   the guard would break legitimate internal Postal hosts. `localhost` and
@@ -43,6 +51,7 @@ for (const [network, prefix] of [
   ["::1", 128], // loopback
   ["64:ff9b:1::", 48], // local-use IPv4/IPv6 translation
   ["100::", 64], // discard-only
+  ["100:0:0:1::", 64], // dummy prefix (RFC 9780)
   ["2001::", 23], // IETF protocol assignments (Teredo, ORCHID, ...)
   ["2001:db8::", 32], // documentation
   ["2002::", 16], // 6to4

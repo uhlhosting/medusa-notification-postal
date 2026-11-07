@@ -1150,6 +1150,56 @@ test("send times out when Postal sends headers and then stalls the body", async 
   assert.ok(Date.now() - started < 5000)
 })
 
+test("fetchPostalApi does not follow a redirect away from the vetted base_url", async () => {
+  const { createServer } = await import("node:http")
+  let internalHits = 0
+  // Stands in for an internal service the guard would refuse.
+  const internal = createServer((_req, res) => {
+    internalHits += 1
+    res.writeHead(200, { "Content-Type": "application/json" })
+    res.end(JSON.stringify({ status: "success", data: { leaked: true } }))
+  })
+  await new Promise<void>((resolve) => internal.listen(0, "127.0.0.1", resolve))
+  const internalPort = (internal.address() as { port: number }).port
+  // Stands in for the public Postal host named by base_url.
+  const redirector = createServer((_req, res) => {
+    res.writeHead(307, { Location: `http://127.0.0.1:${internalPort}/internal` })
+    res.end()
+  })
+  await new Promise<void>((resolve) => redirector.listen(0, "127.0.0.1", resolve))
+  const redirectorPort = (redirector.address() as { port: number }).port
+
+  const realFetch = originalFetch
+  // The guard sees postal.example.com; the socket goes to the local redirector.
+  globalThis.fetch = ((input: string | URL, init?: RequestInit) =>
+    realFetch(
+      String(input).replace(
+        "https://postal.example.com",
+        `http://127.0.0.1:${redirectorPort}`
+      ),
+      init
+    )) as typeof fetch
+
+  try {
+    const service = createServiceFor("https://postal.example.com")
+    await assert.rejects(
+      service.send({
+        to: ["user@example.com"],
+        provider_data: { subject: "S", text: "t" },
+      } as never),
+      (err: any) =>
+        err instanceof MedusaError && /redirect \(307\)/.test(err.message)
+    )
+    await assert.rejects(service.getMessageDetails("42"), /redirect \(307\)/)
+    assert.equal(internalHits, 0)
+  } finally {
+    redirector.closeAllConnections()
+    internal.closeAllConnections()
+    await new Promise((resolve) => redirector.close(resolve))
+    await new Promise((resolve) => internal.close(resolve))
+  }
+})
+
 const createServiceFor = (base_url: string) =>
   new PostalNotificationService(
     { logger },

@@ -424,6 +424,10 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     try {
       response = await fetch(`${this.config_.baseUrl}/api/v1/${path}`, {
         method: "POST",
+        // Never follow a redirect: the SSRF guard above only vetted base_url,
+        // and fetch would resend the POST body and X-Server-API-Key to
+        // whatever host the Location header names.
+        redirect: "manual",
         headers: {
           "Content-Type": "application/json",
           "X-Server-API-Key": this.config_.apiKey,
@@ -448,6 +452,13 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       throw error
     } finally {
       clearTimeout(timeout)
+    }
+
+    if (response.status >= 300 && response.status < 400) {
+      throw new MedusaError(
+        MedusaError.Types.UNEXPECTED_STATE,
+        `Postal API answered with a redirect (${response.status}); redirects are not followed. Point base_url at the Postal server itself.`
+      )
     }
 
     const data =

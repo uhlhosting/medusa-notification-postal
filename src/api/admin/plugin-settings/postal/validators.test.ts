@@ -69,3 +69,40 @@ test("postal settings schema refuses a base_url the provider's SSRF guard would 
     assert.equal(save(base_url).success, true, base_url)
   }
 })
+
+test("postal settings schema refuses a base_url with credentials, query or fragment", () => {
+  for (const base_url of [
+    "https://user:pw@postal.example.com",
+    "https://postal.example.com?token=1",
+    "https://postal.example.com/#frag",
+    "https://postal.example.com?",
+  ]) {
+    const result = postalSettingsSchema.safeParse({
+      action: "save",
+      settings: { base_url },
+    })
+    assert.equal(result.success, false, base_url)
+    assert.match(JSON.stringify(result.error?.issues), /without credentials, query or fragment/)
+  }
+
+  assert.equal(
+    postalSettingsSchema.safeParse({
+      action: "save",
+      settings: { base_url: "https://postal.example.com/postal" },
+    }).success,
+    true
+  )
+})
+
+test("postal settings schema reports one issue for a non-http base_url", () => {
+  const result = postalSettingsSchema.safeParse({
+    action: "save",
+    settings: { base_url: "ftp://postal.example.com" },
+  })
+
+  assert.equal(result.success, false)
+  assert.deepEqual(
+    result.error?.issues.map((issue) => issue.message),
+    ["Must be an absolute http or https URL"]
+  )
+})

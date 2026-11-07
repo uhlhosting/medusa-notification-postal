@@ -48,6 +48,12 @@ const refused = [
   "http://[64:ff9b::7f00:1]",
   "http://[64:ff9b:1::1]",
   "http://[100::1]",
+  "http://[100:0:0:1::1]",
+  "http://[0100:0000:0000:0001:ffff:ffff:ffff:ffff]",
+  // Deliberate over-block: anycast service addresses IANA lists as globally
+  // reachable inside 192.0.0.0/24 and 2001::/23 (no Postal host lives there).
+  "http://192.0.0.9",
+  "http://[2001:4:112::1]",
   "http://[2001::1]",
   "http://[2001:db8::1]",
   "http://[2002:c0a8:101::1]",
