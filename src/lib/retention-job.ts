@@ -7,10 +7,16 @@ import {
   type ResolvedPostalPluginOptions,
   type ResolvedRetentionOption,
 } from "../modules/postal/options"
-import type {
-  RetentionStepInput,
-  RetentionStepResult,
+import {
+  RETENTION_BATCH_SIZE,
+  RETENTION_MAX_BATCHES,
+  type RetentionStepInput,
+  type RetentionStepResult,
 } from "../workflows/steps/retention"
+
+// A run deletes at most this many rows; reaching it means expired rows may
+// remain for later runs.
+const RETENTION_RUN_LIMIT = RETENTION_BATCH_SIZE * RETENTION_MAX_BATCHES
 
 type RetentionLogger = {
   info: (message: string) => void
@@ -68,6 +74,11 @@ export const runRetentionJob = async ({
     logger.info(
       `[postal] Deleted ${result.deleted} ${label} created before ${result.cutoff}.`
     )
+    if (result.deleted >= RETENTION_RUN_LIMIT) {
+      logger.warn(
+        `[postal] Stopped at the per-run limit of ${RETENTION_RUN_LIMIT} ${label}; older rows created before ${result.cutoff} may remain and are deleted by later runs.`
+      )
+    }
   }
 
   return result

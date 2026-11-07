@@ -128,3 +128,28 @@ test("stays quiet when nothing expired", async () => {
 
   assert.deepEqual(info, [])
 })
+
+test("warns, with counts only, when a run stops at its row limit", async () => {
+  for (const [deleted, warns] of [
+    [100000, 1],
+    [99999, 0],
+  ] as const) {
+    const { container, warn } = makeContainer({ notification_retention_days: 30 })
+
+    await runRetentionJob({
+      container,
+      option: "notification_retention_days",
+      label: "notification records",
+      run: async () => ({
+        result: { deleted, cutoff: "2026-08-15T03:30:00.000Z" },
+      }),
+      now,
+    })
+
+    assert.equal(warn.length, warns, String(deleted))
+    for (const message of warn) {
+      assert.match(message, /per-run limit of 100000 notification records/)
+      assert.doesNotMatch(message, /@/)
+    }
+  }
+})

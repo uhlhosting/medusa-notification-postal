@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The admin webhook-URL view percent-encodes the token as one path segment. A token containing `/`, `?`, `#` or `%` (about half of `openssl rand -base64 32` values contain `/`) produced a callback URL that could never authenticate (`404`, `400` or `500`).
+- `GET /dashboard/postal/activity`: replay-ledger entries now live for the assertion's lifetime plus 60 s instead of only its remaining validity on the consuming replica, so a replica with a lagging clock can no longer accept a replayed assertion after its key expired.
+- The retention jobs log a warning (counts only) when a run stops at its per-run limit of 100,000 rows, instead of a line that reads like a complete purge while expired rows remain.
+
 - **Changed:** workflow sends no longer copy the subject and bodies into the notification's `provider_data` and `data`. Those are stored on the notification row and returned by the admin API, and bodies can carry password-reset or invite links; the content now travels only in `content`, which reaches the provider in memory and is never stored. Anything that read `data.html`/`data.text` from stored notifications loses them for new rows; existing rows are unchanged (`notification_retention_days` can purge them). The `sendPostalEmailWorkflow` input is unchanged.
 - A multi-recipient send attaches `cc`/`bcc` to the first per-recipient notification only. Every notification carried them, so each copy address received one message per `to` recipient.
 - Template names are looked up as own registry keys. A custom or mixed-case name in an admin test send now borrows the matching (or the admin-test) example instead of failing, and inherited names such as `constructor` resolve to the default template instead of a `TypeError`.
