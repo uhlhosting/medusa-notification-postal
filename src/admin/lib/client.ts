@@ -1,35 +1,11 @@
 import Medusa from "@medusajs/js-sdk";
-import { resolveBackendBaseUrl } from "./backend-url";
 
-const runtimeEnv =
-  (globalThis as { __VITE_ENV__?: Record<string, string | boolean> })
-    .__VITE_ENV__ ?? {};
-const backendUrl =
-  ((import.meta as any).env?.VITE_BACKEND_URL as string | undefined) ??
-  (typeof runtimeEnv.VITE_BACKEND_URL === "string"
-    ? runtimeEnv.VITE_BACKEND_URL
-    : undefined) ??
-  "/";
-const resolvedBackendUrl = resolveBackendBaseUrl(
-  backendUrl,
-  typeof window !== "undefined" ? window.location?.origin : null,
-);
-
-const isDev =
-  ((import.meta as any).env?.NODE_ENV === "development" || (import.meta as any).env?.MODE === "development") ||
-  runtimeEnv.DEV === true ||
-  runtimeEnv.DEV === "true";
-
-export const ADMIN_SDK_AUTH_TYPE = "session" as const;
-
+// The dashboard session is shared with the plugin (AGENTS.md invariant 17), so
+// every request carries the admin's own credentials.
 export const sdk = new Medusa({
-  baseUrl: resolvedBackendUrl,
-  debug: Boolean(isDev),
+  baseUrl: import.meta.env.VITE_BACKEND_URL || "/",
+  debug: import.meta.env.DEV,
   auth: {
-    type: ADMIN_SDK_AUTH_TYPE,
+    type: "session",
   },
 });
-
-export const getBackendBaseUrl = () => resolvedBackendUrl;
-
-export const getPublicBackendBaseUrl = () => resolvedBackendUrl;

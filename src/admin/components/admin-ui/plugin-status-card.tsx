@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Container, StatusBadge, Text, clx } from "@medusajs/ui";
+import { Container, Skeleton, StatusBadge, Text, clx } from "@medusajs/ui";
 import type { PluginIcon, PluginStatusColor } from "./types";
 import { statusColorClass } from "./utils";
 
@@ -10,6 +10,7 @@ type PluginStatusCardProps = {
   icon?: PluginIcon;
   color?: PluginStatusColor;
   statusLabel?: ReactNode;
+  isLoading?: boolean;
   className?: string;
 };
 
@@ -20,10 +21,11 @@ export const PluginStatusCard = ({
   icon: Icon,
   color = "grey",
   statusLabel,
+  isLoading = false,
   className,
 }: PluginStatusCardProps) => {
   return (
-    <Container className={clx("divide-y p-0", className)}>
+    <Container className={clx("p-0", className)}>
       <div className="flex items-start justify-between gap-4 px-6 py-4">
         <div className="flex min-w-0 flex-col gap-y-2">
           <div className="flex items-center gap-2">
@@ -39,9 +41,13 @@ export const PluginStatusCard = ({
               {title}
             </Text>
           </div>
-          <Text as="div" size="xlarge" leading="compact" weight="plus">
-            {value}
-          </Text>
+          {isLoading ? (
+            <Skeleton className="h-7 w-16" />
+          ) : (
+            <Text as="div" size="xlarge" leading="compact" weight="plus">
+              {value}
+            </Text>
+          )}
           {description && (
             <Text size="small" leading="compact" className="text-ui-fg-muted">
               {description}

@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
+import { ArrowUpRightOnBox, BookOpen } from "@medusajs/icons";
 import {
   Button,
   Container,
+  DropdownMenu,
   Heading,
   StatusBadge,
   Text,
@@ -20,6 +22,7 @@ type PluginHeaderProps = {
   lastSuccessfulExecution?: ReactNode;
   actions?: ReactNode;
   helpLinks?: PluginHeaderLink[];
+  helpMenuLabel?: string;
   className?: string;
 };
 
@@ -31,10 +34,13 @@ export const PluginHeader = ({
   lastSuccessfulExecution,
   actions,
   helpLinks = [],
+  helpMenuLabel,
   className,
 }: PluginHeaderProps) => {
+  const hasHelp = helpLinks.length > 0 && Boolean(helpMenuLabel);
+
   return (
-    <Container className={clx("divide-y p-0", className)}>
+    <Container className={clx("p-0", className)}>
       <div className="flex min-w-0 flex-col gap-4 px-4 py-4 sm:px-6 md:flex-row md:items-start md:justify-between">
         <div className="flex min-w-0 flex-col gap-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -58,23 +64,36 @@ export const PluginHeader = ({
             </Text>
           )}
         </div>
-        {actions && (
-          <div className="flex flex-wrap items-center gap-2">{actions}</div>
+        {(actions || hasHelp) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {actions}
+            {hasHelp && (
+              <DropdownMenu>
+                <DropdownMenu.Trigger asChild>
+                  <Button size="small" variant="secondary">
+                    <BookOpen />
+                    {helpMenuLabel}
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content align="end">
+                  {helpLinks.map((link) => (
+                    <DropdownMenu.Item
+                      key={link.href}
+                      asChild
+                      className="gap-x-2"
+                    >
+                      <a href={link.href} target="_blank" rel="noreferrer">
+                        <ArrowUpRightOnBox className="text-ui-fg-subtle" />
+                        {link.label}
+                      </a>
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.Content>
+              </DropdownMenu>
+            )}
+          </div>
         )}
       </div>
-      {helpLinks.length > 0 && (
-        <div className="flex min-w-0 flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
-          {helpLinks.map((link) => (
-            <Button key={link.href} asChild size="small" variant="transparent">
-              <a href={link.href} target="_blank" rel="noreferrer">
-                {link.label}
-              </a>
-            </Button>
-          ))}
-        </div>
-      )}
     </Container>
   );
 };
-
-export const Header = PluginHeader;

@@ -50,7 +50,7 @@ The provider options above are typically wired from environment variables. The p
 | `POSTAL_FROM` | no | Default sender address (`from` option). |
 | `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. Trusted operator-only boot configuration, including internal self-hosted origins. Credentials/query/fragment and redirects are forbidden; restrict configuration access and egress. |
 | `POSTAL_API_KEY` | **yes** | Postal server API key (`api_key` option). |
-| `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path; generated if unset. |
+| `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path. Required for webhooks and not generated: until it is set the webhook route rejects every call and the admin shows no callback URL. |
 | `POSTAL_WEBHOOK_PUBLIC_KEY` | no | Postal's RSA public key (PEM, JWK, or the single-key JWKS from `/.well-known/jwks.json`). When set, webhooks must also carry a valid Postal signature. |
 | `POSTAL_REQUEST_TIMEOUT_MS` | no | Outbound Postal HTTP timeout in ms (default `10000`, clamped to 1000-60000). The `request_timeout_ms` provider option wins when set. The deadline includes body consumption and responses are capped at 1 MiB. |
 | `POSTAL_TEST_TO` | no | Recipient for admin test sends, and the address sandbox mode redirects to. |
@@ -78,7 +78,7 @@ If sandbox mode is on but `POSTAL_TEST_TO` is empty, the provider logs the misco
 
 ### Settings persistence
 
-Non-secret settings edited in the admin (`from`, `base_url`, `test_to`) persist in the `postal_setting` table via the plugin module — run `medusa db:migrate` after installing. Secrets (`POSTAL_API_KEY`, `POSTAL_WEBHOOK_TOKEN`) are sourced from the environment/provider options only, are read-only in the admin UI, and are never written to disk. Changes that affect the constructed provider take effect after a backend restart. Configure Notification `dependencies: ["postalPlugin"]` as below. The module captures an immutable boot snapshot and applies the saved sender only when the saved destination exactly matches the operator-approved provider URL. Changing destinations requires updating host configuration and restarting; a mismatch blocks the provider before any request and retains the pending flag. The first provider send acknowledges only the exact saved revision applied, so later admin edits remain pending until another restart. No global environment variables are changed. Using the provider alone without the Postal plugin is an environment/options-only configuration and has no persisted settings contract.
+Non-secret settings edited in the admin (`from`, `base_url`, `test_to`) persist in the `postal_setting` table via the plugin module — run `medusa db:migrate` after installing. Secrets (`POSTAL_API_KEY`, `POSTAL_WEBHOOK_TOKEN`) are sourced from the environment/provider options only, are read-only in the admin UI, and are never written to disk. Changes that affect the constructed provider take effect after a backend restart. Configure Notification `dependencies: ["postalPlugin"]` as below. The module captures an immutable boot snapshot and applies the saved sender only when the saved destination exactly matches the operator-approved provider URL. Changing destinations requires updating host configuration and restarting; a mismatch blocks the provider before any request and retains the pending flag. The first provider send acknowledges only the exact saved revision applied, so later admin edits remain pending until another restart. No global environment variables are changed. Using the provider alone without the Postal plugin is an environment/options-only configuration and has no persisted settings contract. Clearing a field in the admin removes its saved override, so after the restart the value comes from the matching environment variable again; until then the admin shows a restart notice.
 
 ## Usage
 
@@ -125,6 +125,48 @@ module.exports = defineConfig({
 })
 ```
 
+### Admin extension and package managers
+
+The Postal admin pages run inside the Medusa dashboard and share its copies of
+`@tanstack/react-query`, `react-router-dom`, `i18next` and `react-i18next`. The
+plugin declares them as peer dependencies and each must resolve to the **same
+installed copy** the dashboard uses.
+
+- **npm / yarn**: nothing to do; the dashboard's copies are hoisted and satisfy
+  the peer ranges.
+- **pnpm**: two project-level settings are needed, otherwise the admin fails to
+  start or the Postal pages crash with
+  `No QueryClient set, use QueryClientProvider to set one`.
+
+  1. Hoist the dashboard's packages (pnpm 10+ reads this from
+     `pnpm-workspace.yaml`; the `public-hoist-pattern` lines in a starter's
+     `.npmrc` are no longer honoured):
+
+     ```yaml
+     publicHoistPattern:
+       - "*@medusajs/*"
+       - "@tanstack/react-query"
+       - react-i18next
+       - react-router-dom
+     ```
+
+  2. Pin the four shared packages to the versions the dashboard ships. pnpm
+     installs a plugin's peer dependencies at the newest version in range, which
+     is not the dashboard's, so without direct pins the plugin gets its own copy
+     of each: `react-router-dom` breaks the "Open activity page" link
+     (`Cannot destructure property 'basename'`), `@tanstack/react-query`
+     breaks every page (`No QueryClient set`), and `i18next`/`react-i18next`
+     leave labels showing raw translation keys. Print the dashboard's versions,
+     then add them as direct dependencies:
+
+     ```bash
+     node -e "const m=require.resolve('@medusajs/medusa/package.json');const d=require(require.resolve('@medusajs/dashboard/package.json',{paths:[m]}));console.log(['@tanstack/react-query','react-router-dom','i18next','react-i18next'].map(n=>n+'@'+d.dependencies[n]).join(' '))"
+     pnpm add @tanstack/react-query@<v> react-router-dom@<v> i18next@<v> react-i18next@<v>
+     ```
+
+     `pnpm list react-router-dom` should then show a single version. Repeat
+     after every Medusa upgrade.
+
 ## Workflow tracking
 
 Use Medusa notification workflows and pass workflow metadata in `provider_data`:
@@ -156,7 +198,7 @@ The plugin now exposes a public ingestion endpoint for Postal delivery lifecycle
 POST /postal/webhooks/<postal-webhook-token>
 ```
 
-The exact tokenized URL is shown in the Postal admin activity page after you save settings. The settings screen intentionally only shows the callback path so the secret stays out of the configuration surface.
+The exact tokenized URL (with a copy button) is shown on the Postal admin activity page once `POSTAL_WEBHOOK_TOKEN` is set. The settings screen intentionally only shows the callback path so the secret stays out of the configuration surface.
 
 It accepts the Postal message status events documented by Postal:
 
@@ -169,7 +211,9 @@ It accepts the Postal message status events documented by Postal:
 - `MessageLoaded`
 - `DomainDNSError`
 
-Incoming webhook payloads are stored as raw JSON with normalized status metadata, so you can inspect delivery state changes in the admin Postal page after Postal calls back into Medusa.
+Postal delivers each webhook as an envelope, `{ "event", "timestamp", "payload", "uuid" }`, with the documented message data under `payload`. The route reads that envelope (a flat body is also accepted). A delivery event is recorded only when its message carries this plugin's tag (`uhlhosting.medusa-notification-postal:<template>`, added to every send), so mail sent by other applications on the same Postal server is ignored. Recording is idempotent per callback: a replayed callback is acknowledged without a second row.
+
+Only normalized delivery metadata is stored (event type, status, provider message ID and timestamps), never the raw callback, so you can follow delivery state changes in the admin Postal page after Postal calls back into Medusa.
 
 The admin page shows a redacted webhook activity log and the endpoint to configure inside Postal. It exposes event type, status, provider message ID, and timestamps only - never recipients or raw callbacks.
 

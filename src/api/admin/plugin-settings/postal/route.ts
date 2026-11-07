@@ -33,6 +33,11 @@ export async function GET(
 
   res.json({
     ...toPublicPostalSettings(settings),
+    // Set by a save, cleared by the boot loader once the process has restarted
+    // and picked the saved values up. The admin UI shows a restart notice.
+    pending_restart: Boolean(
+      (settingsRows[0] as PostalSettingRecord | undefined)?.pending_restart
+    ),
     diagnostics: {
       settings_source: "db_over_env",
     },

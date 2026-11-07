@@ -124,11 +124,6 @@ export default defineMiddlewares({
       middlewares: [validateAndTransformQuery(postalActivityQuerySchema, {})],
     },
     {
-      matcher: "/admin/plugin",
-      method: "GET",
-      middlewares: [authenticateAdmin()],
-    },
-    {
       matcher: "/admin/postal/health",
       method: "GET",
       middlewares: [authenticateAdmin()],

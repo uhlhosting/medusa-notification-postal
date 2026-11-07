@@ -8,6 +8,11 @@ type PluginSectionProps = {
   children?: ReactNode;
   className?: string;
   bodyClassName?: string;
+  // Render the body edge to edge, with no padding of its own. Use it for a
+  // DataTable, which pads its own toolbar and rows the way Medusa's list pages
+  // do. A `p-0` in `bodyClassName` cannot do this: it overrides the base
+  // padding but not the `sm:px-6` variant, so the table stays inset on desktop.
+  flush?: boolean;
 };
 
 export const PluginSection = ({
@@ -17,6 +22,7 @@ export const PluginSection = ({
   children,
   className,
   bodyClassName,
+  flush = false,
 }: PluginSectionProps) => {
   return (
     <Container className={clx("divide-y p-0", className)}>
@@ -38,36 +44,16 @@ export const PluginSection = ({
         )}
       </div>
       {children && (
-        <div className={clx("min-w-0 px-4 py-4 sm:px-6", bodyClassName)}>
+        <div
+          className={clx(
+            "min-w-0",
+            !flush && "px-4 py-4 sm:px-6",
+            bodyClassName
+          )}
+        >
           {children}
         </div>
       )}
-    </Container>
-  );
-};
-
-type PluginSidebarSectionProps = {
-  title: ReactNode;
-  icon?: ReactNode;
-  children: ReactNode;
-  className?: string;
-};
-
-export const PluginSidebarSection = ({
-  title,
-  icon,
-  children,
-  className,
-}: PluginSidebarSectionProps) => {
-  return (
-    <Container className={clx("divide-y p-0", className)}>
-      <div className="flex min-w-0 items-center gap-x-2 px-4 py-4 text-ui-fg-subtle sm:px-6">
-        {icon}
-        <Text size="small" leading="compact" weight="plus">
-          {title}
-        </Text>
-      </div>
-      <div className="min-w-0 px-4 py-4 sm:px-6">{children}</div>
     </Container>
   );
 };

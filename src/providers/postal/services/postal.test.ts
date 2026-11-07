@@ -388,16 +388,18 @@ test("lookup helpers normalize ids and fetch the expected endpoints", async () =
   const service = createService()
   const calls: Array<{ url: string; body: any }> = []
 
+  // Postal answers `messages/message` with an object and `messages/deliveries`
+  // with an array under `data`.
   globalThis.fetch = (async (url: string, init: any) => {
     calls.push({ url, body: JSON.parse(init.body) })
 
     return {
       ok: true,
       json: async () => ({
-        status: "ok",
-        data: {
-          message_id: "msg_42",
-        },
+        status: "success",
+        data: url.endsWith("/messages/deliveries")
+          ? [{ id: 7, status: "SoftFail" }]
+          : { message_id: "msg_42" },
       }),
     }
   }) as unknown as typeof fetch
@@ -408,11 +410,29 @@ test("lookup helpers normalize ids and fetch the expected endpoints", async () =
   const deliveries = await service.getMessageDeliveries(99)
 
   assert.deepEqual(details, { message_id: "msg_42" })
-  assert.deepEqual(deliveries, { message_id: "msg_42" })
+  assert.deepEqual(deliveries, [{ id: 7, status: "SoftFail" }])
   assert.equal(calls[0]?.url, "https://postal.example.com/api/v1/messages/message")
   assert.deepEqual(calls[0]?.body, { id: 42, _expansions: true })
   assert.equal(calls[1]?.url, "https://postal.example.com/api/v1/messages/deliveries")
   assert.deepEqual(calls[1]?.body, { id: 99 })
+})
+
+test("an empty delivery list is a valid answer and an object is not", async () => {
+  const service = createService()
+  let data: unknown = []
+
+  globalThis.fetch = (async () => ({
+    ok: true,
+    json: async () => ({ status: "success", data }),
+  })) as unknown as typeof fetch
+
+  assert.deepEqual(await service.getMessageDeliveries(5), [])
+
+  data = { message_id: "msg_5" }
+  await assert.rejects(() => service.getMessageDeliveries(5), MedusaError)
+
+  data = []
+  await assert.rejects(() => service.getMessageDetails(5), MedusaError)
 })
 
 test("send falls back to notification.data and recipient message ids", async () => {
