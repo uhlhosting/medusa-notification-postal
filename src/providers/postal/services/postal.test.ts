@@ -738,6 +738,50 @@ test("a caller cannot forge or overwrite the sandbox headers", async () => {
   assert.equal(calls[0]?.body.headers["X-Postal-Sandbox"], "true")
 })
 
+test("a caller cannot smuggle sandbox headers in another letter case or with underscores", async () => {
+  const service = createService()
+  const calls = captureSend()
+
+  await withEnv(
+    { POSTAL_SANDBOX: "true", POSTAL_TEST_TO: "sandbox@example.com" },
+    async () => {
+      await service.send({
+        to: ["customer@example.com"],
+        provider_data: {
+          subject: "S",
+          headers: {
+            "x-postal-sandbox-to": "someone-else@forged.example",
+            "X-POSTAL-SANDBOX": "false",
+            "X-Postal_Sandbox-Cc": "cc@forged.example",
+            "X-Trace-Id": "kept",
+          },
+        },
+      } as never)
+    }
+  )
+
+  const sandboxNames = Object.keys(calls[0]?.body.headers ?? {}).filter((name) =>
+    name.toLowerCase().replace(/_/g, "-").startsWith("x-postal-sandbox")
+  )
+  assert.deepEqual(sandboxNames.sort(), ["X-Postal-Sandbox", "X-Postal-Sandbox-To"])
+  assert.equal(calls[0]?.body.headers["X-Postal-Sandbox-To"], "customer@example.com")
+  assert.equal(calls[0]?.body.headers["X-Trace-Id"], "kept")
+})
+
+test("a message outside sandbox mode cannot claim X-Postal-Sandbox", async () => {
+  const service = createService()
+  const calls = captureSend()
+
+  await withEnv({ POSTAL_SANDBOX: "false" }, async () => {
+    await service.send({
+      to: ["customer@example.com"],
+      provider_data: { subject: "S", headers: { "x-postal-sandbox": "true" } },
+    } as never)
+  })
+
+  assert.equal(calls[0]?.body.headers?.["x-postal-sandbox"], undefined)
+})
+
 test("sandbox leaves recipients alone when it is off", async () => {
   const service = createService()
   const calls = captureSend()
@@ -975,6 +1019,8 @@ test("send keeps one valid Reply-To header, and a valid reply_to replaces any ca
   assert.deepEqual(replyToHeaders(calls[0]?.body.headers), [
     ["Reply-To", "enquirer@example.com"],
   ])
+  // Postal deletes a header-only Reply-To unless `reply_to` carries it too.
+  assert.equal(calls[0]?.body.reply_to, "enquirer@example.com")
 
   await service.send({
     to: ["staff@example.com"],
@@ -987,6 +1033,7 @@ test("send keeps one valid Reply-To header, and a valid reply_to replaces any ca
   assert.deepEqual(replyToHeaders(calls[1]?.body.headers), [
     ["Reply-To", "first@example.com"],
   ])
+  assert.equal(calls[1]?.body.reply_to, "first@example.com")
 
   await service.send({
     to: ["staff@example.com"],
@@ -1068,6 +1115,41 @@ test("send arms its abort timer with the request_timeout_ms provider option", as
   }
 })
 
+test("send times out when Postal sends headers and then stalls the body", async () => {
+  const service = new PostalNotificationService(
+    { logger },
+    {
+      from: "ops@example.com",
+      base_url: "https://postal.example.com",
+      api_key: "secret",
+      auth_type: "smtp-api",
+      request_timeout_ms: 1000,
+    }
+  )
+  // Headers arrive at once; the JSON body only settles if the request aborts.
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => ({
+    ok: true,
+    status: 200,
+    json: () =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(new DOMException("This operation was aborted", "AbortError"))
+        )
+      }),
+  })) as unknown as typeof fetch
+
+  const started = Date.now()
+  await assert.rejects(
+    service.send({
+      to: ["user@example.com"],
+      provider_data: { subject: "S", text: "t" },
+    } as never),
+    (err: any) =>
+      err instanceof MedusaError && /timed out/.test(err.message)
+  )
+  assert.ok(Date.now() - started < 5000)
+})
+
 const createServiceFor = (base_url: string) =>
   new PostalNotificationService(
     { logger },
@@ -1081,6 +1163,9 @@ const createServiceFor = (base_url: string) =>
 
 for (const base_url of [
   "http://localhost:5000",
+  "http://localhost.",
+  "http://LOCALHOST.:8080",
+  "http://foo.localhost",
   "http://127.0.0.1",
   "http://10.0.0.1",
   "http://172.16.0.1",
@@ -1113,6 +1198,8 @@ for (const base_url of [
 
 for (const base_url of [
   "https://postal.example.com",
+  // Only a whole "localhost" label is local.
+  "https://localhost.example.com",
   "http://203.0.113.10",
   "http://[2606:4700:4700::1111]",
   // Not unique-local or link-local: the first hextet is 0x00fd / 0x0fe8.

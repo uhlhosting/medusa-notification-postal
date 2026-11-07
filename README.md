@@ -46,11 +46,11 @@ The provider options above are typically wired from environment variables. The p
 | --- | --- | --- |
 | `POSTAL_AUTH_TYPE` | no | Auth mode; only `smtp-api` is supported (default `smtp-api`). |
 | `POSTAL_FROM` | no | Default sender address (`from` option). |
-| `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. `localhost` and literal loopback, private or link-local IP addresses are refused when a request is sent; use a hostname. |
+| `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. `localhost`, `*.localhost` (with or without a trailing dot) and literal loopback, private or link-local IP addresses are refused when a request is sent; use a hostname. This is the plugin's outbound check only; Postal's own webhook destination filtering is separate (see [Postal Webhooks](#postal-webhooks)). |
 | `POSTAL_API_KEY` | **yes** | Postal server API key (`api_key` option). |
 | `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path; generated if unset. |
 | `POSTAL_WEBHOOK_PUBLIC_KEY` | no | Postal's RSA public key (PEM, JWK, or the single-key JWKS from `/.well-known/jwks.json`). When set, webhooks must also carry a valid Postal signature. |
-| `POSTAL_REQUEST_TIMEOUT_MS` | no | Outbound Postal HTTP timeout in ms (default `10000`, clamped to 1000-60000). The `request_timeout_ms` provider option wins when set. |
+| `POSTAL_REQUEST_TIMEOUT_MS` | no | Outbound Postal HTTP timeout in ms (default `10000`, clamped to 1000-60000), covering the whole exchange including reading the response body. The `request_timeout_ms` provider option wins when set. |
 | `POSTAL_TEST_TO` | no | Recipient for admin test sends, and the address sandbox mode redirects to. |
 | `POSTAL_SANDBOX` | no | `true` redirects every recipient to `POSTAL_TEST_TO` (see [Sandbox mode](#sandbox-mode)). Off unless set. |
 | `MEDUSA_BACKEND_URL` | no | Fallback origin for the absolute webhook callback URL shown in the admin, when the request's host cannot be used. `VITE_BACKEND_URL` is the second fallback and also the admin extension's backend URL. |
@@ -246,7 +246,7 @@ provider_data: {
 }
 ```
 
-`from_name` formats the sender as `Name <email>`. `reply_to` is forwarded to Postal as both the `reply_to` field and the `Reply-To` header when it is exactly one bare printable-ASCII address (surrounding whitespace is trimmed). Anything else (a display name, a list, CR/LF, non-ASCII or invisible characters) is dropped and a warning is logged that names no address; the message is still sent, without a reply path. A `Reply-To` entry in `provider_data.headers` (in any letter case) gets the same check and is dropped the same way when it is not one plain address. When `reply_to` is valid it replaces any such header, and at most one `Reply-To` is sent. This makes it safe to pass a customer-supplied address, such as a contact-form enquirer's, either way.
+`from_name` formats the sender as `Name <email>`; a name containing RFC 5322 specials (such as `,` `:` `.` or `"`) is quoted, so `Example Store, Inc.` is sent as `"Example Store, Inc." <email>` instead of reading as two mailboxes. `reply_to` is forwarded to Postal as both the `reply_to` field and the `Reply-To` header when it is exactly one bare printable-ASCII address (surrounding whitespace is trimmed). Anything else (a display name, a list, CR/LF, non-ASCII or invisible characters) is dropped and a warning is logged that names no address; the message is still sent, without a reply path. A `Reply-To` entry in `provider_data.headers` (in any letter case) gets the same check and is dropped the same way when it is not one plain address. When `reply_to` is valid it replaces any such header, and at most one `Reply-To` is sent. A valid header passed without `reply_to` is also sent as Postal's `reply_to` field: Postal sets the Reply-To field from `reply_to` after applying custom headers, and deletes it when `reply_to` is empty. This makes it safe to pass a customer-supplied address, such as a contact-form enquirer's, either way.
 
 ### Programmatic Workflows
 

@@ -124,6 +124,14 @@ export const SANDBOX_HEADER = "X-Postal-Sandbox"
 export const SANDBOX_ORIGINAL_TO_HEADER = "X-Postal-Sandbox-To"
 export const SANDBOX_ORIGINAL_CC_HEADER = "X-Postal-Sandbox-Cc"
 export const SANDBOX_ORIGINAL_BCC_HEADER = "X-Postal-Sandbox-Bcc"
+const RESERVED_SANDBOX_HEADERS: ReadonlySet<string> = new Set(
+  [
+    SANDBOX_HEADER,
+    SANDBOX_ORIGINAL_TO_HEADER,
+    SANDBOX_ORIGINAL_CC_HEADER,
+    SANDBOX_ORIGINAL_BCC_HEADER,
+  ].map((name) => name.toLowerCase())
+)
 
 export type PostalSandboxConfig = {
   enabled: boolean
@@ -404,9 +412,16 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       }
 
       // `URL#hostname` keeps the brackets around an IPv6 literal, which
-      // `net.isIP` does not accept.
-      const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "")
-      if (hostname === "localhost") return false
+      // `net.isIP` does not accept. A trailing dot is the same host
+      // ("localhost." resolves like "localhost").
+      const hostname = url.hostname
+        .toLowerCase()
+        .replace(/^\[|\]$/g, "")
+        .replace(/\.+$/, "")
+      // RFC 6761: every *.localhost name resolves to loopback.
+      if (hostname === "localhost" || hostname.endsWith(".localhost")) {
+        return false
+      }
 
       if (net.isIPv4(hostname)) {
         const [a, b] = hostname.split(".").map(Number)
@@ -447,23 +462,46 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
+    const requestBody = JSON.stringify(payload)
     const controller = new AbortController()
+    // The deadline covers the whole exchange, including reading the response
+    // body: a server that sends headers and then stalls must not hold the
+    // send open past request_timeout_ms.
     const timeout = setTimeout(
       () => controller.abort(),
       resolveRequestTimeoutMs(this.config_.requestTimeoutOption)
     )
 
-    const response = await fetch(`${this.config_.baseUrl}/api/v1/${path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Server-API-Key": this.config_.apiKey,
-      },
-      signal: controller.signal,
-      body: JSON.stringify(payload),
-    }).finally(() => clearTimeout(timeout))
-
-    const body = (await response.json().catch(() => null)) as PostalApiResult | null
+    let response: Response
+    let body: PostalApiResult | null
+    try {
+      response = await fetch(`${this.config_.baseUrl}/api/v1/${path}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Server-API-Key": this.config_.apiKey,
+        },
+        signal: controller.signal,
+        body: requestBody,
+      })
+      body = (await response.json().catch((error: unknown) => {
+        // A body-read abort is the timeout, not an unparseable body.
+        if (controller.signal.aborted) {
+          throw error
+        }
+        return null
+      })) as PostalApiResult | null
+    } catch (error: unknown) {
+      if (controller.signal.aborted) {
+        throw new MedusaError(
+          MedusaError.Types.UNEXPECTED_STATE,
+          "Postal API request timed out"
+        )
+      }
+      throw error
+    } finally {
+      clearTimeout(timeout)
+    }
 
     const data =
       body?.data && typeof body.data === "object"
@@ -537,9 +575,10 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     headers: Record<string, string>,
     replyTo: string | undefined,
     context: string
-  ): Record<string, string> {
+  ): { headers: Record<string, string>; replyTo: string | undefined } {
     const result: Record<string, string> = {}
     let kept = Boolean(replyTo)
+    let keptHeaderValue: string | undefined
 
     for (const [name, value] of Object.entries(headers)) {
       if (name.toLowerCase() !== "reply-to") {
@@ -554,6 +593,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       if (isSingleEmailAddress(value)) {
         result[name] = value
         kept = true
+        keptHeaderValue = value.trim()
         continue
       }
 
@@ -562,7 +602,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       )
     }
 
-    return result
+    return { headers: result, replyTo: keptHeaderValue }
   }
 
   private filterHeaders(
@@ -708,12 +748,25 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     const htmlBody = input.template.html || ""
     const plainBody = input.template.text || (htmlBody ? this.stripHtml(htmlBody) : "")
     const customArgHeaders = normalizePostalCustomArgs(input.providerData.custom_args)
-    const filteredInputHeaders = this.checkReplyToHeaders(
+    const checkedInput = this.checkReplyToHeaders(
       this.filterHeaders(input.providerData.headers),
       input.sender.reply_to,
       `template=${input.template.template_name || "default"} run_id=${
         input.providerData.workflow_run_id || "none"
       }`
+    )
+    // Postal applies the custom headers and then sets the Reply-To field from
+    // `reply_to`, deleting it when that is empty. A Reply-To passed only as a
+    // header therefore has to travel as `reply_to` too, or it never arrives.
+    const effectiveReplyTo = input.sender.reply_to ?? checkedInput.replyTo
+    // The sandbox headers are reserved. Mail matches header names ignoring
+    // case and treats "_" as "-", so a caller's "x-postal-sandbox-to" or
+    // "X-Postal_Sandbox-To" would otherwise travel next to the real one.
+    const filteredInputHeaders = Object.fromEntries(
+      Object.entries(checkedInput.headers).filter(
+        ([name]) =>
+          !RESERVED_SANDBOX_HEADERS.has(name.toLowerCase().replace(/_/g, "-"))
+      )
     )
     const filteredCustomArgHeaders = this.filterHeaders(customArgHeaders)
     const replyToHeader: Record<string, string> =
@@ -734,7 +787,7 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
       cc: input.cc.length ? input.cc : undefined,
       bcc: input.bcc.length ? input.bcc : undefined,
       from: input.sender.from,
-      reply_to: input.sender.reply_to,
+      reply_to: effectiveReplyTo,
       subject: input.template.subject,
       html_body: htmlBody || undefined,
       plain_body: plainBody || undefined,

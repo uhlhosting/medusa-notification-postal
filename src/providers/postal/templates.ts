@@ -784,6 +784,15 @@ export const normalizePostalCustomArgs = (
   )
 }
 
+// RFC 5322 specials. An unquoted display name containing one is misparsed:
+// "Example Store, Inc. <a@b>" reads as two mailboxes, "Shop: Sales <a@b>" as
+// group syntax. Plain names stay unquoted; non-ASCII is left for the mailer
+// to encode.
+const RFC5322_SPECIALS = /[()<>[\]:;@\\,."]/
+
+const formatDisplayName = (name: string) =>
+  RFC5322_SPECIALS.test(name) ? `"${name.replace(/(["\\])/g, "\\$1")}"` : name
+
 export const resolvePostalSender = (
   identity: PostalSenderIdentity = {},
   fallbackFrom = ""
@@ -792,7 +801,7 @@ export const resolvePostalSender = (
   const fromName = String(identity.from_name || "").trim()
   const replyTo = String(identity.reply_to || "").trim()
 
-  const formattedFrom = fromName ? `${fromName} <${from}>` : from
+  const formattedFrom = fromName ? `${formatDisplayName(fromName)} <${from}>` : from
 
   return {
     from: formattedFrom,

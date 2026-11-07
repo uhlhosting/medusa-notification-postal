@@ -263,3 +263,28 @@ test("getPostalTemplateExample covers all built-in templates", () => {
     assert.equal(typeof example.reply_to, "string")
   }
 })
+
+test("resolvePostalSender quotes a display name that contains RFC 5322 specials", () => {
+  const from = "no-reply@example.com"
+
+  assert.equal(
+    resolvePostalSender({ from, from_name: "Example Store, Inc." }).from,
+    '"Example Store, Inc." <no-reply@example.com>'
+  )
+  assert.equal(
+    resolvePostalSender({ from, from_name: "Shop: Sales" }).from,
+    '"Shop: Sales" <no-reply@example.com>'
+  )
+  assert.equal(
+    resolvePostalSender({ from, from_name: 'A "q" \\ b' }).from,
+    '"A \\"q\\" \\\\ b" <no-reply@example.com>'
+  )
+  assert.equal(
+    resolvePostalSender({ from, from_name: "Postal Admin" }).from,
+    "Postal Admin <no-reply@example.com>"
+  )
+  assert.equal(
+    resolvePostalSender({ from, from_name: "Müller Shop" }).from,
+    "Müller Shop <no-reply@example.com>"
+  )
+})

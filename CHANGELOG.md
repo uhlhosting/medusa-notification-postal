@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- `request_timeout_ms` now bounds the whole Postal exchange. The timer was cleared as soon as the response headers arrived, so a Postal server or proxy that stalled the JSON body held a send (or an admin message lookup) open for minutes. A body-read abort now fails with `Postal API request timed out`.
+- A valid `Reply-To` passed only in `provider_data.headers` (the contact-form case) is also sent as Postal's `reply_to` field. Postal sets the Reply-To field from `reply_to` after applying custom headers and deletes it when that is empty, so the header never reached the recipient.
+- Caller headers can no longer smuggle `X-Postal-Sandbox*` headers through a different letter case or an underscore (`x-postal-sandbox-to`, `X-Postal_Sandbox-To`); the reserved names are dropped before the real sandbox headers are added.
+- `from_name` is quoted when it contains RFC 5322 specials, so `Example Store, Inc.` no longer produces a From header that parsers read as two mailboxes.
+- The `base_url` SSRF guard also refuses `localhost.` (trailing dot) and `*.localhost` names, which resolve to loopback.
+
 - Postal webhooks are recorded once per Postal delivery instead of once per `message_id` + `event_type`. The row id is derived from the envelope `uuid`, which Postal keeps across retries, and a replay is found by re-reading that id. The previous unique index rejected every repeated open, click and delay of one message, and every cc/bcc copy (they share Postal's RFC Message-ID), with a `400`, so Postal retried and then dropped them; and its replay handling looked for pg code `23505`, which Medusa's error mapper strips, so genuine retries got a `400` too. `Migration20261107090000` drops that index — run `medusa db:migrate` after upgrading. Rows the earlier migration soft-deleted are not restored (their payloads were already redacted); the webhook retention purge now includes them.
 - **Changed meaning:** a webhook row's `message_id` (in `/admin/postal/webhooks`, `/dashboard/postal/activity` and `postal.<status>` event data) is now Postal's numeric per-recipient message id — the notification's `external_id` and the id `GET /admin/postal/messages/:id` accepts — instead of the RFC Message-ID. Rows recorded before the upgrade keep the RFC value.
 - `postal.<status>` is emitted through `emitEventStep` only when a row was newly inserted, so Postal's retries no longer re-fire subscribers. If the emit fails, the row is removed and the request fails, so the retry records and emits it; previously the failure was swallowed and the event was lost.
