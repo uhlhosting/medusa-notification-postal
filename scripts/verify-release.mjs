@@ -8,9 +8,13 @@ import path from "node:path"
 const cwd = process.cwd()
 const pkgPath = path.join(cwd, "package.json")
 const pnpmExecPath = process.env.npm_execpath
+// `npm_execpath` is a JavaScript entry point when pnpm comes from npm or corepack
+// (as in CI), but a standalone `@pnpm/exe` install points it at a native binary
+// that `node` cannot execute; that case falls through to the plain `pnpm` call.
+const pnpmIsScript = /\.[cm]?js$/.test(pnpmExecPath ?? "")
 
 function runPnpm(args) {
-  if (pnpmExecPath) {
+  if (pnpmExecPath && pnpmIsScript) {
     return execFileSync(process.execPath, [pnpmExecPath, ...args], {
       cwd,
       encoding: "utf8",
