@@ -92,3 +92,33 @@ test("buildPostalAdminTestProviderData trims list inputs and falls back to templ
   assert.deepEqual(providerData.cc, "copy@example.com")
   assert.deepEqual(providerData.bcc, ["audit@example.com"])
 })
+
+const adminTestSettings = {
+  from: "no-reply@example.com",
+  test_to: "admin@example.com",
+  auth_type: "smtp-api",
+}
+
+test("buildPostalAdminTestProviderData accepts custom, mixed-case and inherited template names", () => {
+  const custom = buildPostalAdminTestProviderData(
+    adminTestSettings,
+    { template: "My-Custom" },
+    "admin_custom"
+  )
+  const mixedCase = buildPostalAdminTestProviderData(
+    adminTestSettings,
+    { template: "Order-Placed" },
+    "admin_mixed"
+  )
+  const inherited = buildPostalAdminTestProviderData(
+    adminTestSettings,
+    { template: "constructor" },
+    "admin_inherited"
+  )
+
+  // A custom name keeps its label and borrows the admin-test example.
+  assert.equal(custom.template, "My-Custom")
+  assert.equal(custom.subject, "Postal test from Medusa Admin")
+  assert.equal(mixedCase.subject, "Order confirmation")
+  assert.equal(inherited.subject, "Postal test from Medusa Admin")
+})

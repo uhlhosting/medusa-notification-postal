@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Changed:** workflow sends no longer copy the subject and bodies into the notification's `provider_data` and `data`. Those are stored on the notification row and returned by the admin API, and bodies can carry password-reset or invite links; the content now travels only in `content`, which reaches the provider in memory and is never stored. Anything that read `data.html`/`data.text` from stored notifications loses them for new rows; existing rows are unchanged (`notification_retention_days` can purge them). The `sendPostalEmailWorkflow` input is unchanged.
+- A multi-recipient send attaches `cc`/`bcc` to the first per-recipient notification only. Every notification carried them, so each copy address received one message per `to` recipient.
+- Template names are looked up as own registry keys. A custom or mixed-case name in an admin test send now borrows the matching (or the admin-test) example instead of failing, and inherited names such as `constructor` resolve to the default template instead of a `TypeError`.
+
 - `request_timeout_ms` now bounds the whole Postal exchange. The timer was cleared as soon as the response headers arrived, so a Postal server or proxy that stalled the JSON body held a send (or an admin message lookup) open for minutes. A body-read abort now fails with `Postal API request timed out`.
 - A valid `Reply-To` passed only in `provider_data.headers` (the contact-form case) is also sent as Postal's `reply_to` field. Postal sets the Reply-To field from `reply_to` after applying custom headers and deletes it when that is empty, so the header never reached the recipient.
 - Caller headers can no longer smuggle `X-Postal-Sandbox*` headers through a different letter case or an underscore (`x-postal-sandbox-to`, `X-Postal_Sandbox-To`); the reserved names are dropped before the real sandbox headers are added.

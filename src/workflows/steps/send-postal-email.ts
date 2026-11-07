@@ -40,13 +40,15 @@ export const normalizeRecipients = (value: string | string[]) => {
   return result
 }
 
+// Sender, copy and workflow metadata only. The subject and bodies travel in
+// the notification's `content`, which reaches the provider in memory and is
+// never stored; `provider_data` and `data` are persisted on the notification
+// row and readable through the admin API, and bodies can carry password-reset
+// or invite links.
 export const buildProviderData = (input: SendPostalEmailStepInput) => ({
   from: input.provider_data.from || input.from,
   from_name: input.provider_data.from_name || input.from_name,
   reply_to: input.provider_data.reply_to || input.reply_to,
-  subject: input.provider_data.subject,
-  html: input.provider_data.html,
-  text: input.provider_data.text,
   cc: input.provider_data.cc,
   bcc: input.provider_data.bcc,
   headers: input.provider_data.headers,
@@ -122,8 +124,17 @@ export const buildPostalNotificationsStep = createStep("build-postal-notificatio
   const template = emailInput.template || "default"
   const providerData = buildProviderData(emailInput)
 
-  const notifications = recipients.map((to) =>
-    buildPostalNotificationInput(emailInput, to, template, providerData)
+  // Each `to` recipient gets its own notification, and the provider sends
+  // every notification's cc/bcc. Attach the copies to the first only, or each
+  // cc/bcc address receives one copy per `to` recipient.
+  const withoutCopies = { ...providerData, cc: undefined, bcc: undefined }
+  const notifications = recipients.map((to, index) =>
+    buildPostalNotificationInput(
+      emailInput,
+      to,
+      template,
+      index === 0 ? providerData : withoutCopies
+    )
   )
 
   return new StepResponse(notifications)

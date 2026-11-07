@@ -1,5 +1,6 @@
 import {
   getPostalTemplateExample,
+  normalizeTemplateName,
   type PostalTemplateName,
 } from "../providers/postal/templates"
 
@@ -62,7 +63,11 @@ export const buildPostalAdminTestProviderData = (
   runId: string
 ): PostalAdminTestProviderData => {
   const templateName = normalizeString(body.template) || "postal-admin-test"
-  const example = getPostalTemplateExample(templateName as PostalTemplateName)
+  // A custom or differently-cased name borrows the matching registry example,
+  // or the admin-test one; the provider normalizes `template` again on send.
+  const example = getPostalTemplateExample(
+    normalizeTemplateName(templateName) ?? "postal-admin-test"
+  )
 
   return {
     template: templateName,

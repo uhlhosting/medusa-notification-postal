@@ -288,3 +288,9 @@ test("resolvePostalSender quotes a display name that contains RFC 5322 specials"
     "Müller Shop <no-reply@example.com>"
   )
 })
+
+test("resolvePostalTemplate treats inherited object keys as unknown templates", () => {
+  for (const name of ["constructor", "__proto__", "toString"]) {
+    assert.equal(resolvePostalTemplate(name).subject, "Notification", name)
+  }
+})

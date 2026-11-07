@@ -206,10 +206,12 @@ The plugin includes a built-in template registry for common notification flows:
 If a template key is not in the registry, Postal still uses the provided template string and falls back to the passed content. You can also pass extra tracing data through `provider_data.metadata` and `provider_data.custom_args`:
 
 ```ts
-provider_data: {
+content: {
   subject: "Order confirmation",
   html: "<p>Thanks for your order</p>",
   text: "Thanks for your order",
+},
+provider_data: {
   workflow_event: "order.placed",
   workflow_run_id: "wf_run_123",
   metadata: {
@@ -224,6 +226,8 @@ provider_data: {
 ```
 
 `custom_args` are normalized into safe email headers for transport-level traceability. `metadata` stays available in Medusa-side notification data and logs.
+
+Put the subject and bodies in `content`. It reaches the provider in memory and is never stored, whereas `provider_data` and `data` are persisted on the notification row and readable through the admin API, and bodies can carry password-reset or invite links. The provider still reads `subject`/`html`/`text` from `provider_data` when `content` lacks them, for callers that predate this.
 
 The admin Postal settings page uses the same registry for test-send template selection, so the built-in examples stay aligned across the backend and admin UI.
 The selected template also shows a preview of its subject, text, and HTML in the admin test-send panel.
@@ -274,3 +278,5 @@ const { result } = await sendPostalEmailWorkflow(req.scope).run({
 // Result returns the delivery info:
 // { success: true, delivery: { message_id: "123", ... } }
 ```
+
+The workflow moves `subject`, `html` and `text` into each notification's `content`; they are not copied into the stored `provider_data`. With several `to` recipients it creates one notification per recipient and attaches `cc`/`bcc` to the first only, so each copy address receives the message once.
