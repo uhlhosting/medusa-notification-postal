@@ -2,7 +2,7 @@
 
 Pending source correction: callback retention only purges published, unleased rows older than the configured creation-time cutoff. Unpublished receipts and rows carrying any publication owner/expiry survive regardless of age. This does not change notification retention or the published-metadata age policy. Investigate unresolved receipts operationally rather than deleting them to meet an age target. No schema migration is required for this filter correction; source preparation is not live activation.
 
-Requires Medusa 2.22.2 and UI 4.2.9. Stop callback handling/publication workers, back up the database, apply the module migration and upgrade every server/worker before resuming. No live migrations were performed during development.
+Requires Medusa 2.22.4 and UI 4.2.11. Stop callback handling/publication workers, back up the database, apply the module migration and upgrade every server/worker before resuming. No live migrations were performed during development.
 
 1.0.0 shipped the replay/publication migration as `Migration20261011120000`, a name `@uhlhosting/medusa-plugin-marketing-mautic` 2.0.0 also uses. Medusa records module migrations by name alone in the shared `mikro_orm_migrations` table, so where Mautic migrated first this schema was skipped: `replay_key`, `published_at`, `publication_owner`, `publication_expires_at` and `IDX_postal_webhook_replay_unique` are missing. The migration is now `Migration20261102112047` and runs on every database. Its DDL is idempotent, and historical callbacks are marked published only while `replay_key` is absent, so databases that did apply the old name keep their unpublished receipts. The orphaned `Migration20261011120000` row stays; it belongs to Mautic where Mautic is installed.
 

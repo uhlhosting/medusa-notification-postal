@@ -3,7 +3,7 @@ import postalWebhookPublication from "../../src/jobs/postal-webhook-publication"
 import { Modules } from "@medusajs/framework/utils"
 import { resolvePostalProvider } from "../../src/providers/postal/resolve-provider"
 jest.setTimeout(120_000)
-medusaIntegrationTestRunner({ inApp: true, dbName: "postal_http_native", testSuite: ({ api, getContainer }) => {
+medusaIntegrationTestRunner({ dbName: "postal_http_native", testSuite: ({ api, getContainer }) => {
   it("registers the actual Postal provider in the Notification module", async () => {
     const provider = resolvePostalProvider(getContainer())
     expect(provider.constructor.name).toBe("PostalNotificationService")
