@@ -33,22 +33,6 @@ export type PostalWebhookActivity = Pick<
 
 export const POSTAL_WEBHOOK_TAG_PREFIX = "uhlhosting.medusa-notification-postal:"
 
-const isPostgresUniqueViolation = (error: unknown): boolean => {
-  const visited = new Set<unknown>()
-  let current = error
-
-  while (current && typeof current === "object" && !visited.has(current)) {
-    visited.add(current)
-    const record = current as Record<string, unknown>
-    if (record.code === "23505") {
-      return true
-    }
-    current = record.cause || record.driverException || record.parent
-  }
-
-  return false
-}
-
 // Minimal shape of the generated module service methods this file relies on.
 export type PostalWebhookEventService = {
   listPostalWebhookEvents: (
@@ -58,6 +42,14 @@ export type PostalWebhookEventService = {
   createPostalWebhookEvents: (
     data: Record<string, unknown> | Record<string, unknown>[]
   ) => Promise<unknown>
+  // Hard delete. Used to undo an insert whose `postal.<status>` emit failed.
+  deletePostalWebhookEvents?: (ids: string | string[]) => Promise<unknown>
+}
+
+export type PostalWebhookRecordOutcome = {
+  record: PostalWebhookRecord
+  // False when the row already existed: a Postal retry of the same delivery.
+  created: boolean
 }
 
 const sanitizeString = (value: unknown) =>
@@ -72,6 +64,40 @@ const pickString = (...values: unknown[]) => {
   }
 
   return ""
+}
+
+// Postal's per-recipient message id is an integer. It is the value the
+// provider stores as notification.external_id and the id
+// GET /admin/postal/messages/:id accepts, so prefer it over the RFC
+// Message-ID string, which Postal shares between to, cc and bcc copies.
+const pickId = (...values: unknown[]) => {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value)
+    }
+    const normalized = sanitizeString(value)
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  return ""
+}
+
+const POSTAL_DELIVERY_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * The `uuid` of Postal's webhook envelope identifies one delivery and stays
+ * the same across Postal's retries of it. Returns it lowercased, or null for
+ * a bare event hash or a value that is not a UUID.
+ */
+export const readPostalWebhookDeliveryUuid = (
+  body: Record<string, unknown>
+): string | null => {
+  const uuid = typeof body.uuid === "string" ? body.uuid.trim() : ""
+
+  return POSTAL_DELIVERY_UUID.test(uuid) ? uuid.toLowerCase() : null
 }
 
 const pickNestedTag = (value: unknown) =>
@@ -334,7 +360,7 @@ export const normalizePostalWebhookPayload = (
     normalizeStatus(rawStatus)
   )
   const status = normalizeStatus(rawStatus || eventType)
-  const messageId = pickString(
+  const messageId = pickId(
     originalMessage.id,
     originalMessage.message_id,
     nestedMessage.id,
@@ -356,8 +382,11 @@ export const normalizePostalWebhookPayload = (
       nestedMessage.created_at
   )
 
+  const deliveryUuid = readPostalWebhookDeliveryUuid(body)
+
   return {
-    id: `postal_webhook_${randomUUID()}`,
+    // A Postal retry of the same delivery maps to the same primary key.
+    id: `postal_webhook_${deliveryUuid ?? randomUUID()}`,
     event_type: eventType,
     status,
     message_id: messageId || null,
@@ -380,11 +409,27 @@ export type RecordPostalWebhookEventOptions = {
   ignoreEngagement?: boolean
 }
 
-export const recordPostalWebhookEvent = async (
+const findPostalWebhookEvent = async (
+  service: PostalWebhookEventService,
+  id: string
+) => {
+  const [existing] = await service.listPostalWebhookEvents({ id }, { take: 1 })
+
+  return existing ?? null
+}
+
+/**
+ * Records a plugin webhook at most once per Postal delivery. The row id is
+ * derived from the envelope `uuid`, so the primary key rejects a replay; the
+ * replay is detected by re-reading that id, never by inspecting the database
+ * error (Medusa maps unique violations to a MedusaError without the pg code).
+ * Any other database error is rethrown.
+ */
+export const recordPostalWebhookEventOutcome = async (
   service: PostalWebhookEventService | null | undefined,
   payload: Record<string, unknown>,
   options: RecordPostalWebhookEventOptions = {}
-): Promise<PostalWebhookRecord | null> => {
+): Promise<PostalWebhookRecordOutcome | null> => {
   if (!isPostalWebhookFromPlugin(payload)) {
     return null
   }
@@ -411,6 +456,14 @@ export const recordPostalWebhookEvent = async (
     )
   }
 
+  const replayable = readPostalWebhookDeliveryUuid(payload) !== null
+  if (replayable) {
+    const existing = await findPostalWebhookEvent(service, event.id)
+    if (existing) {
+      return { record: existing, created: false }
+    }
+  }
+
   try {
     await service.createPostalWebhookEvents({
       id: event.id,
@@ -423,20 +476,26 @@ export const recordPostalWebhookEvent = async (
       payload: {},
     })
   } catch (error: unknown) {
-    if (isPostgresUniqueViolation(error) && event.message_id) {
-      const existing = await service.listPostalWebhookEvents(
-        { message_id: event.message_id, event_type: event.event_type },
-        { take: 1 }
-      )
-      if (existing?.length) {
-        return existing[0]
+    // A concurrent delivery of the same uuid can win the insert.
+    if (replayable) {
+      const existing = await findPostalWebhookEvent(service, event.id)
+      if (existing) {
+        return { record: existing, created: false }
       }
     }
     throw error
   }
 
-  return event
+  return { record: event, created: true }
 }
+
+export const recordPostalWebhookEvent = async (
+  service: PostalWebhookEventService | null | undefined,
+  payload: Record<string, unknown>,
+  options: RecordPostalWebhookEventOptions = {}
+): Promise<PostalWebhookRecord | null> =>
+  (await recordPostalWebhookEventOutcome(service, payload, options))?.record ??
+  null
 
 export const listPostalWebhookEvents = async (
   service: PostalWebhookEventService | null | undefined,

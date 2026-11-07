@@ -1,11 +1,14 @@
 import test from "node:test"
 import assert from "node:assert/strict"
+import { MedusaError } from "@medusajs/framework/utils"
 import {
   listPostalWebhookEvents,
   isPostalWebhookFromPlugin,
   isPostalSentWebhookFromPlugin,
   normalizePostalWebhookPayload,
+  readPostalWebhookDeliveryUuid,
   recordPostalWebhookEvent,
+  recordPostalWebhookEventOutcome,
   unwrapPostalWebhookEnvelope,
   POSTAL_WEBHOOK_TAG_PREFIX,
 } from "./webhooks"
@@ -485,23 +488,21 @@ const createFakeWebhookService = (opts: FakeWebhookServiceOpts = {}): any => {
       if (opts.throwOnList) throw new Error("database unavailable")
       lastListConfig = config
       let out = rows
-      if (filter && filter.message_id) {
-        out = out.filter(
-          (r) =>
-            r.message_id === filter.message_id &&
-            (filter.event_type === undefined || r.event_type === filter.event_type)
-        )
+      if (filter && filter.id) {
+        out = out.filter((r) => r.id === filter.id)
       }
       const take = config?.take as number | undefined
       return (typeof take === "number" ? out.slice(0, take) : out) as any
     },
     createPostalWebhookEvents: async (data: Record<string, unknown>) => {
       if (opts.throwOnCreate) throw new Error("database unavailable")
-      const isDuplicate = rows.some((r) => r.message_id === data.message_id && r.event_type === data.event_type)
-      if (isDuplicate) {
-        const err = new Error("duplicate key value violates unique constraint") as any
-        err.code = "23505"
-        throw err
+      // Mirrors Medusa's dbErrorMapper: a primary-key violation surfaces as
+      // a MedusaError with no pg code attached.
+      if (rows.some((r) => r.id === data.id)) {
+        throw new MedusaError(
+          MedusaError.Types.INVALID_DATA,
+          `Postal webhook events with id: ${String(data.id)}, already exists.`
+        )
       }
       created.push(data)
       rows.push(data)
@@ -535,32 +536,23 @@ test("recordPostalWebhookEvent persists a normalized event via the module servic
   assert.deepEqual(service.created[0]!.payload, {})
 })
 
-test("recordPostalWebhookEvent is idempotent for a replayed message + event type", async () => {
-  const service = createFakeWebhookService({
-    seed: [
-      {
-        id: "postal_webhook_existing",
-        event_type: "message.sent",
-        status: "sent",
-        message_id: "msg_dup",
-        recipient: "recipient@example.com",
-      },
-    ],
-  })
-
-  const event = await recordPostalWebhookEvent(service, {
+test("recordPostalWebhookEvent records a bare event hash without a delivery uuid each time", async () => {
+  const service = createFakeWebhookService()
+  const bare = {
     event: "message.sent",
     status: "sent",
     message: {
       id: "msg_dup",
-      recipient: "recipient@example.com",
       tag: "uhlhosting.medusa-notification-postal:postal-test",
     },
-  })
+  }
 
-  // No new row created; the existing record is returned.
-  assert.equal(service.created.length, 0)
-  assert.equal((event as NonNullable<typeof event>).id, "postal_webhook_existing")
+  await recordPostalWebhookEvent(service, bare)
+  await recordPostalWebhookEvent(service, bare)
+
+  // Without Postal's envelope uuid there is no delivery identity to dedupe on.
+  assert.equal(service.created.length, 2)
+  assert.notEqual(service.created[0]!.id, service.created[1]!.id)
 })
 
 test("recordPostalWebhookEvent ignores non-plugin messages", async () => {
@@ -761,7 +753,7 @@ test("normalizePostalWebhookPayload reads a real MessageSent envelope without re
 
   assert.equal(event.event_type, "message.sent")
   assert.equal(event.status, "sent")
-  assert.equal(event.message_id, taggedMessage.message_id)
+  assert.equal(event.message_id, String(taggedMessage.id))
   assert.equal(event.occurred_at, new Date(1782839545.73 * 1000).toISOString())
   assert.equal("payload" in event, false)
 })
@@ -801,7 +793,7 @@ test("recordPostalWebhookEvent persists a real envelope instead of ignoring it",
   assert.ok(event)
   assert.equal(service.created.length, 1)
   assert.equal(service.created[0].status, "sent")
-  assert.equal(service.created[0].message_id, taggedMessage.message_id)
+  assert.equal(service.created[0].message_id, String(taggedMessage.id))
   assert.deepEqual(service.created[0].payload, {})
 })
 
@@ -888,4 +880,150 @@ test("recordPostalWebhookEvent keeps recording engagement callbacks by default",
 
   assert.equal(recorded?.status, "clicked")
   assert.equal(service.created.length, 1)
+})
+
+const DELIVERY_UUID = "9d1f4c1e-0000-4000-8000-000000000001"
+
+const envelopeWithUuid = (
+  event: string,
+  inner: Record<string, unknown>,
+  uuid: string
+) => ({ event, timestamp: 1782839999.5, payload: inner, uuid })
+
+test("readPostalWebhookDeliveryUuid accepts only a UUID and lowercases it", () => {
+  assert.equal(
+    readPostalWebhookDeliveryUuid({ uuid: DELIVERY_UUID.toUpperCase() }),
+    DELIVERY_UUID
+  )
+  assert.equal(readPostalWebhookDeliveryUuid({ uuid: "not-a-uuid" }), null)
+  assert.equal(readPostalWebhookDeliveryUuid({ uuid: 42 }), null)
+  assert.equal(readPostalWebhookDeliveryUuid({}), null)
+})
+
+test("normalizePostalWebhookPayload derives the row id from the delivery uuid", () => {
+  const event = normalizePostalWebhookPayload(
+    envelopeWithUuid("MessageSent", { message: taggedMessage, status: "Sent" }, DELIVERY_UUID)
+  )
+
+  assert.equal(event.id, `postal_webhook_${DELIVERY_UUID}`)
+})
+
+test("normalizePostalWebhookPayload correlates a bounce through original_message.id", () => {
+  const event = normalizePostalWebhookPayload(
+    envelopeWithUuid(
+      "MessageBounced",
+      {
+        original_message: taggedMessage,
+        bounce: { ...taggedMessage, id: 99001, message_id: "bounce@example.com" },
+      },
+      DELIVERY_UUID
+    )
+  )
+
+  assert.equal(event.status, "bounced")
+  assert.equal(event.message_id, String(taggedMessage.id))
+})
+
+test("recordPostalWebhookEventOutcome treats a Postal retry of one delivery as a replay", async () => {
+  const service = createFakeWebhookService()
+  const body = envelopeWithUuid(
+    "MessageSent",
+    { message: taggedMessage, status: "Sent" },
+    DELIVERY_UUID
+  )
+
+  const first = await recordPostalWebhookEventOutcome(service, body)
+  const retry = await recordPostalWebhookEventOutcome(service, body)
+
+  assert.equal(first?.created, true)
+  assert.equal(retry?.created, false)
+  assert.equal(retry?.record.id, first?.record.id)
+  assert.equal(service.created.length, 1)
+})
+
+test("recordPostalWebhookEventOutcome resolves a concurrent insert of the same delivery by re-reading the id", async () => {
+  const service = createFakeWebhookService()
+  const body = envelopeWithUuid(
+    "MessageSent",
+    { message: taggedMessage, status: "Sent" },
+    DELIVERY_UUID
+  )
+  // The pre-insert lookup misses, then a concurrent request wins the insert.
+  const listPostalWebhookEvents = service.listPostalWebhookEvents
+  let lookups = 0
+  service.listPostalWebhookEvents = async (...args: unknown[]) => {
+    lookups += 1
+    if (lookups === 1) {
+      service.rows.push({ id: `postal_webhook_${DELIVERY_UUID}`, status: "sent" })
+      return []
+    }
+    return listPostalWebhookEvents(...args)
+  }
+
+  const outcome = await recordPostalWebhookEventOutcome(service, body)
+
+  assert.equal(outcome?.created, false)
+  assert.equal(outcome?.record.id, `postal_webhook_${DELIVERY_UUID}`)
+  assert.equal(service.created.length, 0)
+})
+
+test("recordPostalWebhookEventOutcome rethrows a database error that is not a replay", async () => {
+  const service = createFakeWebhookService({ throwOnCreate: true })
+
+  await assert.rejects(
+    recordPostalWebhookEventOutcome(
+      service,
+      envelopeWithUuid("MessageSent", { message: taggedMessage, status: "Sent" }, DELIVERY_UUID)
+    ),
+    /database unavailable/
+  )
+})
+
+test("recordPostalWebhookEventOutcome keeps repeated opens, clicks and delays of one message", async () => {
+  for (const [event, inner] of [
+    ["MessageLoaded", { message: taggedMessage, ip_address: "192.0.2.1" }],
+    ["MessageLinkClicked", { message: taggedMessage, url: "https://example.com/" }],
+    ["MessageDelayed", { message: taggedMessage, status: "SoftFail" }],
+  ] as const) {
+    const service = createFakeWebhookService()
+
+    const first = await recordPostalWebhookEventOutcome(
+      service,
+      envelopeWithUuid(event, inner, "9d1f4c1e-0000-4000-8000-00000000000a")
+    )
+    const second = await recordPostalWebhookEventOutcome(
+      service,
+      envelopeWithUuid(event, inner, "9d1f4c1e-0000-4000-8000-00000000000b")
+    )
+
+    assert.equal(first?.created, true, event)
+    assert.equal(second?.created, true, event)
+    assert.equal(service.created.length, 2, event)
+  }
+})
+
+test("recordPostalWebhookEventOutcome records to and bcc copies that share one RFC Message-ID", async () => {
+  const service = createFakeWebhookService()
+
+  await recordPostalWebhookEventOutcome(
+    service,
+    envelopeWithUuid(
+      "MessageSent",
+      { message: taggedMessage, status: "Sent" },
+      "9d1f4c1e-0000-4000-8000-00000000000c"
+    )
+  )
+  await recordPostalWebhookEventOutcome(
+    service,
+    envelopeWithUuid(
+      "MessageSent",
+      { message: { ...taggedMessage, id: 28639, to: "archive@example.com" }, status: "Sent" },
+      "9d1f4c1e-0000-4000-8000-00000000000d"
+    )
+  )
+
+  assert.deepEqual(
+    service.created.map((row: Record<string, unknown>) => row.message_id),
+    ["28638", "28639"]
+  )
 })

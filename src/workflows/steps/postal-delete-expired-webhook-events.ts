@@ -10,14 +10,15 @@ import {
 type PostalWebhookEventRecords = {
   listPostalWebhookEvents(
     filters: Record<string, unknown>,
-    config: { select: string[]; take: number }
+    config: { select: string[]; take: number; withDeleted?: boolean }
   ): Promise<Array<{ id: string }>>
   deletePostalWebhookEvents(ids: string[]): Promise<void>
 }
 
 /**
- * Hard-deletes `postal_webhook_events` rows created before the cutoff. Each
- * row holds a recipient address and the raw Postal callback payload.
+ * Hard-deletes `postal_webhook_events` rows created before the cutoff,
+ * including rows an earlier migration soft-deleted (the list would otherwise
+ * hide them, so they would never age out). Rows hold delivery metadata only.
  *
  * Does nothing where the plugin module is not registered. No compensation: a
  * retention delete is not rolled back.
@@ -38,7 +39,8 @@ export const postalDeleteExpiredWebhookEventsStepHandler = async (
 
   const deleted = await deleteCreatedBefore(
     cutoff,
-    (filters, config) => service.listPostalWebhookEvents(filters, config),
+    (filters, config) =>
+      service.listPostalWebhookEvents(filters, { ...config, withDeleted: true }),
     (ids) => service.deletePostalWebhookEvents(ids)
   )
 

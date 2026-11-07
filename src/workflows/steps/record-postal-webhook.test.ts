@@ -71,11 +71,10 @@ test("recordPostalWebhookEventStep records engagement callbacks when the option 
       { container }
     )
 
-    assert.equal(result?.status, "clicked")
+    assert.equal(result?.record.status, "clicked")
+    assert.equal(result?.created, true)
     assert.equal(created.length, 1)
-    assert.deepEqual(
-      emitted.map((message) => message.name),
-      ["postal.clicked"]
-    )
+    // The workflow emits postal.<status>; the step only records.
+    assert.equal(emitted.length, 0)
   }
 })

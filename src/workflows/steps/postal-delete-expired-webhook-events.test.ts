@@ -32,7 +32,7 @@ test("deletes stored webhook events created before the cutoff", async () => {
   assert.deepEqual(listCalls, [
     [
       { created_at: { $lt: new Date("2026-08-15T03:40:00.000Z") } },
-      { select: ["id"], take: 500 },
+      { select: ["id"], take: 500, withDeleted: true },
     ],
   ])
   assert.deepEqual(deleteCalls, [["postal_webhook_1", "postal_webhook_2"]])

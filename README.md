@@ -166,9 +166,11 @@ It accepts the Postal message status events documented by Postal:
 - `MessageLoaded`
 - `DomainDNSError`
 
-Incoming webhook payloads are stored as raw JSON with normalized status metadata, so you can inspect delivery state changes in the admin Postal page after Postal calls back into Medusa.
+Each callback is stored as normalized delivery metadata only (event type, status, Postal message id, timestamps); recipients and the raw callback body are never stored. Recording is idempotent per Postal delivery: the row id is derived from the envelope `uuid`, which Postal keeps across its retries, so a retried callback is answered `202` without a second row or a second `postal.<status>` event. Repeated opens, clicks and delays of one message are distinct deliveries and are all kept.
 
-The admin page shows a redacted webhook activity log and the endpoint to configure inside Postal. It exposes event type, status, provider message ID, and timestamps only - never recipients or raw callbacks.
+`postal.<status>` (for example `postal.bounced`) is emitted through Medusa's event bus once per recorded delivery, after the workflow succeeds. If the emit fails, the row is removed again and the request fails, so Postal's retry records and emits it.
+
+The admin page shows a redacted webhook activity log and the endpoint to configure inside Postal. It exposes event type, status, Postal message ID, and timestamps only - never recipients or raw callbacks. The message ID is Postal's numeric per-recipient id: the same value as the notification's `external_id` and the id `GET /admin/postal/messages/:id` accepts.
 
 Postal's HTTP payload docs are separate from webhook delivery callbacks and are mainly useful if you are also handling inbound mail by HTTP. Postal's auto-responder, bounce, wildcard, and address-tag docs are relevant when you want to route inbound mail or reason about delivery replies, but they do not change the webhook callback contract itself.
 

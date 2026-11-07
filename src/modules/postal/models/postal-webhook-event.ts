@@ -14,12 +14,10 @@ export const PostalWebhookEvent = model.define("postal_webhook_events", {
   // New events store an empty object only. The column remains until a future
   // major migration can remove it without breaking older installations.
   payload: model.json(),
-}).indexes([
-  {
-    name: "IDX_postal_webhook_message_event_unique",
-    on: ["message_id", "event_type"],
-    unique: true,
-  }
-])
+})
+// No unique (message_id, event_type) index: Postal repeats MessageLoaded,
+// MessageLinkClicked and MessageDelayed for one message, and each is a
+// distinct event. Idempotency comes from the primary key, which is derived
+// from the Postal delivery uuid (see recordPostalWebhookEventOutcome).
 
 export default PostalWebhookEvent
