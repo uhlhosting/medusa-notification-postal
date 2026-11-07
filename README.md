@@ -51,14 +51,16 @@ The provider options above are typically wired from environment variables. The p
 | `POSTAL_FROM` | no | Default sender address (`from` option). |
 | `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. `localhost`, `*.localhost` (with or without a trailing dot) and literal loopback, private or link-local IP addresses are refused when a request is sent; use a hostname. This is the plugin's outbound check only; Postal's own webhook destination filtering is separate (see [Postal Webhooks](#postal-webhooks)). |
 | `POSTAL_API_KEY` | **yes** | Postal server API key (`api_key` option). |
-| `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path; generated if unset. |
+| `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path. Required for webhooks and never generated: when unset, every callback is rejected with `400 Invalid Postal webhook token` and `GET /admin/postal/webhook-url` reports it as not configured. Use a long random value, e.g. `openssl rand -hex 32`. |
 | `POSTAL_WEBHOOK_PUBLIC_KEY` | no | Postal's RSA public key (PEM, JWK, or the single-key JWKS from `/.well-known/jwks.json`). When set, webhooks must also carry a valid Postal signature. |
 | `POSTAL_REQUEST_TIMEOUT_MS` | no | Outbound Postal HTTP timeout in ms (default `10000`, clamped to 1000-60000), covering the whole exchange including reading the response body. The `request_timeout_ms` provider option wins when set. |
 | `POSTAL_TEST_TO` | no | Recipient for admin test sends, and the address sandbox mode redirects to. |
 | `POSTAL_SANDBOX` | no | `true` redirects every recipient to `POSTAL_TEST_TO` (see [Sandbox mode](#sandbox-mode)). Off unless set. |
 | `MEDUSA_BACKEND_URL` | no | Fallback origin for the absolute webhook callback URL shown in the admin, when the request's host cannot be used. `VITE_BACKEND_URL` is the second fallback and also the admin extension's backend URL. |
 
-No other variables are read. The template registry, the webhook tag prefix (`uhlhosting.medusa-notification-postal:`), the webhook events table (`postal_webhook_events`), the provider identifier (`notification-postal`) and the module name (`postalPlugin`) are fixed in code and cannot be overridden from the environment.
+Apart from the dedicated `DASHBOARD_POSTAL_ACTIVITY_*` variables of the capability-only `GET /dashboard/postal/activity` route (see [docs/dashboard-postal-activity.md](docs/dashboard-postal-activity.md)), no other variables are read. The template registry, the webhook tag prefix (`uhlhosting.medusa-notification-postal:`), the webhook events table (`postal_webhook_events`), the provider identifier (`notification-postal`) and the module name (`postalPlugin`) are fixed in code and cannot be overridden from the environment.
+
+Register the provider with `id: "postal"` as in the example below. The admin health (`GET /admin/postal/health`) and message-inspection (`GET /admin/postal/messages/:id`) routes resolve it by that id through the Notification module's provider registry; `notification-postal` is only the provider class identifier.
 
 Keep the secret variables out of logs and client-visible surfaces; the admin settings endpoint never returns them.
 
@@ -156,7 +158,9 @@ The plugin now exposes a public ingestion endpoint for Postal delivery lifecycle
 POST /postal/webhooks/<postal-webhook-token>
 ```
 
-The exact tokenized URL is shown in the Postal admin activity page after you save settings. The settings screen intentionally only shows the callback path so the secret stays out of the configuration surface.
+The exact tokenized URL is shown in the Postal admin activity page once `POSTAL_WEBHOOK_TOKEN` is set and the backend restarted. The settings screen intentionally only shows the callback path so the secret stays out of the configuration surface.
+
+Postal 3.3.7 and later refuse to send webhooks to private, loopback, link-local and other reserved addresses (RFC 1918, 100.64/10, 127/8, 169.254/16, ::1, fc00::/7, fe80::/10, ...) unless the destination host or IP/CIDR range is listed in Postal's `postal.allowed_request_destinations` (env `POSTAL_ALLOWED_REQUEST_DESTINATIONS`). If your Medusa callback URL resolves to an internal address, for example a cluster-internal service, add it there. Otherwise Postal never reaches Medusa and nothing is logged on the Medusa side.
 
 It accepts the Postal message status events documented by Postal:
 
