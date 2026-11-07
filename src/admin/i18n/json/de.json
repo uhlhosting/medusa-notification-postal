@@ -122,7 +122,7 @@
   "postal.webhook_callback_url": "Webhook-URL",
   "postal.webhooks.callback_url_hint_prefix": "Verwende diese exakte, von diesem Plugin erzeugte Callback-URL in Postal:",
   "postal.webhooks.callback_url_hint_suffix": "Sie zeigt auf den aktuellen Medusa-Backend-Host und enthält ein sicheres Token.",
-  "postal.webhooks.callback_url_missing_prefix": "Speichere die Postal-Einstellungen, um die pluginverwaltete Callback-URL zu erzeugen, und kopiere sie dann",
+  "postal.webhooks.callback_url_missing_prefix": "Setze POSTAL_WEBHOOK_TOKEN in der Backend-Umgebung und starte das Backend neu, um die pluginverwaltete Callback-URL zu erhalten, und kopiere sie dann",
   "postal.webhooks.callback_url_missing_suffix": "von der Aktivitätsseite.",
   "postal.webhooks.sent": "Gesendet",
   "postal.webhooks.delayed": "Verzögert",
