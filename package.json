@@ -1,6 +1,6 @@
 {
   "name": "@uhlhosting/medusa-notification-postal",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Postal notification provider for Medusa",
   "author": "uhlhosting",
   "private": false,
