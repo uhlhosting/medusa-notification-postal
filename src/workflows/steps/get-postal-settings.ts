@@ -1,7 +1,10 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
 import { resolvePostalModule } from "../../modules/postal/constants"
-import type { PostalSettingService } from "../../modules/postal/settings"
-import { getPostalSettings } from "../../modules/postal/settings"
+import {
+  getPostalSettings,
+  toPublicPostalSettings,
+  type PostalSettingService,
+} from "../../modules/postal/settings"
 
 export const getPostalSettingsStep = createStep(
   "get-postal-settings",
@@ -9,6 +12,8 @@ export const getPostalSettingsStep = createStep(
     const service = resolvePostalModule<PostalSettingService>(container)
     const settings = await getPostalSettings(service)
 
-    return new StepResponse(settings)
+    // Step output is persisted by the workflow engine, so it must never
+    // carry POSTAL_API_KEY / POSTAL_WEBHOOK_TOKEN — only the public DTO.
+    return new StepResponse(toPublicPostalSettings(settings))
   }
 )

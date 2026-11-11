@@ -12,6 +12,7 @@ import type {
 import {
   persistPostalSettings,
   retrievePostalSettingRecord,
+  toPublicPostalSettings,
 } from "../../modules/postal/settings"
 
 type SavePostalSettingsCompensation = {
@@ -76,7 +77,9 @@ export const savePostalSettingsStep = createStep(
     const existing = await retrievePostalSettingRecord(service) || null
     const settings = await persistPostalSettings(service, payload, existing)
 
-    return new StepResponse(settings, { existing })
+    // Step output is persisted by the workflow engine — return the public
+    // DTO so POSTAL_API_KEY / POSTAL_WEBHOOK_TOKEN never enter workflow state.
+    return new StepResponse(toPublicPostalSettings(settings), { existing })
   },
   async (
     compensation: SavePostalSettingsCompensation | undefined,

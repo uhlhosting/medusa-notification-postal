@@ -5,7 +5,7 @@ import {
   type ReturnWorkflow
 } from "@medusajs/framework/workflows-sdk"
 import { sendNotificationsStep } from "@medusajs/medusa/core-flows"
-import type { PostalSettingsSnapshot } from "../modules/postal/settings"
+import type { PostalPublicSettingsSnapshot } from "../modules/postal/settings"
 import { getPostalSettingsStep } from "./steps/get-postal-settings"
 import {
   buildPostalNotificationsStep,
@@ -42,7 +42,7 @@ export type SendPostalTestWorkflowResult = {
     deliveries: Array<{ id: string | null }>
   }
   to: string | string[]
-  settings: PostalSettingsSnapshot
+  settings: PostalPublicSettingsSnapshot
 }
 
 export const sendPostalTestWorkflow: ReturnWorkflow<

@@ -1,7 +1,7 @@
 import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
 import { MedusaError } from "@medusajs/framework/utils"
 import type { CreateNotificationDTO } from "@medusajs/framework/types"
-import { validateModeRequirements, type PostalSettingsSnapshot } from "../../modules/postal/settings"
+import { validateModeRequirements, type PostalPublicSettingsSnapshot } from "../../modules/postal/settings"
 
 export type SendPostalEmailStepInput = {
   to: string | string[]
@@ -102,7 +102,7 @@ export const validateTestRecipientStep = createStep("validate-test-recipient", (
   return new StepResponse(recipient)
 })
 
-export const validateModeRequirementsStep = createStep("validate-mode-requirements", (settings: PostalSettingsSnapshot) => {
+export const validateModeRequirementsStep = createStep("validate-mode-requirements", (settings: PostalPublicSettingsSnapshot) => {
   const error = validateModeRequirements(settings)
   if (error) {
     throw new MedusaError(MedusaError.Types.INVALID_DATA, error)

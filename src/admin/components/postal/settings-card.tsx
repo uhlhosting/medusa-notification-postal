@@ -114,8 +114,8 @@ export const PostalSettingsCard = () => {
         id="postal-api-key"
         label={t("postal.api_key")}
         hint={
-          data?.secret_hints?.api_key_masked
-            ? `${t("postal.saved_key_prefix")} ${data.secret_hints.api_key_masked}. ${t("postal.api_key_env_managed")}`
+          data?.configured?.api_key
+            ? t("postal.api_key_configured")
             : t("postal.api_key_env_managed")
         }
       >
