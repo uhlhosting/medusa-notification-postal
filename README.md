@@ -55,7 +55,7 @@ The provider options above are typically wired from environment variables. The p
 | `POSTAL_REQUEST_TIMEOUT_MS` | no | Outbound Postal HTTP timeout in ms (default `10000`, clamped to 1000-60000). The `request_timeout_ms` provider option wins when set. The deadline includes body consumption and responses are capped at 1 MiB. |
 | `POSTAL_TEST_TO` | no | Recipient for admin test sends, and the address sandbox mode redirects to. |
 | `POSTAL_SANDBOX` | no | `true` redirects every recipient to `POSTAL_TEST_TO` (see [Sandbox mode](#sandbox-mode)). Off unless set. |
-| `MEDUSA_BACKEND_URL` | no | Fallback origin for the absolute webhook callback URL shown in the admin, when the request's host cannot be used. `VITE_BACKEND_URL` is the second fallback and also the admin extension's backend URL. |
+| `MEDUSA_BACKEND_URL` | no | Origin for the absolute webhook callback URL shown in the admin (`VITE_BACKEND_URL` is the fallback). Request `Origin`/`Host`/`X-Forwarded-*` headers are never used for it. |
 
 No other variables are read. The template registry, the webhook tag prefix (`uhlhosting.medusa-notification-postal:`), the webhook events table (`postal_webhook_events`), the provider identifier (`notification-postal`) and the module name (`postalPlugin`) are fixed in code and cannot be overridden from the environment.
 
@@ -198,7 +198,7 @@ The plugin now exposes a public ingestion endpoint for Postal delivery lifecycle
 POST /postal/webhooks/<postal-webhook-token>
 ```
 
-The exact tokenized URL (with a copy button) is shown on the Postal admin activity page once `POSTAL_WEBHOOK_TOKEN` is set. The settings screen intentionally only shows the callback path so the secret stays out of the configuration surface.
+The exact tokenized URL (with a copy button) is shown on the Postal admin activity page once `POSTAL_WEBHOOK_TOKEN` is set. The absolute callback URL is built only from a configured backend origin (`MEDUSA_BACKEND_URL`, then `VITE_BACKEND_URL`) — request headers are never trusted for it, and when no origin is configured only the callback path is shown. The settings screen intentionally only shows the callback path so the secret stays out of the configuration surface.
 
 It accepts the Postal message status events documented by Postal:
 

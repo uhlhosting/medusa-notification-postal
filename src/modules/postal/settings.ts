@@ -57,24 +57,23 @@ export type PostalSettingsSnapshot = {
     base_url: boolean
     webhook_token: boolean
   }
-  secret_hints: {
-    api_key_masked: string | null
-    webhook_token_masked: string | null
-  }
+}
+
+// The shape allowed to cross workflow-step, workflow-result and HTTP
+// boundaries: identical to the snapshot except the secret fields are always
+// empty strings. Durable workflow state and API payloads must never carry
+// POSTAL_API_KEY or POSTAL_WEBHOOK_TOKEN — and no secret-derived hints
+// (suffixes, lengths) either, since those leak partial key material.
+export type PostalPublicSettingsSnapshot = Omit<
+  PostalSettingsSnapshot,
+  "api_key" | "webhook_token"
+> & {
+  api_key: ""
+  webhook_token: ""
 }
 
 const sanitizeValue = (value: unknown) =>
   typeof value === "string" ? value.trim() : ""
-
-const maskSecret = (value?: string | null) => {
-  const secret = sanitizeValue(value)
-  if (!secret) {
-    return null
-  }
-
-  const visibleTail = secret.slice(-4)
-  return `${"*".repeat(Math.max(8, secret.length - 4))}${visibleTail}`
-}
 
 type EffectivePostalValues = {
   auth_type: PostalAuthType
@@ -101,13 +100,11 @@ const buildSnapshot = (
     base_url: Boolean(values.base_url),
     webhook_token: Boolean(values.webhook_token),
   },
-  secret_hints: {
-    api_key_masked: maskSecret(values.api_key),
-    webhook_token_masked: maskSecret(values.webhook_token),
-  },
 })
 
-export const toPublicPostalSettings = (settings: PostalSettingsSnapshot) => ({
+export const toPublicPostalSettings = (
+  settings: PostalSettingsSnapshot
+): PostalPublicSettingsSnapshot => ({
   ...settings,
   api_key: "",
   webhook_token: "",

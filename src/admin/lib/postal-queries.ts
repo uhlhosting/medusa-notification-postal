@@ -4,8 +4,8 @@ import { sdk } from "./client";
 export const postalSettingsKey = ["plugin-settings-postal"] as const;
 export const postalHealthKey = ["postal-health"] as const;
 
-// What `GET /admin/plugin-settings/postal` returns. Secrets never appear here,
-// only whether they are configured and a masked tail of each.
+// What `GET /admin/plugin-settings/postal` returns. Secrets never appear
+// here — not even masked hints — only whether they are configured.
 export type PostalSettingsResponse = {
   provider_id: string;
   auth_type: "smtp-api";
@@ -17,10 +17,6 @@ export type PostalSettingsResponse = {
     api_key: boolean;
     base_url: boolean;
     webhook_token: boolean;
-  };
-  secret_hints: {
-    api_key_masked: string | null;
-    webhook_token_masked: string | null;
   };
   pending_restart?: boolean;
 };

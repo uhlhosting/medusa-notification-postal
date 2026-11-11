@@ -53,10 +53,11 @@ test("postal settings GET returns public settings without secrets", async () => 
     assert.equal(responseBody.payload.webhook_token, "")
     assert.equal(responseBody.payload.configured.api_key, true)
     assert.equal(responseBody.payload.configured.webhook_token, true)
-    assert.match(responseBody.payload.secret_hints.api_key_masked, /\*+-key$/)
-    assert.match(
-      responseBody.payload.secret_hints.webhook_token_masked,
-      /\*+oken$/
+    // No secret material — not even masked hints — reaches the response.
+    assert.equal("secret_hints" in responseBody.payload, false)
+    assert.equal(
+      JSON.stringify(responseBody.payload).includes("postal-secret"),
+      false
     )
     assert.equal(responseBody.payload.diagnostics.settings_source, "db_over_env")
   } finally {

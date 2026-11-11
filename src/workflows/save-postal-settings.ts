@@ -5,7 +5,7 @@ import {
   transform,
 } from "@medusajs/framework/workflows-sdk"
 import type {
-  PostalSettingsSnapshot,
+  PostalPublicSettingsSnapshot,
   PostalSettingsInput,
 } from "../modules/postal/settings"
 import { validateModeRequirements } from "../modules/postal/settings"
@@ -14,7 +14,7 @@ import { savePostalSettingsStep } from "./steps/save-postal-settings"
 export type SavePostalSettingsWorkflowInput = PostalSettingsInput
 
 export type SavePostalSettingsWorkflowResult = {
-  settings: PostalSettingsSnapshot
+  settings: PostalPublicSettingsSnapshot
   ready_for_test: boolean
   validation_error: string | null
 }

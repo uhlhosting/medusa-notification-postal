@@ -105,7 +105,8 @@ test("getPostalSettings sources secrets from env and non-secret from the record"
       assert.equal(settings.webhook_token, "whtoken1234")
       assert.equal(settings.configured.api_key, true)
       assert.equal(settings.configured.webhook_token, true)
-      assert.equal(settings.secret_hints.api_key_masked?.endsWith("-key"), true)
+      // No secret-derived hints (suffixes/lengths) are exposed anywhere.
+      assert.equal("secret_hints" in settings, false)
     }
   )
 })
@@ -125,7 +126,7 @@ test("getPostalSettings falls back to env when there is no record or service", a
       assert.equal(settings.base_url, "https://env.example.com")
       assert.equal(settings.api_key, "")
       assert.equal(settings.configured.api_key, false)
-      assert.equal(settings.secret_hints.api_key_masked, null)
+      assert.equal("secret_hints" in settings, false)
       assert.equal(settings.test_to, null)
     }
   )
@@ -203,7 +204,7 @@ test("persistPostalSettings does not swallow database read failures", async () =
   )
 })
 
-test("toPublicPostalSettings strips secret values", async () => {
+test("toPublicPostalSettings strips secret values and hints", async () => {
   await withEnv(
     { POSTAL_API_KEY: "secret-key", POSTAL_WEBHOOK_TOKEN: "whtoken1234" },
     async () => {
@@ -211,8 +212,12 @@ test("toPublicPostalSettings strips secret values", async () => {
       const publicView = toPublicPostalSettings(settings)
       assert.equal(publicView.api_key, "")
       assert.equal(publicView.webhook_token, "")
-      // Masked hints remain for display.
-      assert.ok(publicView.secret_hints.api_key_masked)
+      // Configured booleans remain; no secret material or hints leak through.
+      assert.equal(publicView.configured.api_key, true)
+      assert.equal(publicView.configured.webhook_token, true)
+      assert.equal("secret_hints" in publicView, false)
+      assert.equal(JSON.stringify(publicView).includes("secret-key"), false)
+      assert.equal(JSON.stringify(publicView).includes("whtoken1234"), false)
     }
   )
 })
