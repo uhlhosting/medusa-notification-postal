@@ -322,4 +322,4 @@ const { result } = await sendPostalEmailWorkflow(req.scope).run({
 
 ## Production migration
 
-Medusa 2.22.4/UI 4.2.11 and the callback replay/publication migration are required. See [migration and deployment gates](docs/production-readiness-migration.md) before upgrading server/worker processes.
+Medusa 2.22.6/UI 4.2.13 and the callback replay/publication migration are required. See [migration and deployment gates](docs/production-readiness-migration.md) before upgrading server/worker processes.
