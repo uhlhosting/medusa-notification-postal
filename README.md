@@ -48,7 +48,7 @@ The provider options above are typically wired from environment variables. The p
 | --- | --- | --- |
 | `POSTAL_AUTH_TYPE` | no | Auth mode; only `smtp-api` is supported (default `smtp-api`). |
 | `POSTAL_FROM` | no | Default sender address (`from` option). |
-| `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. Trusted operator-only boot configuration, including internal self-hosted origins. Credentials/query/fragment and redirects are forbidden; restrict configuration access and egress. |
+| `POSTAL_BASE_URL` | no | Postal base URL (`base_url` option). Must be `http`/`https`. Internal self-hosted DNS names are supported; `localhost` and literal private, loopback or link-local IP addresses are rejected before a request. Credentials/query/fragment and redirects are forbidden; restrict configuration access and egress. |
 | `POSTAL_API_KEY` | **yes** | Postal server API key (`api_key` option). |
 | `POSTAL_WEBHOOK_TOKEN` | **yes** | Shared secret in the tokenized webhook path. Required for webhooks and not generated: until it is set the webhook route rejects every call and the admin shows no callback URL. |
 | `POSTAL_WEBHOOK_PUBLIC_KEY` | no | Postal's RSA public key (PEM, JWK, or the single-key JWKS from `/.well-known/jwks.json`). When set, webhooks must also carry a valid Postal signature. |
@@ -211,7 +211,7 @@ It accepts the Postal message status events documented by Postal:
 - `MessageLoaded`
 - `DomainDNSError`
 
-Postal delivers each webhook as an envelope, `{ "event", "timestamp", "payload", "uuid" }`, with the documented message data under `payload`. The route reads that envelope (a flat body is also accepted). A delivery event is recorded only when its message carries this plugin's tag (`uhlhosting.medusa-notification-postal:<template>`, added to every send), so mail sent by other applications on the same Postal server is ignored. Recording is idempotent per callback: a replayed callback is acknowledged without a second row.
+Postal delivers each webhook as an envelope, `{ "event", "timestamp", "payload", "uuid" }`, with the documented message data under `payload`. The route reads that envelope (a flat body is also accepted). Message delivery events are recorded only when the message carries this plugin's tag (`uhlhosting.medusa-notification-postal:<template>`, added to every send), so mail sent by other applications on the same Postal server is ignored. `DomainDNSError` has no message tag and is recorded as a server-wide event. Recording is idempotent per callback: a replayed callback is acknowledged without a second row. Only allowlisted metadata enters workflow state; recipients and raw callbacks do not.
 
 Only normalized delivery metadata is stored (event type, status, provider message ID and timestamps), never the raw callback, so you can follow delivery state changes in the admin Postal page after Postal calls back into Medusa.
 

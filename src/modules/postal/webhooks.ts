@@ -182,6 +182,7 @@ const normalizeStatus = (value: string): PostalWebhookStatus => {
       return "loaded"
     case "domaindnserror":
     case "domain.dns.error":
+    case "domain.dnserror":
     case "domain.dns_error":
     case "domain_dnserror":
     case "dnserror":
@@ -219,6 +220,7 @@ const normalizeEventType = (value: string) => {
       return "message.loaded"
     case "domaindnserror":
     case "domain.dns.error":
+    case "domain.dnserror":
     case "domain.dns_error":
     case "domain_dnserror":
       return "domain.dns_error"
@@ -394,35 +396,45 @@ export type RecordPostalWebhookEventOptions = {
   ignoreEngagement?: boolean
 }
 
-export const recordPostalWebhookEvent = async (
+export type PreparedPostalWebhook = {
+  event: PostalWebhookRecord
+  from_plugin: boolean
+}
+
+const KNOWN_EVENT_TYPES = new Set([
+  "message.sent", "message.delayed", "message.delivery_failed", "message.held",
+  "message.bounced", "message.link_clicked", "message.loaded", "domain.dns_error",
+])
+
+// Workflow inputs are persisted by Medusa. Carry only allowlisted metadata;
+// provider callback bodies may contain recipients, subjects and tracking URLs.
+export const preparePostalWebhook = (payload: Record<string, unknown>): PreparedPostalWebhook => {
+  const event = normalizePostalWebhookPayload(payload)
+  return {
+    event: {
+      ...event,
+      event_type: KNOWN_EVENT_TYPES.has(event.event_type) ? event.event_type : "postal.webhook",
+      message_id: event.message_id && /^\d+$/.test(event.message_id) ? event.message_id : null,
+    },
+    from_plugin: isPostalWebhookFromPlugin(payload),
+  }
+}
+
+export const recordPreparedPostalWebhookEvent = async (
   service: PostalWebhookEventService | null | undefined,
-  payload: Record<string, unknown>,
+  { event, from_plugin }: PreparedPostalWebhook,
   options: RecordPostalWebhookEventOptions = {}
 ): Promise<PostalWebhookRecord | null> => {
-  if (!isPostalWebhookFromPlugin(payload)) {
+  // Domain DNS failures are server-wide and have no message tag to attribute.
+  if (!from_plugin && !(event.event_type === "domain.dns_error" && event.status === "dns_error")) {
     return null
   }
 
-  // Normalize once and gate on the result — `isPostalSentWebhookFromPlugin`
-  // would repeat the full normalization pass on every inbound callback.
-  const event = normalizePostalWebhookPayload(payload)
+  if (event.status === "unknown") return null
+  if (options.ignoreEngagement && POSTAL_ENGAGEMENT_STATUSES.has(event.status)) return null
 
-  if (event.status === "unknown") {
-    return null
-  }
-
-  if (options.ignoreEngagement && POSTAL_ENGAGEMENT_STATUSES.has(event.status)) {
-    return null
-  }
-
-  if (
-    !service?.createPostalWebhookEvents ||
-    !service.listPostalWebhookEvents
-  ) {
-    throw new MedusaError(
-      MedusaError.Types.UNEXPECTED_STATE,
-      "Postal webhook persistence is unavailable"
-    )
+  if (!service?.createPostalWebhookEvents || !service.listPostalWebhookEvents) {
+    throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, "Postal webhook persistence is unavailable")
   }
 
   try {
@@ -433,8 +445,6 @@ export const recordPostalWebhookEvent = async (
       message_id: event.message_id,
       occurred_at: event.occurred_at,
       replay_key: event.replay_key,
-      // Do not persist a recipient or the raw provider callback. Both commonly
-      // contain personal data and are not needed for delivery observability.
       payload: {},
     })
   } catch (error: unknown) {
@@ -443,14 +453,20 @@ export const recordPostalWebhookEvent = async (
         { replay_key: event.replay_key },
         { take: 1 }
       )
-      if (existing?.length) {
-        return { ...existing[0], duplicate: true }
-      }
+      if (existing?.length) return { ...existing[0], duplicate: true }
     }
     throw error
   }
 
   return event
+}
+
+export const recordPostalWebhookEvent = async (
+  service: PostalWebhookEventService | null | undefined,
+  payload: Record<string, unknown>,
+  options: RecordPostalWebhookEventOptions = {}
+): Promise<PostalWebhookRecord | null> => {
+  return recordPreparedPostalWebhookEvent(service, preparePostalWebhook(payload), options)
 }
 
 export const listPostalWebhookEvents = async (

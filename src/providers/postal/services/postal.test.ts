@@ -1110,8 +1110,7 @@ for (const base_url of [credentialUrlFixture.href, "https://postal.example.com?k
 
 for (const base_url of [
   "https://postal.example.com",
-  "http://localhost:5000",
-  "http://10.0.0.1",
+  "http://postal.internal.example",
   "http://203.0.113.10",
   "http://[2606:4700:4700::1111]",
   // Not unique-local or link-local: the first hextet is 0x00fd / 0x0fe8.
@@ -1127,6 +1126,20 @@ for (const base_url of [
     })
 
     assert.equal(calls.length, 1)
+  })
+}
+
+for (const base_url of [
+  "http://localhost:5000", "http://service.localhost", "http://127.0.0.1",
+  "http://10.0.0.1", "http://172.16.0.1", "http://192.168.1.1",
+  "http://169.254.1.1", "http://[::1]", "http://[fd00::1]",
+  "http://[fe80::1]", "http://[::ffff:127.0.0.1]",
+]) {
+  test(`fetchPostalApi refuses a local literal destination before fetch (${base_url})`, async () => {
+    let calls = 0
+    globalThis.fetch = (async () => { calls++; throw new Error("unexpected request") }) as typeof fetch
+    await assert.rejects(() => createServiceFor(base_url)["fetchPostalApi"]("send/message", { subject: "S" }), MedusaError)
+    assert.equal(calls, 0)
   })
 }
 

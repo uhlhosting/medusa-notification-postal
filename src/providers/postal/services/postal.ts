@@ -1,4 +1,5 @@
 import type PostalPluginModuleService from "../../../modules/postal/service"
+import { BlockList, isIP } from "node:net"
 import {
   AbstractNotificationProviderService,
   MedusaError,
@@ -93,6 +94,23 @@ type PostalNotificationProviderData = {
 const POSTAL_DEFAULT_TIMEOUT_MS = 10000
 const POSTAL_MIN_TIMEOUT_MS = 1000
 const POSTAL_MAX_TIMEOUT_MS = 60000
+
+const blockedPostalAddresses = new BlockList()
+for (const [address, prefix, family] of [
+  ["0.0.0.0", 8, "ipv4"], ["10.0.0.0", 8, "ipv4"],
+  ["127.0.0.0", 8, "ipv4"], ["169.254.0.0", 16, "ipv4"],
+  ["172.16.0.0", 12, "ipv4"], ["192.168.0.0", 16, "ipv4"],
+  ["::", 128, "ipv6"], ["::1", 128, "ipv6"],
+  ["fc00::", 7, "ipv6"], ["fe80::", 10, "ipv6"],
+] as const) blockedPostalAddresses.addSubnet(address, prefix, family)
+
+const isBlockedPostalBaseUrl = (baseUrl: string): boolean => {
+  const hostname = new URL(baseUrl).hostname.toLowerCase().replace(/\.$/, "")
+  if (hostname === "localhost" || hostname.endsWith(".localhost")) return true
+  const address = hostname.replace(/^\[|\]$/g, "")
+  const family = isIP(address)
+  return family !== 0 && blockedPostalAddresses.check(address, family === 4 ? "ipv4" : "ipv6")
+}
 
 const parseTimeoutMs = (value: unknown): number | null => {
   if (value === undefined || value === null || value === "") {
@@ -438,6 +456,9 @@ export class PostalNotificationService extends AbstractNotificationProviderServi
     // The origin is trusted operator configuration captured at provider boot.
     // Internal self-hosted Postal origins are supported; callbacks and request
     // bodies cannot supply destinations. Redirects must never forward the key.
+    if (isBlockedPostalBaseUrl(this.config_.baseUrl)) {
+      throw new MedusaError(MedusaError.Types.INVALID_DATA, "Postal 'base_url' cannot use localhost or a private, loopback or link-local IP address")
+    }
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout>
     const expired = new Promise<never>((_, reject) => {

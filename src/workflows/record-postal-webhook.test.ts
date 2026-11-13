@@ -1,6 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { recordPostalWebhookWorkflow } from "./record-postal-webhook"
+import { preparePostalWebhook } from "../modules/postal/webhooks"
 
 test("recordPostalWebhookWorkflow surfaces missing persistence", async () => {
   const workflow = recordPostalWebhookWorkflow({
@@ -9,13 +10,13 @@ test("recordPostalWebhookWorkflow surfaces missing persistence", async () => {
 
   await assert.rejects(
     workflow.run({
-      input: {
+      input: preparePostalWebhook({
         event_type: "message.sent",
         status: "sent",
         message: {
           tag: "uhlhosting.medusa-notification-postal:postal-test",
         },
-      },
+      }),
     }),
     (error: unknown) =>
       typeof error === "object" &&
