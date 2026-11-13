@@ -1,6 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { recordPostalWebhookEventStepHandler } from "./record-postal-webhook"
+import { preparePostalWebhook } from "../../modules/postal/webhooks"
 
 const engagementPayload = {
   event: "message.link_clicked",
@@ -55,7 +56,7 @@ test("recordPostalWebhookEventStep neither stores nor emits engagement callbacks
   const { container, created, emitted } = makeWebhookContainer(true)
 
   const { output: result } = await recordPostalWebhookEventStepHandler(
-    engagementPayload,
+    preparePostalWebhook(engagementPayload),
     { container }
   )
 
@@ -69,7 +70,7 @@ test("recordPostalWebhookEventStep records engagement callbacks when the option 
     const { container, created, emitted } = makeWebhookContainer(ignore)
 
     const { output: result } = await recordPostalWebhookEventStepHandler(
-      engagementPayload,
+      preparePostalWebhook(engagementPayload),
       { container }
     )
 

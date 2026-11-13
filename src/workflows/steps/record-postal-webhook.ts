@@ -6,11 +6,12 @@ import {
   type PostalPluginOptionsReader,
 } from "../../modules/postal/options"
 import {
-  recordPostalWebhookEvent,
+  recordPreparedPostalWebhookEvent,
+  type PreparedPostalWebhook,
   type PostalWebhookEventService,
 } from "../../modules/postal/webhooks"
 
-type RecordPostalWebhookStepInput = Record<string, unknown>
+type RecordPostalWebhookStepInput = PreparedPostalWebhook
 
 type PublicationService = PostalWebhookEventService & {
   claimWebhookPublication?: (id: string) => Promise<string | null>
@@ -19,7 +20,7 @@ type PublicationService = PostalWebhookEventService & {
 
 export const publishPostalWebhookEvent = async (
   service: PublicationService,
-  event: NonNullable<Awaited<ReturnType<typeof recordPostalWebhookEvent>>>,
+  event: NonNullable<Awaited<ReturnType<typeof recordPreparedPostalWebhookEvent>>>,
   container: { resolve: (key: string) => unknown }
 ) => {
   if (!service.claimWebhookPublication || !service.settleWebhookPublication) throw new MedusaError(MedusaError.Types.UNEXPECTED_STATE, "Postal durable webhook publication service is unavailable")
@@ -50,7 +51,7 @@ export const recordPostalWebhookEventStepHandler = async (
     PostalWebhookEventService & PostalPluginOptionsReader
   >(container)
   const { ignore_engagement_webhooks } = await readPostalPluginOptions(service)
-  const event = await recordPostalWebhookEvent(service, payload, {
+  const event = await recordPreparedPostalWebhookEvent(service, payload, {
     ignoreEngagement: ignore_engagement_webhooks,
   })
 

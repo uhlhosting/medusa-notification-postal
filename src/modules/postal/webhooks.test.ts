@@ -258,7 +258,7 @@ test("normalizePostalWebhookPayload covers remaining delivery failed and domain 
   assert.equal(deliveryFailed.event_type, "message.delivery_failed")
   assert.equal(deliveryFailedExact.event_type, "message.delivery_failed")
   assert.equal(dnsError.event_type, "domain.dns_error")
-  assert.equal(dnsError.status, "unknown")
+  assert.equal(dnsError.status, "dns_error")
 })
 
 test("normalizePostalWebhookPayload maps explicit delivery statuses", () => {
@@ -415,7 +415,7 @@ test("normalizePostalWebhookPayload covers remaining explicit event aliases", ()
   assert.equal(loaded.event_type, "message.loaded")
   assert.equal(loaded.status, "loaded")
   assert.equal(dnsError.event_type, "domain.dns_error")
-  assert.equal(dnsError.status, "unknown")
+  assert.equal(dnsError.status, "dns_error")
   assert.equal(held.event_type, "message.held")
   assert.equal(held.status, "held")
 })
@@ -518,7 +518,7 @@ test("recordPostalWebhookEvent persists a normalized event via the module servic
     event: "message.sent",
     status: "sent",
     message: {
-      id: "msg_recorded",
+      id: "123456",
       recipient: "recipient@example.com",
       created_at: "2026-06-28T12:00:00Z",
       tag: "uhlhosting.medusa-notification-postal:postal-test",
@@ -526,14 +526,30 @@ test("recordPostalWebhookEvent persists a normalized event via the module servic
   })
 
   assert.equal(service.created.length, 1)
-  assert.equal(service.created[0]!.message_id, "msg_recorded")
+  assert.equal(service.created[0]!.message_id, "123456")
   assert.equal(service.created[0]!.status, "sent")
   assert.notEqual(event, null)
   const recorded = event as NonNullable<typeof event>
   assert.equal(recorded.status, "sent")
-  assert.equal(recorded.message_id, "msg_recorded")
+  assert.equal(recorded.message_id, "123456")
   assert.equal("recipient" in recorded, false)
   assert.deepEqual(service.created[0]!.payload, {})
+})
+
+test("records untagged Postal domain DNS callbacks without retaining domain details", async () => {
+  const service = createFakeWebhookService()
+  const event = await recordPostalWebhookEvent(service, {
+    event: "DomainDNSError",
+    uuid: "dns-event-1",
+    timestamp: 1782648000,
+    payload: { domain: "private.example.test", details: "private DNS detail" },
+  })
+
+  assert.equal(event?.status, "dns_error")
+  assert.equal(event?.event_type, "domain.dns_error")
+  assert.equal(service.created.length, 1)
+  assert.equal(JSON.stringify(service.created[0]).includes("private"), false)
+  assert.equal(service.created[0]?.message_id, null)
 })
 
 test("recordPostalWebhookEvent deduplicates callbacks including missing message IDs", async () => {

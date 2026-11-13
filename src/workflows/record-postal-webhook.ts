@@ -4,9 +4,9 @@ import {
   WorkflowResponse,
 } from "@medusajs/framework/workflows-sdk"
 import { recordPostalWebhookEventStep } from "./steps/record-postal-webhook"
-import type { PostalWebhookRecord } from "../modules/postal/webhooks"
+import type { PostalWebhookRecord, PreparedPostalWebhook } from "../modules/postal/webhooks"
 
-export type RecordPostalWebhookWorkflowInput = Record<string, unknown>
+export type RecordPostalWebhookWorkflowInput = PreparedPostalWebhook
 
 export const recordPostalWebhookWorkflow: ReturnWorkflow<
   RecordPostalWebhookWorkflowInput,
