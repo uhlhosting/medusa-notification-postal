@@ -247,21 +247,25 @@ mirror:github:
   before_script: []
   cache: []
   script:
-    - test -n "$GITHUB_MIRROR_SSH_PRIVATE_KEY"
+    - test -n "$GITHUB_MIRROR_TOKEN"
     - |
       TASK_MIRROR_DIR=$(mktemp -d)
       trap 'rm -rf "$TASK_MIRROR_DIR"' EXIT
       chmod 700 "$TASK_MIRROR_DIR"
-      printf '%s\n' "$GITHUB_MIRROR_SSH_PRIVATE_KEY" > "$TASK_MIRROR_DIR/key"
-      # Pin GitHub's published Ed25519 host key. This public key is not a secret.
-      # https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
-      printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$TASK_MIRROR_DIR/known_hosts"
-      chmod 600 "$TASK_MIRROR_DIR/key" "$TASK_MIRROR_DIR/known_hosts"
-      export GIT_SSH_COMMAND="ssh -i '$TASK_MIRROR_DIR/key' -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile='$TASK_MIRROR_DIR/known_hosts'"
+      cat > "$TASK_MIRROR_DIR/askpass" <<'ASKPASS'
+      #!/bin/sh
+      case "$1" in
+        *Username*) printf '%s\n' x-access-token ;;
+        *Password*) printf '%s\n' "$GITHUB_MIRROR_TOKEN" ;;
+        *) exit 1 ;;
+      esac
+      ASKPASS
+      chmod 700 "$TASK_MIRROR_DIR/askpass"
+      export GIT_ASKPASS="$TASK_MIRROR_DIR/askpass" GIT_TERMINAL_PROMPT=0
       git fetch origin "$CI_DEFAULT_BRANCH" --tags
       test "$CI_COMMIT_SHA" = "$(git rev-parse "origin/$CI_DEFAULT_BRANCH")"
       set -- "refs/remotes/origin/$CI_DEFAULT_BRANCH:refs/heads/main"
       for TASK_RELEASE_TAG in $(git tag --merged "$CI_COMMIT_SHA" --list 'v[0-9]*'); do
         set -- "$@" "refs/tags/$TASK_RELEASE_TAG:refs/tags/$TASK_RELEASE_TAG"
       done
-      git push --atomic git@github.com:uhlhosting/medusa-notification-postal.git "$@"
+      git -c credential.helper= push --atomic https://github.com/uhlhosting/medusa-notification-postal.git "$@"
