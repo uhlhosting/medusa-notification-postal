@@ -92,6 +92,8 @@ variables:
   AST_ENABLE_MR_PIPELINES: "true"
 
 default:
+  tags:
+    - uhlhosting-talos-k8s
   image: "node:${NODE_VERSION}-bookworm"
   cache:
     key:
