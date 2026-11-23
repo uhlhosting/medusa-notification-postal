@@ -89,7 +89,7 @@
   },
   "devDependencies": {
     "@medusajs/admin-sdk": "2.22.6",
-    "@medusajs/admin-shared": "2.22.6",
+    "@medusajs/admin-shared": "2.23.0",
     "@medusajs/cli": "2.22.6",
     "@medusajs/core-flows": "2.22.6",
     "@medusajs/dashboard": "2.22.6",
@@ -140,7 +140,7 @@
     "react-i18next": "^13.5.0 || ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0",
     "react-router-dom": "^7.18.2",
     "zod": "^4.4.3",
-    "@medusajs/admin-shared": "2.22.6"
+    "@medusajs/admin-shared": "2.23.0"
   },
   "engines": {
     "node": ">=22.22.0"
