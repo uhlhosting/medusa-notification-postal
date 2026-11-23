@@ -64,8 +64,8 @@ importers:
         specifier: 2.22.6
         version: 2.22.6(react@18.3.1)
       '@medusajs/js-sdk':
-        specifier: 2.22.6
-        version: 2.22.6
+        specifier: 2.23.0
+        version: 2.23.0
       '@medusajs/medusa':
         specifier: 2.22.6
         version: 2.22.6(4b9dc85f06a4eafc07176b4bc9f75591)
@@ -1542,6 +1542,10 @@ packages:
 
   '@medusajs/js-sdk@2.22.6':
     resolution: {integrity: sha512-YGYUytnY9GaRyaNVKTrwq68y98GYMqrdEqmobp4N0+Iym9fV/LLUZNCQ3TQViTi/MVLBSpgf50oN6Plhc3ahdg==}
+    engines: {node: '>=22.22.0'}
+
+  '@medusajs/js-sdk@2.23.0':
+    resolution: {integrity: sha512-OMYC2uYMHcK3/sQk1+5hNi6HE6+NUKYp2VKFI6NUjKBxVyftKPKwKtQW1mca649MSNK7CBbd2ZXOq6QwvbZtDg==}
     engines: {node: '>=22.22.0'}
 
   '@medusajs/link-modules@2.22.6':
@@ -9609,6 +9613,11 @@ snapshots:
       '@medusajs/framework': 2.22.6(@medusajs/cli@2.22.6(@types/node@20.19.43)(debug@4.4.3(supports-color@8.1.1))(supports-color@8.1.1))(@types/node@20.19.43)(debug@4.4.3(supports-color@8.1.1))(ioredis@5.11.1(supports-color@8.1.1))(supports-color@8.1.1)(vite@7.3.7(@types/node@20.19.43)(jiti@1.21.7)(tsx@4.23.13)(yaml@2.9.0))(zod@4.6.7)
 
   '@medusajs/js-sdk@2.22.6':
+    dependencies:
+      fetch-event-stream: 0.1.6
+      qs: 6.16.1
+
+  '@medusajs/js-sdk@2.23.0':
     dependencies:
       fetch-event-stream: 0.1.6
       qs: 6.16.1
